@@ -1,0 +1,737 @@
+package balance
+
+import (
+	"context"
+	"fmt"
+	v1 "jh_balance_service/api/backend/balance/v1"
+	"jh_balance_service/internal/dao"
+	"jh_balance_service/internal/model/entity"
+	"jh_balance_service/internal/service/backend"
+	"jh_balance_service/internal/tracing"
+
+	"github.com/gogf/gf/v2/database/gdb"
+	"github.com/gogf/gf/v2/frame/g"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+)
+
+type (
+	sBalance struct{}
+)
+
+func init() {
+	backend.RegisterBalance(&sBalance{})
+}
+
+// GetBalanceChanges 获取账变记录
+func (s *sBalance) GetBalanceChanges(ctx context.Context, req *v1.GetBalanceChangesReq) (*v1.GetBalanceChangesRes, error) {
+	if req == nil {
+		return nil, fmt.Errorf("请求参数不能为空")
+	}
+
+	ctx, span := tracing.StartSpan(ctx, "balance.GetBalanceChanges", trace.WithAttributes(
+		attribute.String("method", "GetBalanceChanges"),
+		attribute.String("username", req.Username),
+		attribute.Int("page", int(req.Page)),
+		attribute.Int("size", int(req.Size)),
+	))
+	defer span.End()
+
+	siteId := 1
+	page := req.Page
+	size := req.Size
+	if page <= 0 {
+		page = 1
+	}
+	if size <= 0 {
+		size = 50
+	}
+
+	query := dao.BalanceChange.Ctx(ctx).Where("site_id = ?", siteId)
+
+	if req.Username != "" {
+		query = query.Where("username = ?", req.Username)
+	}
+	if req.ChangeType > 0 {
+		if req.ChangeType == 1 { // 入款
+			query = query.WhereIn("trade_type", []int{1, 2, 3, 4, 9})
+		} else if req.ChangeType == 2 { // 出款
+			query = query.WhereIn("trade_type", []int{5, 6, 7, 8, 10})
+		}
+	}
+	if req.TradeType > 0 {
+		query = query.Where("trade_type = ?", req.TradeType)
+	}
+	if req.StartTime != "" {
+		query = query.Where("created_at >= ?", req.StartTime)
+	}
+	if req.EndTime != "" {
+		query = query.Where("created_at <= ?", req.EndTime)
+	}
+
+	count, err := query.Count()
+	if err != nil {
+		return nil, fmt.Errorf("查询账变记录总数失败: %v", err)
+	}
+
+	var changes []*entity.BalanceChange
+	offset := (page - 1) * size
+	err = query.Order("created_at DESC").
+		Limit(int(size)).
+		Offset(int(offset)).
+		Scan(&changes)
+	if err != nil {
+		return nil, fmt.Errorf("查询账变记录列表失败: %v", err)
+	}
+
+	var list []*v1.BalanceChangeInfo
+	for _, change := range changes {
+		info := &v1.BalanceChangeInfo{
+			Id:            int32(change.Id),
+			TradeType:     int32(change.TradeType),
+			TradeTypeName: s.getTradeTypeName(int(change.TradeType)),
+			UserId:        int32(change.UserId),
+			Username:      change.Username,
+			TradeNo:       change.TradeNo,
+			BalanceOld:    change.BalanceOld,
+			Money:         change.Money,
+			BalanceNew:    change.BalanceNew,
+			BalanceFrozen: change.BalanceFrozen,
+			Status:        int32(change.Status),
+			StatusName:    s.getStatusName(change.Status),
+			Remark:        change.Remark,
+			CreatedAt:     change.CreatedAt.String(),
+		}
+		list = append(list, info)
+	}
+
+	return &v1.GetBalanceChangesRes{
+		List:  list,
+		Count: int32(count),
+	}, nil
+}
+
+// GetRechargePayments 获取充值记录
+func (s *sBalance) GetRechargePayments(ctx context.Context, req *v1.GetRechargePaymentsReq) (*v1.GetRechargePaymentsRes, error) {
+	if req == nil {
+		return nil, fmt.Errorf("请求参数不能为空")
+	}
+
+	ctx, span := tracing.StartSpan(ctx, "balance.GetRechargePayments", trace.WithAttributes(
+		attribute.String("method", "GetRechargePayments"),
+		attribute.String("username", req.Username),
+		attribute.Int("page", int(req.Page)),
+		attribute.Int("size", int(req.Size)),
+	))
+	defer span.End()
+
+	siteId := 1
+	page := req.Page
+	size := req.Size
+	if page <= 0 {
+		page = 1
+	}
+	if size <= 0 {
+		size = 50
+	}
+
+	query := dao.BalanceLogPayment.Ctx(ctx).Where("site_id = ?", siteId)
+
+	if req.Username != "" {
+		query = query.Where("username = ?", req.Username)
+	}
+	if req.Gateway > 0 {
+		query = query.Where("gateway = ?", req.Gateway)
+	}
+	if req.PaymentId > 0 {
+		query = query.Where("payment_id = ?", req.PaymentId)
+	}
+	if req.AccountId > 0 {
+		query = query.Where("payment_account_id = ?", req.AccountId)
+	}
+	if req.Status > 0 {
+		query = query.Where("status = ?", req.Status)
+	}
+	if req.TradeNo != "" {
+		query = query.Where("trade_no = ?", req.TradeNo)
+	}
+	if req.StartTime != "" {
+		query = query.Where("created_at >= ?", req.StartTime)
+	}
+	if req.EndTime != "" {
+		query = query.Where("created_at <= ?", req.EndTime)
+	}
+
+	count, err := query.Count()
+	if err != nil {
+		return nil, fmt.Errorf("查询充值记录总数失败: %v", err)
+	}
+
+	var payments []*entity.BalanceLogPayment
+	offset := (page - 1) * size
+	err = query.Order("created_at DESC").
+		Limit(int(size)).
+		Offset(int(offset)).
+		Scan(&payments)
+	if err != nil {
+		return nil, fmt.Errorf("查询充值记录列表失败: %v", err)
+	}
+
+	var list []*v1.RechargePaymentInfo
+	for _, payment := range payments {
+		info := &v1.RechargePaymentInfo{
+			Id:                 int64(payment.Id),
+			UserId:             int32(payment.UserId),
+			Username:           payment.Username,
+			ActivityRechargeId: int32(payment.ActivityRechargeId),
+			Gateway:            int32(payment.Gateway),
+			GatewayName:        s.getGatewayName(payment.Gateway),
+			PaymentId:          int32(payment.PaymentId),
+			PaymentName:        "",
+			PaymentAccountId:   int32(payment.PaymentAccountId),
+			BankValue:          payment.BankValue,
+			TradeNo:            payment.TradeNo,
+			Money:              payment.Money,
+			Fee:                payment.Fee,
+			Status:             int32(payment.Status),
+			StatusName:         s.getPaymentStatusName(payment.Status),
+			AdminId:            int32(payment.AdminId),
+			AdminName:          "",
+			Remark:             payment.Remark,
+			CreatedAt:          payment.CreatedAt.String(),
+			UpdatedAt:          payment.UpdatedAt.String(),
+		}
+		list = append(list, info)
+	}
+
+	return &v1.GetRechargePaymentsRes{
+		List:  list,
+		Count: int32(count),
+	}, nil
+}
+
+// GetRechargeManuals 获取后台加款记录
+func (s *sBalance) GetRechargeManuals(ctx context.Context, req *v1.GetRechargeManualsReq) (*v1.GetRechargeManualsRes, error) {
+	if req == nil {
+		return nil, fmt.Errorf("请求参数不能为空")
+	}
+
+	ctx, span := tracing.StartSpan(ctx, "balance.GetRechargeManuals", trace.WithAttributes(
+		attribute.String("method", "GetRechargeManuals"),
+		attribute.String("username", req.Username),
+		attribute.Int("page", int(req.Page)),
+		attribute.Int("size", int(req.Size)),
+	))
+	defer span.End()
+
+	siteId := 1
+	page := req.Page
+	size := req.Size
+	if page <= 0 {
+		page = 1
+	}
+	if size <= 0 {
+		size = 50
+	}
+
+	query := dao.BalanceLogManual.Ctx(ctx).Where("site_id = ?", siteId).Where("trade_type = ?", 9) // 9=丢失补款
+
+	if req.Username != "" {
+		query = query.Where("username = ?", req.Username)
+	}
+	if req.Status > 0 {
+		query = query.Where("status = ?", req.Status)
+	}
+	if req.StartTime != "" {
+		query = query.Where("created_at >= ?", req.StartTime)
+	}
+	if req.EndTime != "" {
+		query = query.Where("created_at <= ?", req.EndTime)
+	}
+
+	count, err := query.Count()
+	if err != nil {
+		return nil, fmt.Errorf("查询后台加款记录总数失败: %v", err)
+	}
+
+	var manuals []*entity.BalanceLogManual
+	offset := (page - 1) * size
+	err = query.Order("created_at DESC").
+		Limit(int(size)).
+		Offset(int(offset)).
+		Scan(&manuals)
+	if err != nil {
+		return nil, fmt.Errorf("查询后台加款记录列表失败: %v", err)
+	}
+
+	var list []*v1.RechargeManualInfo
+	for _, manual := range manuals {
+		info := &v1.RechargeManualInfo{
+			Id:         int64(manual.Id),
+			UserId:     int32(manual.UserId),
+			Username:   manual.Username,
+			TradeNo:    manual.TradeNo,
+			Money:      manual.Money,
+			Status:     int32(manual.Status),
+			StatusName: s.getStatusName(manual.Status),
+			AdminId:    int32(manual.AdminId),
+			AdminName:  "",
+			Remark:     manual.Remark,
+			CreatedAt:  manual.CreatedAt.String(),
+		}
+		list = append(list, info)
+	}
+
+	return &v1.GetRechargeManualsRes{
+		List:  list,
+		Count: int32(count),
+	}, nil
+}
+
+// ConfirmPaymentOrder 确认支付订单
+func (s *sBalance) ConfirmPaymentOrder(ctx context.Context, req *v1.ConfirmPaymentOrderReq) (*v1.ConfirmPaymentOrderRes, error) {
+	if req == nil {
+		return nil, fmt.Errorf("请求参数不能为空")
+	}
+
+	ctx, span := tracing.StartSpan(ctx, "balance.ConfirmPaymentOrder", trace.WithAttributes(
+		attribute.String("method", "ConfirmPaymentOrder"),
+		attribute.Int64("id", req.Id),
+	))
+	defer span.End()
+
+	// 查找支付订单
+	var payment entity.BalanceLogPayment
+	err := dao.BalanceLogPayment.Ctx(ctx).Where("id = ?", req.Id).Scan(&payment)
+	if err != nil {
+		return nil, fmt.Errorf("查找支付订单失败: %v", err)
+	}
+
+	if payment.Id == 0 {
+		return &v1.ConfirmPaymentOrderRes{
+			Success: false,
+			Message: "支付订单不存在",
+		}, nil
+	}
+
+	if payment.Status == 2 {
+		return &v1.ConfirmPaymentOrderRes{
+			Success: false,
+			Message: "订单已经确认，请勿重复操作",
+		}, nil
+	}
+
+	// 开启事务
+	err = dao.BalanceLogPayment.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		// 更新订单状态
+		_, err := dao.BalanceLogPayment.Ctx(ctx).TX(tx).
+			Where("id = ?", req.Id).
+			Update(g.Map{
+				"status":     2,
+				"remark":     req.Remark,
+				"updated_at": "NOW()",
+			})
+		if err != nil {
+			return fmt.Errorf("更新订单状态失败: %v", err)
+		}
+
+		// TODO: 调用用户服务更新余额
+		// 这里需要调用 jh_admin_service 的用户余额更新接口
+
+		return nil
+	})
+
+	if err != nil {
+		return &v1.ConfirmPaymentOrderRes{
+			Success: false,
+			Message: fmt.Sprintf("确认订单失败: %v", err),
+		}, nil
+	}
+
+	return &v1.ConfirmPaymentOrderRes{
+		Success: true,
+		Message: "订单确认成功",
+	}, nil
+}
+
+// GetWithdraws 获取提现记录
+func (s *sBalance) GetWithdraws(ctx context.Context, req *v1.GetWithdrawsReq) (*v1.GetWithdrawsRes, error) {
+	if req == nil {
+		return nil, fmt.Errorf("请求参数不能为空")
+	}
+
+	ctx, span := tracing.StartSpan(ctx, "balance.GetWithdraws", trace.WithAttributes(
+		attribute.String("method", "GetWithdraws"),
+		attribute.String("username", req.Username),
+		attribute.Int("page", int(req.Page)),
+		attribute.Int("size", int(req.Size)),
+	))
+	defer span.End()
+
+	siteId := 1
+	page := req.Page
+	size := req.Size
+	if page <= 0 {
+		page = 1
+	}
+	if size <= 0 {
+		size = 50
+	}
+
+	query := dao.BalanceLogWithdraw.Ctx(ctx).Where("site_id = ?", siteId)
+
+	if req.Username != "" {
+		query = query.Where("username = ?", req.Username)
+	}
+	if req.Status > 0 {
+		query = query.Where("status = ?", req.Status)
+	}
+	if req.TradeNo != "" {
+		query = query.Where("trade_no = ?", req.TradeNo)
+	}
+	if req.StartTime != "" {
+		query = query.Where("updated_at >= ?", req.StartTime)
+	}
+	if req.EndTime != "" {
+		query = query.Where("updated_at <= ?", req.EndTime)
+	}
+
+	count, err := query.Count()
+	if err != nil {
+		return nil, fmt.Errorf("查询提现记录总数失败: %v", err)
+	}
+
+	var withdraws []*entity.BalanceLogWithdraw
+	offset := (page - 1) * size
+	err = query.Order("updated_at DESC").
+		Limit(int(size)).
+		Offset(int(offset)).
+		Scan(&withdraws)
+	if err != nil {
+		return nil, fmt.Errorf("查询提现记录列表失败: %v", err)
+	}
+
+	var list []*v1.WithdrawInfo
+	for _, withdraw := range withdraws {
+		info := &v1.WithdrawInfo{
+			Id:          int64(withdraw.Id),
+			UserId:      int32(withdraw.UserId),
+			UserLevelId: int32(withdraw.UserLevelId),
+			Username:    withdraw.Username,
+			TradeNo:     withdraw.TradeNo,
+			Money:       withdraw.Money,
+			Fee:         withdraw.Fee,
+			BankName:    withdraw.BankName,
+			CardAccount: withdraw.CardAccount,
+			CardNo:      s.maskCardNo(withdraw.CardNo),
+			DepositBank: withdraw.DepositBank,
+			Status:      int32(withdraw.Status),
+			StatusName:  s.getWithdrawStatusName(withdraw.Status),
+			AdminId:     int32(withdraw.AdminId),
+			AdminName:   "",
+			Remark:      withdraw.Remark,
+			CreatedAt:   withdraw.CreatedAt.String(),
+			UpdatedAt:   withdraw.UpdatedAt.String(),
+		}
+		list = append(list, info)
+	}
+
+	return &v1.GetWithdrawsRes{
+		List:  list,
+		Count: int32(count),
+	}, nil
+}
+
+// GetWithdrawManuals 获取后台提现记录
+func (s *sBalance) GetWithdrawManuals(ctx context.Context, req *v1.GetWithdrawManualsReq) (*v1.GetWithdrawManualsRes, error) {
+	if req == nil {
+		return nil, fmt.Errorf("请求参数不能为空")
+	}
+
+	ctx, span := tracing.StartSpan(ctx, "balance.GetWithdrawManuals", trace.WithAttributes(
+		attribute.String("method", "GetWithdrawManuals"),
+		attribute.String("username", req.Username),
+		attribute.Int("page", int(req.Page)),
+		attribute.Int("size", int(req.Size)),
+	))
+	defer span.End()
+
+	siteId := 1
+	page := req.Page
+	size := req.Size
+	if page <= 0 {
+		page = 1
+	}
+	if size <= 0 {
+		size = 50
+	}
+
+	query := dao.BalanceLogManual.Ctx(ctx).Where("site_id = ?", siteId).Where("trade_type = ?", 10) // 10=多出扣款
+
+	if req.Username != "" {
+		query = query.Where("username = ?", req.Username)
+	}
+	if req.Status > 0 {
+		query = query.Where("status = ?", req.Status)
+	}
+	if req.StartTime != "" {
+		query = query.Where("created_at >= ?", req.StartTime)
+	}
+	if req.EndTime != "" {
+		query = query.Where("created_at <= ?", req.EndTime)
+	}
+
+	count, err := query.Count()
+	if err != nil {
+		return nil, fmt.Errorf("查询后台提现记录总数失败: %v", err)
+	}
+
+	var manuals []*entity.BalanceLogManual
+	offset := (page - 1) * size
+	err = query.Order("created_at DESC").
+		Limit(int(size)).
+		Offset(int(offset)).
+		Scan(&manuals)
+	if err != nil {
+		return nil, fmt.Errorf("查询后台提现记录列表失败: %v", err)
+	}
+
+	var list []*v1.WithdrawManualInfo
+	for _, manual := range manuals {
+		info := &v1.WithdrawManualInfo{
+			Id:         int64(manual.Id),
+			UserId:     int32(manual.UserId),
+			Username:   manual.Username,
+			TradeNo:    manual.TradeNo,
+			Money:      manual.Money,
+			Status:     int32(manual.Status),
+			StatusName: s.getStatusName(manual.Status),
+			AdminId:    int32(manual.AdminId),
+			AdminName:  "",
+			Remark:     manual.Remark,
+			CreatedAt:  manual.CreatedAt.String(),
+		}
+		list = append(list, info)
+	}
+
+	return &v1.GetWithdrawManualsRes{
+		List:  list,
+		Count: int32(count),
+	}, nil
+}
+
+// GetWithdrawReview 获取提现审核信息
+func (s *sBalance) GetWithdrawReview(ctx context.Context, req *v1.GetWithdrawReviewReq) (*v1.GetWithdrawReviewRes, error) {
+	if req == nil {
+		return nil, fmt.Errorf("请求参数不能为空")
+	}
+
+	ctx, span := tracing.StartSpan(ctx, "balance.GetWithdrawReview", trace.WithAttributes(
+		attribute.String("method", "GetWithdrawReview"),
+		attribute.Int64("id", req.Id),
+	))
+	defer span.End()
+
+	// 查找提现记录
+	var withdraw entity.BalanceLogWithdraw
+	err := dao.BalanceLogWithdraw.Ctx(ctx).Where("id = ?", req.Id).Scan(&withdraw)
+	if err != nil {
+		return nil, fmt.Errorf("查找提现记录失败: %v", err)
+	}
+
+	if withdraw.Id == 0 {
+		return nil, fmt.Errorf("提现记录不存在")
+	}
+
+	// TODO: 调用用户服务获取用户信息和余额
+	// 这里需要调用 jh_admin_service 的用户信息接口
+
+	reviewInfo := &v1.WithdrawReviewInfo{
+		Id:                int64(withdraw.Id),
+		UserId:            int32(withdraw.UserId),
+		Username:          withdraw.Username,
+		TradeNo:           withdraw.TradeNo,
+		Money:             withdraw.Money,
+		Fee:               withdraw.Fee,
+		BankName:          withdraw.BankName,
+		CardAccount:       withdraw.CardAccount,
+		CardNo:            withdraw.CardNo, // 审核时显示完整卡号
+		DepositBank:       withdraw.DepositBank,
+		Status:            int32(withdraw.Status),
+		Remark:            withdraw.Remark,
+		CreatedAt:         withdraw.CreatedAt.String(),
+		UserRealname:      "",
+		UserMobile:        "",
+		UserBalance:       0,
+		UserBalanceFrozen: 0,
+		TotalRecharge:     0,
+		TotalWithdraw:     0,
+		WithdrawCount:     0,
+	}
+
+	return &v1.GetWithdrawReviewRes{
+		Data: reviewInfo,
+	}, nil
+}
+
+// DealWithWithdraw 处理提现
+func (s *sBalance) DealWithWithdraw(ctx context.Context, req *v1.DealWithWithdrawReq) (*v1.DealWithWithdrawRes, error) {
+	if req == nil {
+		return nil, fmt.Errorf("请求参数不能为空")
+	}
+
+	ctx, span := tracing.StartSpan(ctx, "balance.DealWithWithdraw", trace.WithAttributes(
+		attribute.String("method", "DealWithWithdraw"),
+		attribute.Int64("id", req.Id),
+		attribute.Int("type", int(req.Type)),
+	))
+	defer span.End()
+
+	// 查找提现记录
+	var withdraw entity.BalanceLogWithdraw
+	err := dao.BalanceLogWithdraw.Ctx(ctx).Where("id = ?", req.Id).Scan(&withdraw)
+	if err != nil {
+		return nil, fmt.Errorf("查找提现记录失败: %v", err)
+	}
+
+	if withdraw.Id == 0 {
+		return &v1.DealWithWithdrawRes{
+			Success: false,
+			Message: "提现记录不存在",
+		}, nil
+	}
+
+	if withdraw.Status != 1 {
+		return &v1.DealWithWithdrawRes{
+			Success: false,
+			Message: "该提现记录已处理，请勿重复操作",
+		}, nil
+	}
+
+	var message string
+	// 开启事务处理
+	err = dao.BalanceLogWithdraw.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		var newStatus int
+
+		switch req.Type {
+		case 1: // 确认提现
+			newStatus = 2
+			message = "提现确认成功"
+			// TODO: 调用第三方支付API
+		case 0: // 拒绝提现
+			newStatus = 3
+			message = "提现已拒绝"
+			// TODO: 调用用户服务解冻余额
+		case 2: // 补单提现
+			newStatus = 2
+			message = "补单提现成功"
+			// TODO: 调用第三方支付API
+		default:
+			return fmt.Errorf("无效的处理类型")
+		}
+
+		// 更新提现记录
+		_, err := dao.BalanceLogWithdraw.Ctx(ctx).TX(tx).
+			Where("id = ?", req.Id).
+			Update(g.Map{
+				"status":     newStatus,
+				"fee":        req.Fee,
+				"remark":     req.Remark,
+				"updated_at": "NOW()",
+			})
+		if err != nil {
+			return fmt.Errorf("更新提现记录失败: %v", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return &v1.DealWithWithdrawRes{
+			Success: false,
+			Message: fmt.Sprintf("处理提现失败: %v", err),
+		}, nil
+	}
+
+	return &v1.DealWithWithdrawRes{
+		Success: true,
+		Message: message,
+	}, nil
+}
+
+// 辅助方法
+func (s *sBalance) getTradeTypeName(tradeType int) string {
+	names := map[int]string{
+		1:  "转入",
+		2:  "充值",
+		3:  "红利",
+		4:  "返水",
+		5:  "转出",
+		6:  "提现成功",
+		7:  "提现返回",
+		8:  "提现冻结",
+		9:  "丢失补款",
+		10: "多出扣款",
+	}
+	if name, ok := names[tradeType]; ok {
+		return name
+	}
+	return "未知"
+}
+
+func (s *sBalance) getStatusName(status int) string {
+	names := map[int]string{
+		1: "待审核",
+		2: "成功",
+		3: "失败",
+	}
+	if name, ok := names[status]; ok {
+		return name
+	}
+	return "未知"
+}
+
+func (s *sBalance) getPaymentStatusName(status int) string {
+	names := map[int]string{
+		1: "未付",
+		2: "成功",
+		3: "失败",
+	}
+	if name, ok := names[status]; ok {
+		return name
+	}
+	return "未知"
+}
+
+func (s *sBalance) getWithdrawStatusName(status int) string {
+	names := map[int]string{
+		1: "待审核",
+		2: "成功",
+		3: "失败",
+		4: "处理中",
+	}
+	if name, ok := names[status]; ok {
+		return name
+	}
+	return "未知"
+}
+
+func (s *sBalance) getGatewayName(gateway int) string {
+	names := map[int]string{
+		1: "在线支付",
+		2: "银行转账",
+		3: "支付宝",
+		4: "微信支付",
+	}
+	if name, ok := names[gateway]; ok {
+		return name
+	}
+	return "未知"
+}
+
+func (s *sBalance) maskCardNo(cardNo string) string {
+	if len(cardNo) <= 8 {
+		return cardNo
+	}
+	return cardNo[:4] + "****" + cardNo[len(cardNo)-4:]
+}

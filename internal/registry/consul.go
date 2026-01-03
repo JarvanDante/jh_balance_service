@@ -10,24 +10,30 @@ import (
 
 var client *api.Client
 
-func InitConsul() {
+func InitConsul() error {
 	ctx := context.Background()
 	cfg := api.DefaultConfig()
 	addr := g.Cfg().MustGet(ctx, "consul.addr").String()
+	if addr == "" {
+		return fmt.Errorf("consul.addr 配置不能为空")
+	}
 	cfg.Address = addr
 
 	var err error
 	client, err = api.NewClient(cfg)
 	if err != nil {
-		g.Log().Fatalf(ctx, "init consul failed: %v", err)
+		return fmt.Errorf("init consul failed: %v", err)
 	}
+
+	// 自动注册服务
+	return RegisterService()
 }
 
 func RegisterService() error {
 	ctx := context.Background()
-	serviceName := g.Cfg().MustGet(ctx, "consul.serviceName").String()
-	servicePort := g.Cfg().MustGet(ctx, "consul.servicePort").Int()
-	serviceAddr := g.Cfg().MustGet(ctx, "consul.serviceAddr").String()
+	serviceName := g.Cfg().MustGet(ctx, "consul.serviceName", "balance_service").String()
+	servicePort := g.Cfg().MustGet(ctx, "consul.servicePort", 8000).Int()
+	serviceAddr := g.Cfg().MustGet(ctx, "consul.serviceAddr", "127.0.0.1").String()
 
 	registration := &api.AgentServiceRegistration{
 		ID:      fmt.Sprintf("%s-%s", serviceName, serviceAddr),
@@ -52,12 +58,14 @@ func RegisterService() error {
 
 func DeregisterService() error {
 	ctx := context.Background()
-	serviceID := "jh_admin_service-1"
+	serviceName := g.Cfg().MustGet(ctx, "consul.serviceName", "balance_service").String()
+	serviceAddr := g.Cfg().MustGet(ctx, "consul.serviceAddr", "127.0.0.1").String()
+	serviceID := fmt.Sprintf("%s-%s", serviceName, serviceAddr)
 
 	if err := client.Agent().ServiceDeregister(serviceID); err != nil {
 		return fmt.Errorf("deregister service failed: %v", err)
 	}
 
-	g.Log().Infof(ctx, "service deregistered: jh_admin_service")
+	g.Log().Infof(ctx, "service deregistered: %s", serviceName)
 	return nil
 }

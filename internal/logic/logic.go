@@ -4,4 +4,6 @@
 
 package logic
 
-import ()
+import (
+	_ "jh_balance_service/internal/logic/backend/balance"
+)

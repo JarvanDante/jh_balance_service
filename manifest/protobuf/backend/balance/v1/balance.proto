@@ -1,0 +1,265 @@
+syntax = "proto3";
+
+package balance;
+
+option go_package = "jh_balance_service/api/backend/balance/v1";
+
+service Balance {
+    // 账变记录相关
+    rpc GetBalanceChanges(GetBalanceChangesReq) returns (GetBalanceChangesRes) {}
+    
+    // 充值记录相关
+    rpc GetRechargePayments(GetRechargePaymentsReq) returns (GetRechargePaymentsRes) {}
+    rpc GetRechargeManuals(GetRechargeManualsReq) returns (GetRechargeManualsRes) {}
+    rpc ConfirmPaymentOrder(ConfirmPaymentOrderReq) returns (ConfirmPaymentOrderRes) {}
+    
+    // 提现记录相关
+    rpc GetWithdraws(GetWithdrawsReq) returns (GetWithdrawsRes) {}
+    rpc GetWithdrawManuals(GetWithdrawManualsReq) returns (GetWithdrawManualsRes) {}
+    rpc GetWithdrawReview(GetWithdrawReviewReq) returns (GetWithdrawReviewRes) {}
+    rpc DealWithWithdraw(DealWithWithdrawReq) returns (DealWithWithdrawRes) {}
+}
+
+// 获取账变记录请求
+message GetBalanceChangesReq {
+    string username = 1;        // 用户名 (可选)
+    int32 change_type = 2;      // 账变类型 1=入款 2=出款 (可选)
+    int32 trade_type = 3;       // 交易类型 (可选)
+    string start_time = 4;      // 开始时间 (可选)
+    string end_time = 5;        // 结束时间 (可选)
+    int32 page = 6;             // 页码
+    int32 size = 7;             // 每页数量
+}
+
+// 账变记录信息
+message BalanceChangeInfo {
+    int32 id = 1;                       // ID
+    int32 trade_type = 2;               // 交易类型
+    string trade_type_name = 3;         // 交易类型名称
+    int32 user_id = 4;                  // 用户ID
+    string username = 5;                // 用户名
+    string trade_no = 6;                // 流水号
+    double balance_old = 7;             // 旧余额
+    double money = 8;                   // 变动金额
+    double balance_new = 9;             // 新余额
+    double balance_frozen = 10;         // 冻结余额
+    int32 status = 11;                  // 状态
+    string status_name = 12;            // 状态名称
+    string remark = 13;                 // 备注
+    string created_at = 14;             // 创建时间
+}
+
+// 获取账变记录响应
+message GetBalanceChangesRes {
+    repeated BalanceChangeInfo list = 1; // 账变记录列表
+    int32 count = 2;                     // 总数量
+}
+
+// 获取充值记录请求
+message GetRechargePaymentsReq {
+    string username = 1;        // 用户名 (可选)
+    int32 gateway = 2;          // 网关类型 (可选)
+    int32 payment_id = 3;       // 支付ID (可选)
+    int32 account_id = 4;       // 账号ID (可选)
+    int32 status = 5;           // 状态 (可选)
+    string trade_no = 6;        // 流水号 (可选)
+    string domain = 7;          // 域名 (可选)
+    string start_time = 8;      // 开始时间 (可选)
+    string end_time = 9;        // 结束时间 (可选)
+    int32 page = 10;            // 页码
+    int32 size = 11;            // 每页数量
+}
+
+// 充值记录信息
+message RechargePaymentInfo {
+    int64 id = 1;                       // ID
+    int32 user_id = 2;                  // 用户ID
+    string username = 3;                // 用户名
+    int32 activity_recharge_id = 4;     // 充值活动ID
+    int32 gateway = 5;                  // 网关类型
+    string gateway_name = 6;            // 网关名称
+    int32 payment_id = 7;               // 支付ID
+    string payment_name = 8;            // 支付名称
+    int32 payment_account_id = 9;       // 支付账号ID
+    string bank_value = 10;             // 银行代码
+    string trade_no = 11;               // 流水号
+    double money = 12;                  // 充值金额
+    double fee = 13;                    // 手续费
+    int32 status = 14;                  // 状态
+    string status_name = 15;            // 状态名称
+    int32 admin_id = 16;                // 管理员ID
+    string admin_name = 17;             // 管理员名称
+    string remark = 18;                 // 备注
+    string created_at = 19;             // 创建时间
+    string updated_at = 20;             // 更新时间
+}
+
+// 获取充值记录响应
+message GetRechargePaymentsRes {
+    repeated RechargePaymentInfo list = 1; // 充值记录列表
+    int32 count = 2;                       // 总数量
+}
+
+// 获取后台加款记录请求
+message GetRechargeManualsReq {
+    string username = 1;        // 用户名 (可选)
+    int32 status = 2;           // 状态 (可选)
+    string start_time = 3;      // 开始时间 (可选)
+    string end_time = 4;        // 结束时间 (可选)
+    int32 page = 5;             // 页码
+    int32 size = 6;             // 每页数量
+}
+
+// 后台加款记录信息
+message RechargeManualInfo {
+    int64 id = 1;                       // ID
+    int32 user_id = 2;                  // 用户ID
+    string username = 3;                // 用户名
+    string trade_no = 4;                // 流水号
+    double money = 5;                   // 加款金额
+    int32 status = 6;                   // 状态
+    string status_name = 7;             // 状态名称
+    int32 admin_id = 8;                 // 管理员ID
+    string admin_name = 9;              // 管理员名称
+    string remark = 10;                 // 备注
+    string created_at = 11;             // 创建时间
+}
+
+// 获取后台加款记录响应
+message GetRechargeManualsRes {
+    repeated RechargeManualInfo list = 1; // 后台加款记录列表
+    int32 count = 2;                      // 总数量
+}
+
+// 确认支付订单请求
+message ConfirmPaymentOrderReq {
+    int64 id = 1;               // 订单ID
+    string remark = 2;          // 备注 (可选)
+}
+
+// 确认支付订单响应
+message ConfirmPaymentOrderRes {
+    bool success = 1;           // 是否成功
+    string message = 2;         // 响应消息
+}
+
+// 获取提现记录请求
+message GetWithdrawsReq {
+    string username = 1;        // 用户名 (可选)
+    int32 status = 2;           // 状态 (可选)
+    string trade_no = 3;        // 流水号 (可选)
+    string domain = 4;          // 域名 (可选)
+    string start_time = 5;      // 开始时间 (可选)
+    string end_time = 6;        // 结束时间 (可选)
+    int32 page = 7;             // 页码
+    int32 size = 8;             // 每页数量
+}
+
+// 提现记录信息
+message WithdrawInfo {
+    int64 id = 1;                       // ID
+    int32 user_id = 2;                  // 用户ID
+    int32 user_level_id = 3;            // 用户层级ID
+    string username = 4;                // 用户名
+    string trade_no = 5;                // 流水号
+    double money = 6;                   // 提现金额
+    double fee = 7;                     // 手续费
+    string bank_name = 8;               // 银行名称
+    string card_account = 9;            // 银行户名
+    string card_no = 10;                // 卡号
+    string deposit_bank = 11;           // 开户行
+    int32 status = 12;                  // 状态
+    string status_name = 13;            // 状态名称
+    int32 admin_id = 14;                // 管理员ID
+    string admin_name = 15;             // 管理员名称
+    string remark = 16;                 // 备注
+    string created_at = 17;             // 创建时间
+    string updated_at = 18;             // 更新时间
+}
+
+// 获取提现记录响应
+message GetWithdrawsRes {
+    repeated WithdrawInfo list = 1;     // 提现记录列表
+    int32 count = 2;                    // 总数量
+}
+
+// 获取后台提现记录请求
+message GetWithdrawManualsReq {
+    string username = 1;        // 用户名 (可选)
+    int32 status = 2;           // 状态 (可选)
+    string start_time = 3;      // 开始时间 (可选)
+    string end_time = 4;        // 结束时间 (可选)
+    int32 page = 5;             // 页码
+    int32 size = 6;             // 每页数量
+}
+
+// 后台提现记录信息
+message WithdrawManualInfo {
+    int64 id = 1;                       // ID
+    int32 user_id = 2;                  // 用户ID
+    string username = 3;                // 用户名
+    string trade_no = 4;                // 流水号
+    double money = 5;                   // 提现金额
+    int32 status = 6;                   // 状态
+    string status_name = 7;             // 状态名称
+    int32 admin_id = 8;                 // 管理员ID
+    string admin_name = 9;              // 管理员名称
+    string remark = 10;                 // 备注
+    string created_at = 11;             // 创建时间
+}
+
+// 获取后台提现记录响应
+message GetWithdrawManualsRes {
+    repeated WithdrawManualInfo list = 1; // 后台提现记录列表
+    int32 count = 2;                      // 总数量
+}
+
+// 获取提现审核信息请求
+message GetWithdrawReviewReq {
+    int64 id = 1;               // 提现记录ID
+}
+
+// 提现审核信息
+message WithdrawReviewInfo {
+    int64 id = 1;                       // ID
+    int32 user_id = 2;                  // 用户ID
+    string username = 3;                // 用户名
+    string trade_no = 4;                // 流水号
+    double money = 5;                   // 提现金额
+    double fee = 6;                     // 手续费
+    string bank_name = 7;               // 银行名称
+    string card_account = 8;            // 银行户名
+    string card_no = 9;                 // 卡号
+    string deposit_bank = 10;           // 开户行
+    int32 status = 11;                  // 状态
+    string remark = 12;                 // 备注
+    string created_at = 13;             // 创建时间
+    // 用户信息
+    string user_realname = 14;          // 用户真实姓名
+    string user_mobile = 15;            // 用户手机号
+    double user_balance = 16;           // 用户余额
+    double user_balance_frozen = 17;    // 用户冻结余额
+    // 统计信息
+    double total_recharge = 18;         // 总充值
+    double total_withdraw = 19;         // 总提现
+    int32 withdraw_count = 20;          // 提现次数
+}
+
+// 获取提现审核信息响应
+message GetWithdrawReviewRes {
+    WithdrawReviewInfo data = 1;        // 审核信息
+}
+
+// 处理提现请求
+message DealWithWithdrawReq {
+    int64 id = 1;               // 提现记录ID
+    int32 type = 2;             // 处理类型 1=确认 0=拒绝 2=补单
+    double fee = 3;             // 手续费 (可选)
+    string remark = 4;          // 备注 (可选)
+}
+
+// 处理提现响应
+message DealWithWithdrawRes {
+    bool success = 1;           // 是否成功
+    string message = 2;         // 响应消息
+}
