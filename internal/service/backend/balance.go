@@ -18,6 +18,11 @@ type (
 		QueryUserBalance(ctx context.Context, req *v1.QueryUserBalanceReq) (*v1.QueryUserBalanceRes, error)
 		QueryGameBalance(ctx context.Context, req *v1.QueryGameBalanceReq) (*v1.QueryGameBalanceRes, error)
 		ManualUserBalance(ctx context.Context, req *v1.ManualUserBalanceReq) (*v1.ManualUserBalanceRes, error)
+		GetPaymentAccounts(ctx context.Context, req *v1.GetPaymentAccountsReq) (*v1.GetPaymentAccountsRes, error)
+		CreatePaymentAccount(ctx context.Context, req *v1.CreatePaymentAccountReq) (*v1.CreatePaymentAccountRes, error)
+		GetPaymentAccountUpdate(ctx context.Context, req *v1.GetPaymentAccountUpdateReq) (*v1.GetPaymentAccountUpdateRes, error)
+		UpdatePaymentAccount(ctx context.Context, req *v1.UpdatePaymentAccountReq) (*v1.UpdatePaymentAccountRes, error)
+		DeletePaymentAccount(ctx context.Context, req *v1.DeletePaymentAccountReq) (*v1.DeletePaymentAccountRes, error)
 	}
 )
 

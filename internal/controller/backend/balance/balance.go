@@ -65,3 +65,28 @@ func (*Controller) QueryGameBalance(ctx context.Context, req *v1.QueryGameBalanc
 func (*Controller) ManualUserBalance(ctx context.Context, req *v1.ManualUserBalanceReq) (res *v1.ManualUserBalanceRes, err error) {
 	return backend.Balance().ManualUserBalance(ctx, req)
 }
+
+// GetPaymentAccounts 获取支付接口列表
+func (*Controller) GetPaymentAccounts(ctx context.Context, req *v1.GetPaymentAccountsReq) (res *v1.GetPaymentAccountsRes, err error) {
+	return backend.Balance().GetPaymentAccounts(ctx, req)
+}
+
+// CreatePaymentAccount 创建支付接口
+func (*Controller) CreatePaymentAccount(ctx context.Context, req *v1.CreatePaymentAccountReq) (res *v1.CreatePaymentAccountRes, err error) {
+	return backend.Balance().CreatePaymentAccount(ctx, req)
+}
+
+// GetPaymentAccountUpdate 获取支付接口编辑信息
+func (*Controller) GetPaymentAccountUpdate(ctx context.Context, req *v1.GetPaymentAccountUpdateReq) (res *v1.GetPaymentAccountUpdateRes, err error) {
+	return backend.Balance().GetPaymentAccountUpdate(ctx, req)
+}
+
+// UpdatePaymentAccount 更新支付接口
+func (*Controller) UpdatePaymentAccount(ctx context.Context, req *v1.UpdatePaymentAccountReq) (res *v1.UpdatePaymentAccountRes, err error) {
+	return backend.Balance().UpdatePaymentAccount(ctx, req)
+}
+
+// DeletePaymentAccount 删除支付接口
+func (*Controller) DeletePaymentAccount(ctx context.Context, req *v1.DeletePaymentAccountReq) (res *v1.DeletePaymentAccountRes, err error) {
+	return backend.Balance().DeletePaymentAccount(ctx, req)
+}

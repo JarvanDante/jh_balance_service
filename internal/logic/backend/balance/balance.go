@@ -948,3 +948,371 @@ func (s *sBalance) ManualUserBalance(ctx context.Context, req *v1.ManualUserBala
 		Message: "操作成功",
 	}, nil
 }
+
+// GetPaymentAccounts 获取支付接口列表
+func (s *sBalance) GetPaymentAccounts(ctx context.Context, req *v1.GetPaymentAccountsReq) (*v1.GetPaymentAccountsRes, error) {
+	if req == nil {
+		return nil, fmt.Errorf("请求参数不能为空")
+	}
+
+	ctx, span := tracing.StartSpan(ctx, "balance.GetPaymentAccounts", trace.WithAttributes(
+		attribute.String("method", "GetPaymentAccounts"),
+		attribute.Int("page", int(req.Page)),
+		attribute.Int("size", int(req.Size)),
+	))
+	defer span.End()
+
+	siteId := 1
+	page := req.Page
+	size := req.Size
+	if page <= 0 {
+		page = 1
+	}
+	if size <= 0 {
+		size = 50
+	}
+
+	query := dao.PaymentAccount.Ctx(ctx).Where("site_id = ?", siteId)
+
+	if req.PaymentId > 0 {
+		query = query.Where("payment_id = ?", req.PaymentId)
+	}
+	if req.Status > 0 {
+		query = query.Where("status = ?", req.Status)
+	}
+
+	count, err := query.Count()
+	if err != nil {
+		return nil, fmt.Errorf("查询支付接口总数失败: %v", err)
+	}
+
+	var accounts []*entity.PaymentAccount
+	offset := (page - 1) * size
+	err = query.Order("sort ASC, created_at DESC").
+		Limit(int(size)).
+		Offset(int(offset)).
+		Scan(&accounts)
+	if err != nil {
+		return nil, fmt.Errorf("查询支付接口列表失败: %v", err)
+	}
+
+	var list []*v1.PaymentAccountInfo
+	for _, account := range accounts {
+		info := &v1.PaymentAccountInfo{
+			Id:          int32(account.Id),
+			SiteId:      int32(account.SiteId),
+			PaymentId:   int32(account.PaymentId),
+			Gateway:     int32(account.Gateway),
+			Name:        account.Name,
+			Domain:      account.Domain,
+			MerchantNo:  account.MerchantNo,
+			Md5Key:      s.maskSensitiveData(account.Md5Key),
+			EachMin:     account.EachMin,
+			EachMax:     account.EachMax,
+			DailyMax:    account.DailyMax,
+			TodayCount:  int32(account.TodayCount),
+			TodayAmount: account.TodayAmount,
+			Status:      int32(account.Status),
+			StatusName:  s.getPaymentAccountStatusName(account.Status),
+			Sort:        int32(account.Sort),
+			CreatedAt:   account.CreatedAt.String(),
+			UpdatedAt:   account.UpdatedAt.String(),
+			PublicKey:   s.maskSensitiveData(account.PublicKey),
+			PrivateKey:  s.maskSensitiveData(account.PrivateKey),
+			IsDecimal:   int32(account.IsDecimal),
+			IsInt:       int32(account.IsInt),
+			MoneyList:   account.MoneyList,
+		}
+		list = append(list, info)
+	}
+
+	return &v1.GetPaymentAccountsRes{
+		List:  list,
+		Count: int32(count),
+	}, nil
+}
+
+// CreatePaymentAccount 创建支付接口
+func (s *sBalance) CreatePaymentAccount(ctx context.Context, req *v1.CreatePaymentAccountReq) (*v1.CreatePaymentAccountRes, error) {
+	if req == nil {
+		return nil, fmt.Errorf("请求参数不能为空")
+	}
+
+	ctx, span := tracing.StartSpan(ctx, "balance.CreatePaymentAccount", trace.WithAttributes(
+		attribute.String("method", "CreatePaymentAccount"),
+		attribute.Int("payment_id", int(req.PaymentId)),
+	))
+	defer span.End()
+
+	if req.PaymentId <= 0 {
+		return nil, fmt.Errorf("支付ID不能为空")
+	}
+	if req.Name == "" {
+		return nil, fmt.Errorf("接口名称不能为空")
+	}
+	if req.MerchantNo == "" {
+		return nil, fmt.Errorf("商户号不能为空")
+	}
+
+	siteId := 1
+
+	// 检查账户名称是否重复
+	count, err := dao.PaymentAccount.Ctx(ctx).Where("site_id = ? AND name = ?", siteId, req.Name).Count()
+	if err != nil {
+		return nil, fmt.Errorf("检查接口名称失败: %v", err)
+	}
+	if count > 0 {
+		return &v1.CreatePaymentAccountRes{
+			Success: false,
+			Message: "接口名称已存在",
+		}, nil
+	}
+
+	// 插入数据
+	_, err = dao.PaymentAccount.Ctx(ctx).Insert(g.Map{
+		"site_id":      siteId,
+		"payment_id":   req.PaymentId,
+		"gateway":      req.Gateway,
+		"name":         req.Name,
+		"domain":       req.Domain,
+		"merchant_no":  req.MerchantNo,
+		"md5_key":      req.Md5Key,
+		"each_min":     req.EachMin,
+		"each_max":     req.EachMax,
+		"daily_max":    req.DailyMax,
+		"today_count":  0,
+		"today_amount": 0,
+		"status":       req.Status,
+		"sort":         req.Sort,
+		"public_key":   req.PublicKey,
+		"private_key":  req.PrivateKey,
+		"is_decimal":   req.IsDecimal,
+		"is_int":       req.IsInt,
+		"money_list":   req.MoneyList,
+		"created_at":   "NOW()",
+		"updated_at":   "NOW()",
+	})
+	if err != nil {
+		return &v1.CreatePaymentAccountRes{
+			Success: false,
+			Message: fmt.Sprintf("创建支付接口失败: %v", err),
+		}, nil
+	}
+
+	return &v1.CreatePaymentAccountRes{
+		Success: true,
+		Message: "创建成功",
+	}, nil
+}
+
+// GetPaymentAccountUpdate 获取支付接口编辑信息
+func (s *sBalance) GetPaymentAccountUpdate(ctx context.Context, req *v1.GetPaymentAccountUpdateReq) (*v1.GetPaymentAccountUpdateRes, error) {
+	if req == nil {
+		return nil, fmt.Errorf("请求参数不能为空")
+	}
+
+	ctx, span := tracing.StartSpan(ctx, "balance.GetPaymentAccountUpdate", trace.WithAttributes(
+		attribute.String("method", "GetPaymentAccountUpdate"),
+		attribute.Int("id", int(req.Id)),
+	))
+	defer span.End()
+
+	if req.Id <= 0 {
+		return nil, fmt.Errorf("支付接口ID不能为空")
+	}
+
+	var account entity.PaymentAccount
+	err := dao.PaymentAccount.Ctx(ctx).Where("id = ?", req.Id).Scan(&account)
+	if err != nil {
+		return nil, fmt.Errorf("查询支付接口失败: %v", err)
+	}
+
+	if account.Id == 0 {
+		return nil, fmt.Errorf("支付接口不存在")
+	}
+
+	accountInfo := &v1.PaymentAccountInfo{
+		Id:          int32(account.Id),
+		SiteId:      int32(account.SiteId),
+		PaymentId:   int32(account.PaymentId),
+		Gateway:     int32(account.Gateway),
+		Name:        account.Name,
+		Domain:      account.Domain,
+		MerchantNo:  account.MerchantNo,
+		Md5Key:      account.Md5Key, // 编辑时显示完整密钥
+		EachMin:     account.EachMin,
+		EachMax:     account.EachMax,
+		DailyMax:    account.DailyMax,
+		TodayCount:  int32(account.TodayCount),
+		TodayAmount: account.TodayAmount,
+		Status:      int32(account.Status),
+		StatusName:  s.getPaymentAccountStatusName(account.Status),
+		Sort:        int32(account.Sort),
+		CreatedAt:   account.CreatedAt.String(),
+		UpdatedAt:   account.UpdatedAt.String(),
+		PublicKey:   account.PublicKey,  // 编辑时显示完整公钥
+		PrivateKey:  account.PrivateKey, // 编辑时显示完整私钥
+		IsDecimal:   int32(account.IsDecimal),
+		IsInt:       int32(account.IsInt),
+		MoneyList:   account.MoneyList,
+	}
+
+	return &v1.GetPaymentAccountUpdateRes{
+		Data: accountInfo,
+	}, nil
+}
+
+// UpdatePaymentAccount 更新支付接口
+func (s *sBalance) UpdatePaymentAccount(ctx context.Context, req *v1.UpdatePaymentAccountReq) (*v1.UpdatePaymentAccountRes, error) {
+	if req == nil {
+		return nil, fmt.Errorf("请求参数不能为空")
+	}
+
+	ctx, span := tracing.StartSpan(ctx, "balance.UpdatePaymentAccount", trace.WithAttributes(
+		attribute.String("method", "UpdatePaymentAccount"),
+		attribute.Int("id", int(req.Id)),
+	))
+	defer span.End()
+
+	if req.Id <= 0 {
+		return nil, fmt.Errorf("支付接口ID不能为空")
+	}
+	if req.PaymentId <= 0 {
+		return nil, fmt.Errorf("支付ID不能为空")
+	}
+	if req.Name == "" {
+		return nil, fmt.Errorf("接口名称不能为空")
+	}
+
+	// 检查记录是否存在
+	var account entity.PaymentAccount
+	err := dao.PaymentAccount.Ctx(ctx).Where("id = ?", req.Id).Scan(&account)
+	if err != nil {
+		return nil, fmt.Errorf("查询支付接口失败: %v", err)
+	}
+	if account.Id == 0 {
+		return &v1.UpdatePaymentAccountRes{
+			Success: false,
+			Message: "支付接口不存在",
+		}, nil
+	}
+
+	// 检查接口名称是否重复（排除自己）
+	count, err := dao.PaymentAccount.Ctx(ctx).Where("site_id = ? AND name = ? AND id != ?", account.SiteId, req.Name, req.Id).Count()
+	if err != nil {
+		return nil, fmt.Errorf("检查接口名称失败: %v", err)
+	}
+	if count > 0 {
+		return &v1.UpdatePaymentAccountRes{
+			Success: false,
+			Message: "接口名称已存在",
+		}, nil
+	}
+
+	// 更新数据
+	_, err = dao.PaymentAccount.Ctx(ctx).Where("id = ?", req.Id).Update(g.Map{
+		"payment_id":  req.PaymentId,
+		"gateway":     req.Gateway,
+		"name":        req.Name,
+		"domain":      req.Domain,
+		"merchant_no": req.MerchantNo,
+		"md5_key":     req.Md5Key,
+		"each_min":    req.EachMin,
+		"each_max":    req.EachMax,
+		"daily_max":   req.DailyMax,
+		"status":      req.Status,
+		"sort":        req.Sort,
+		"public_key":  req.PublicKey,
+		"private_key": req.PrivateKey,
+		"is_decimal":  req.IsDecimal,
+		"is_int":      req.IsInt,
+		"money_list":  req.MoneyList,
+		"updated_at":  "NOW()",
+	})
+	if err != nil {
+		return &v1.UpdatePaymentAccountRes{
+			Success: false,
+			Message: fmt.Sprintf("更新支付接口失败: %v", err),
+		}, nil
+	}
+
+	return &v1.UpdatePaymentAccountRes{
+		Success: true,
+		Message: "更新成功",
+	}, nil
+}
+
+// DeletePaymentAccount 删除支付接口
+func (s *sBalance) DeletePaymentAccount(ctx context.Context, req *v1.DeletePaymentAccountReq) (*v1.DeletePaymentAccountRes, error) {
+	if req == nil {
+		return nil, fmt.Errorf("请求参数不能为空")
+	}
+
+	ctx, span := tracing.StartSpan(ctx, "balance.DeletePaymentAccount", trace.WithAttributes(
+		attribute.String("method", "DeletePaymentAccount"),
+		attribute.Int("id", int(req.Id)),
+	))
+	defer span.End()
+
+	if req.Id <= 0 {
+		return nil, fmt.Errorf("支付接口ID不能为空")
+	}
+
+	// 检查记录是否存在
+	var account entity.PaymentAccount
+	err := dao.PaymentAccount.Ctx(ctx).Where("id = ?", req.Id).Scan(&account)
+	if err != nil {
+		return nil, fmt.Errorf("查询支付接口失败: %v", err)
+	}
+	if account.Id == 0 {
+		return &v1.DeletePaymentAccountRes{
+			Success: false,
+			Message: "支付接口不存在",
+		}, nil
+	}
+
+	// 检查是否有关联的支付记录
+	count, err := dao.BalanceLogPayment.Ctx(ctx).Where("payment_account_id = ?", req.Id).Count()
+	if err != nil {
+		return nil, fmt.Errorf("检查关联记录失败: %v", err)
+	}
+	if count > 0 {
+		return &v1.DeletePaymentAccountRes{
+			Success: false,
+			Message: "该支付接口下有支付记录，不能删除",
+		}, nil
+	}
+
+	// 删除记录
+	_, err = dao.PaymentAccount.Ctx(ctx).Where("id = ?", req.Id).Delete()
+	if err != nil {
+		return &v1.DeletePaymentAccountRes{
+			Success: false,
+			Message: fmt.Sprintf("删除支付接口失败: %v", err),
+		}, nil
+	}
+
+	return &v1.DeletePaymentAccountRes{
+		Success: true,
+		Message: "删除成功",
+	}, nil
+}
+
+// 辅助方法
+func (s *sBalance) getPaymentAccountStatusName(status int) string {
+	names := map[int]string{
+		0: "禁用",
+		1: "启用",
+	}
+	if name, ok := names[status]; ok {
+		return name
+	}
+	return "未知"
+}
+
+func (s *sBalance) maskSensitiveData(data string) string {
+	if len(data) <= 8 {
+		return "****"
+	}
+	return data[:4] + "****" + data[len(data)-4:]
+}
