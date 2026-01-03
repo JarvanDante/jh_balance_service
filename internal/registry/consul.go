@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"time"
 
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/hashicorp/consul/api"
@@ -138,8 +137,9 @@ func RegisterService() error {
 	// 自动获取服务地址
 	serviceAddr := getContainerIP()
 
-	// 生成更唯一的Service ID，包含端口和时间戳
-	serviceID = fmt.Sprintf("%s-%s-%d-%d", serviceName, serviceAddr, servicePort, time.Now().Unix())
+	// 生成固定的Service ID，基于服务名、IP和端口
+	// 这样重启后会使用相同的ID，自动覆盖旧记录
+	serviceID = fmt.Sprintf("%s-%s-%d", serviceName, serviceAddr, servicePort)
 
 	registration := &api.AgentServiceRegistration{
 		ID:      serviceID,
