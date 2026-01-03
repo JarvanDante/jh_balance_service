@@ -8,6 +8,7 @@ import (
 	"jh_balance_service/internal/model/entity"
 	"jh_balance_service/internal/service/backend"
 	"jh_balance_service/internal/tracing"
+	"time"
 
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/frame/g"
@@ -734,4 +735,216 @@ func (s *sBalance) maskCardNo(cardNo string) string {
 		return cardNo
 	}
 	return cardNo[:4] + "****" + cardNo[len(cardNo)-4:]
+}
+
+// QueryUserBalance 查询用户余额
+func (s *sBalance) QueryUserBalance(ctx context.Context, req *v1.QueryUserBalanceReq) (*v1.QueryUserBalanceRes, error) {
+	if req == nil {
+		return nil, fmt.Errorf("请求参数不能为空")
+	}
+
+	ctx, span := tracing.StartSpan(ctx, "balance.QueryUserBalance", trace.WithAttributes(
+		attribute.String("method", "QueryUserBalance"),
+		attribute.String("username", req.Username),
+	))
+	defer span.End()
+
+	if req.Username == "" {
+		return nil, fmt.Errorf("用户名不能为空")
+	}
+
+	siteId := 1
+
+	// TODO: 调用用户服务获取用户ID
+	// 暂时写死用户ID
+	userId := 123
+
+	// 查询用户余额
+	var balance entity.BalanceUser
+	err := dao.BalanceUser.Ctx(ctx).Where("site_id = ? AND user_id = ?", siteId, userId).Scan(&balance)
+	if err != nil {
+		return nil, fmt.Errorf("查询用户余额失败: %v", err)
+	}
+
+	if balance.Id == 0 {
+		return nil, fmt.Errorf("用户不存在")
+	}
+
+	balanceInfo := &v1.UserBalanceInfo{
+		UserId:         int32(balance.UserId),
+		Username:       req.Username,
+		Balance:        balance.Balance,
+		BalanceFrozen:  balance.BalanceFrozen,
+		Points:         float64(balance.Points),
+		LastUpdateTime: balance.UpdatedAt.String(),
+	}
+
+	return &v1.QueryUserBalanceRes{
+		Data: balanceInfo,
+	}, nil
+}
+
+// QueryGameBalance 查询游戏余额
+func (s *sBalance) QueryGameBalance(ctx context.Context, req *v1.QueryGameBalanceReq) (*v1.QueryGameBalanceRes, error) {
+	if req == nil {
+		return nil, fmt.Errorf("请求参数不能为空")
+	}
+
+	ctx, span := tracing.StartSpan(ctx, "balance.QueryGameBalance", trace.WithAttributes(
+		attribute.String("method", "QueryGameBalance"),
+		attribute.Int("game_id", int(req.GameId)),
+		attribute.Int("user_id", int(req.UserId)),
+	))
+	defer span.End()
+
+	if req.GameId <= 0 {
+		return nil, fmt.Errorf("游戏ID不能为空")
+	}
+	if req.UserId <= 0 {
+		return nil, fmt.Errorf("用户ID不能为空")
+	}
+
+	// TODO: 调用游戏服务查询第三方余额
+	// 暂时写死数据
+	gameBalanceInfo := &v1.GameBalanceInfo{
+		GameId:         req.GameId,
+		GameName:       "测试游戏",
+		UserId:         req.UserId,
+		Username:       "testuser",
+		Balance:        1000.00,
+		LastUpdateTime: "2024-01-01 10:00:00",
+	}
+
+	return &v1.QueryGameBalanceRes{
+		Data: gameBalanceInfo,
+	}, nil
+}
+
+// ManualUserBalance 手动操作用户余额
+func (s *sBalance) ManualUserBalance(ctx context.Context, req *v1.ManualUserBalanceReq) (*v1.ManualUserBalanceRes, error) {
+	if req == nil {
+		return nil, fmt.Errorf("请求参数不能为空")
+	}
+
+	ctx, span := tracing.StartSpan(ctx, "balance.ManualUserBalance", trace.WithAttributes(
+		attribute.String("method", "ManualUserBalance"),
+		attribute.Int("user_id", int(req.UserId)),
+		attribute.Int("type", int(req.Type)),
+		attribute.Float64("money", req.Money),
+	))
+	defer span.End()
+
+	if req.UserId <= 0 {
+		return nil, fmt.Errorf("用户ID不能为空")
+	}
+	if req.Type != 1 && req.Type != 2 {
+		return nil, fmt.Errorf("操作类型无效")
+	}
+	if req.Money <= 0 {
+		return nil, fmt.Errorf("操作金额必须大于0")
+	}
+
+	siteId := 1
+
+	// 开启事务
+	err := dao.BalanceUser.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		// 查询用户当前余额
+		var balance entity.BalanceUser
+		err := dao.BalanceUser.Ctx(ctx).TX(tx).Where("site_id = ? AND user_id = ?", siteId, req.UserId).Scan(&balance)
+		if err != nil {
+			return fmt.Errorf("查询用户余额失败: %v", err)
+		}
+
+		if balance.Id == 0 {
+			return fmt.Errorf("用户不存在")
+		}
+
+		balanceOld := balance.Balance
+		var balanceNew float64
+		var tradeType int
+		var remark string
+
+		if req.Type == 1 { // 加款
+			balanceNew = balanceOld + req.Money
+			tradeType = 9 // 丢失补款
+			remark = "手动加款"
+		} else { // 扣款
+			if balanceOld < req.Money {
+				return fmt.Errorf("余额不足")
+			}
+			balanceNew = balanceOld - req.Money
+			tradeType = 10 // 多出扣款
+			remark = "手动扣款"
+		}
+
+		if req.Remark != "" {
+			remark = req.Remark
+		}
+
+		// 更新用户余额
+		_, err = dao.BalanceUser.Ctx(ctx).TX(tx).
+			Where("id = ?", balance.Id).
+			Update(g.Map{
+				"balance":    balanceNew,
+				"updated_at": "NOW()",
+			})
+		if err != nil {
+			return fmt.Errorf("更新用户余额失败: %v", err)
+		}
+
+		// 生成流水号
+		tradeNo := fmt.Sprintf("M%d%d", req.UserId, time.Now().Unix())
+
+		// 记录账变
+		_, err = dao.BalanceChange.Ctx(ctx).TX(tx).Insert(g.Map{
+			"site_id":        siteId,
+			"trade_type":     tradeType,
+			"user_id":        req.UserId,
+			"username":       "testuser", // TODO: 从用户服务获取
+			"trade_no":       tradeNo,
+			"balance_old":    balanceOld,
+			"money":          req.Money,
+			"balance_new":    balanceNew,
+			"balance_frozen": balance.BalanceFrozen,
+			"status":         2, // 成功
+			"remark":         remark,
+			"created_at":     "NOW()",
+			"updated_at":     "NOW()",
+		})
+		if err != nil {
+			return fmt.Errorf("记录账变失败: %v", err)
+		}
+
+		// 记录手动操作日志
+		_, err = dao.BalanceLogManual.Ctx(ctx).TX(tx).Insert(g.Map{
+			"site_id":    siteId,
+			"trade_type": tradeType,
+			"user_id":    req.UserId,
+			"username":   "testuser", // TODO: 从用户服务获取
+			"trade_no":   tradeNo,
+			"money":      req.Money,
+			"status":     2, // 成功
+			"admin_id":   1, // TODO: 从上下文获取管理员ID
+			"remark":     remark,
+			"created_at": "NOW()",
+			"updated_at": "NOW()",
+		})
+		if err != nil {
+			return fmt.Errorf("记录操作日志失败: %v", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return &v1.ManualUserBalanceRes{
+			Success: false,
+			Message: fmt.Sprintf("操作失败: %v", err),
+		}, nil
+	}
+
+	return &v1.ManualUserBalanceRes{
+		Success: true,
+		Message: "操作成功",
+	}, nil
 }
