@@ -15,7 +15,7 @@ consul:
   addr: "172.19.0.29:8500" # 容器内直接访问Consul
   serviceName: "jh_balance_service"
   servicePort: 8003
-  serviceAddr: "172.19.0.32" # jh_admin_service的容器IP
+  serviceAddr: "" # 留空，让程序自动获取容器IP
 
 # Jaeger 配置
 jaeger:
