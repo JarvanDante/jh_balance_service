@@ -337,7 +337,7 @@ func (s *sBalance) ConfirmPaymentOrder(ctx context.Context, req *v1.ConfirmPayme
 		}
 
 		// TODO: 调用用户服务更新余额
-		// 这里需要调用 jh_admin_service 的用户余额更新接口
+		// 这里需要调用 jh_balance_service 的用户余额更新接口
 
 		return nil
 	})
@@ -545,7 +545,7 @@ func (s *sBalance) GetWithdrawReview(ctx context.Context, req *v1.GetWithdrawRev
 	}
 
 	// TODO: 调用用户服务获取用户信息和余额
-	// 这里需要调用 jh_admin_service 的用户信息接口
+	// 这里需要调用 jh_balance_service 的用户信息接口
 
 	reviewInfo := &v1.WithdrawReviewInfo{
 		Id:                int64(withdraw.Id),
