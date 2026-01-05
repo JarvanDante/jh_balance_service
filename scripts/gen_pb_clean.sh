@@ -60,11 +60,23 @@ fi
 
 print_info "=== 第一步: 生成 protobuf 文件 ==="
 
-# 运行 gf gen pb
-if gf gen pb; then
+# 创建临时目录用于controller生成
+TEMP_CTRL_DIR=$(mktemp -d)
+print_info "使用临时controller目录: $TEMP_CTRL_DIR"
+
+# 运行 gf gen pb，将controller生成到临时目录
+if gf gen pb -c "$TEMP_CTRL_DIR"; then
     print_success "protobuf 文件生成完成"
+    
+    # 删除临时生成的controller文件
+    if [ -d "$TEMP_CTRL_DIR" ]; then
+        rm -rf "$TEMP_CTRL_DIR"
+        print_info "已清理临时controller文件"
+    fi
 else
     print_error "protobuf 文件生成失败"
+    # 清理临时目录
+    [ -d "$TEMP_CTRL_DIR" ] && rm -rf "$TEMP_CTRL_DIR"
     exit 1
 fi
 
