@@ -8,6 +8,9 @@ service Balance {
     // 账变记录相关
     rpc GetBalanceChanges(GetBalanceChangesReq) returns (GetBalanceChangesRes) {}
     
+    // 交易类型选项
+    rpc GetChangeList(GetChangeListReq) returns (GetChangeListRes) {}
+    
     // 充值记录相关
     rpc GetRechargePayments(GetRechargePaymentsReq) returns (GetRechargePaymentsRes) {}
     rpc GetRechargeManuals(GetRechargeManualsReq) returns (GetRechargeManualsRes) {}
@@ -30,6 +33,15 @@ service Balance {
     rpc GetPaymentAccountUpdate(GetPaymentAccountUpdateReq) returns (GetPaymentAccountUpdateRes) {}
     rpc UpdatePaymentAccount(UpdatePaymentAccountReq) returns (UpdatePaymentAccountRes) {}
     rpc DeletePaymentAccount(DeletePaymentAccountReq) returns (DeletePaymentAccountRes) {}
+}
+
+// 获取交易类型列表请求
+message GetChangeListReq {
+}
+
+// 获取交易类型列表响应
+message GetChangeListRes {
+    map<int32, string> list = 1;
 }
 
 // 获取账变记录请求

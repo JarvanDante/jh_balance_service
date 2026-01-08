@@ -8,6 +8,7 @@ import (
 type (
 	IBalance interface {
 		GetBalanceChanges(ctx context.Context, req *v1.GetBalanceChangesReq) (*v1.GetBalanceChangesRes, error)
+		GetChangeList(ctx context.Context, req *v1.GetChangeListReq) (*v1.GetChangeListRes, error)
 		GetRechargePayments(ctx context.Context, req *v1.GetRechargePaymentsReq) (*v1.GetRechargePaymentsRes, error)
 		GetRechargeManuals(ctx context.Context, req *v1.GetRechargeManualsReq) (*v1.GetRechargeManualsRes, error)
 		ConfirmPaymentOrder(ctx context.Context, req *v1.ConfirmPaymentOrderReq) (*v1.ConfirmPaymentOrderRes, error)

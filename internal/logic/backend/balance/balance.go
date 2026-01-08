@@ -1316,3 +1316,29 @@ func (s *sBalance) maskSensitiveData(data string) string {
 	}
 	return data[:4] + "****" + data[len(data)-4:]
 }
+
+// GetChangeList 获取交易类型列表
+func (s *sBalance) GetChangeList(ctx context.Context, req *v1.GetChangeListReq) (*v1.GetChangeListRes, error) {
+	ctx, span := tracing.StartSpan(ctx, "balance.GetChangeList", trace.WithAttributes(
+		attribute.String("method", "GetChangeList"),
+	))
+	defer span.End()
+
+	// 静态交易类型列表
+	changeList := map[int32]string{
+		1:  "转入",
+		2:  "充值",
+		3:  "红利",
+		4:  "返水",
+		5:  "转出",
+		6:  "提现成功",
+		7:  "提现返回",
+		8:  "提现冻结",
+		9:  "丢失补款",
+		10: "多出扣款",
+	}
+
+	return &v1.GetChangeListRes{
+		List: changeList,
+	}, nil
+}

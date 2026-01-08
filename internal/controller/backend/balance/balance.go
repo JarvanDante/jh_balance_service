@@ -90,3 +90,8 @@ func (*Controller) UpdatePaymentAccount(ctx context.Context, req *v1.UpdatePayme
 func (*Controller) DeletePaymentAccount(ctx context.Context, req *v1.DeletePaymentAccountReq) (res *v1.DeletePaymentAccountRes, err error) {
 	return backend.Balance().DeletePaymentAccount(ctx, req)
 }
+
+// GetChangeList 交易类型选项接口
+func (*Controller) GetChangeList(ctx context.Context, req *v1.GetChangeListReq) (*v1.GetChangeListRes, error) {
+	return backend.Balance().GetChangeList(ctx, req)
+}
