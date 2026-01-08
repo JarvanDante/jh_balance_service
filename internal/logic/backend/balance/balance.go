@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	v1 "jh_balance_service/api/backend/balance/v1"
+	balanceConsts "jh_balance_service/internal/consts/backend/balance"
 	"jh_balance_service/internal/dao"
 	"jh_balance_service/internal/model/entity"
 	"jh_balance_service/internal/service/backend"
@@ -54,10 +55,10 @@ func (s *sBalance) GetBalanceChanges(ctx context.Context, req *v1.GetBalanceChan
 		query = query.Where("username = ?", req.Username)
 	}
 	if req.ChangeType > 0 {
-		if req.ChangeType == 1 { // 入款
-			query = query.WhereIn("trade_type", []int{1, 2, 3, 4, 9})
-		} else if req.ChangeType == 2 { // 出款
-			query = query.WhereIn("trade_type", []int{5, 6, 7, 8, 10})
+		if req.ChangeType == int32(balanceConsts.ChangeTypeIncome) { // 入款
+			query = query.WhereIn("trade_type", balanceConsts.IncomeTradeTypes)
+		} else if req.ChangeType == int32(balanceConsts.ChangeTypePay) { // 出款
+			query = query.WhereIn("trade_type", balanceConsts.PayTradeTypes)
 		}
 	}
 	if req.TradeType > 0 {
@@ -90,7 +91,7 @@ func (s *sBalance) GetBalanceChanges(ctx context.Context, req *v1.GetBalanceChan
 		info := &v1.BalanceChangeInfo{
 			Id:            int32(change.Id),
 			TradeType:     int32(change.TradeType),
-			TradeTypeName: s.getTradeTypeName(int(change.TradeType)),
+			TradeTypeName: balanceConsts.GetTradeTypeName(int(change.TradeType)),
 			UserId:        int32(change.UserId),
 			Username:      change.Username,
 			TradeNo:       change.TradeNo,
@@ -99,9 +100,10 @@ func (s *sBalance) GetBalanceChanges(ctx context.Context, req *v1.GetBalanceChan
 			BalanceNew:    change.BalanceNew,
 			BalanceFrozen: change.BalanceFrozen,
 			Status:        int32(change.Status),
-			StatusName:    s.getStatusName(change.Status),
+			StatusName:    balanceConsts.GetStatusName(change.Status),
 			Remark:        change.Remark,
 			CreatedAt:     change.CreatedAt.String(),
+			ChangeType:    int32(balanceConsts.GetChangeTypeByTradeType(int(change.TradeType))),
 		}
 		list = append(list, info)
 	}
@@ -235,7 +237,7 @@ func (s *sBalance) GetRechargeManuals(ctx context.Context, req *v1.GetRechargeMa
 		size = 50
 	}
 
-	query := dao.BalanceLogManual.Ctx(ctx).Where("site_id = ?", siteId).Where("trade_type = ?", 9) // 9=丢失补款
+	query := dao.BalanceLogManual.Ctx(ctx).Where("site_id = ?", siteId).Where("trade_type = ?", balanceConsts.TradeTypeManualAdd) // 丢失补款
 
 	if req.Username != "" {
 		query = query.Where("username = ?", req.Username)
@@ -274,7 +276,7 @@ func (s *sBalance) GetRechargeManuals(ctx context.Context, req *v1.GetRechargeMa
 			TradeNo:    manual.TradeNo,
 			Money:      manual.Money,
 			Status:     int32(manual.Status),
-			StatusName: s.getStatusName(manual.Status),
+			StatusName: balanceConsts.GetStatusName(manual.Status),
 			AdminId:    int32(manual.AdminId),
 			AdminName:  "",
 			Remark:     manual.Remark,
@@ -315,7 +317,7 @@ func (s *sBalance) ConfirmPaymentOrder(ctx context.Context, req *v1.ConfirmPayme
 		}, nil
 	}
 
-	if payment.Status == 2 {
+	if payment.Status == balanceConsts.StatusSuccess {
 		return &v1.ConfirmPaymentOrderRes{
 			Success: false,
 			Message: "订单已经确认，请勿重复操作",
@@ -328,7 +330,7 @@ func (s *sBalance) ConfirmPaymentOrder(ctx context.Context, req *v1.ConfirmPayme
 		_, err := dao.BalanceLogPayment.Ctx(ctx).TX(tx).
 			Where("id = ?", req.Id).
 			Update(g.Map{
-				"status":     2,
+				"status":     balanceConsts.StatusSuccess,
 				"remark":     req.Remark,
 				"updated_at": "NOW()",
 			})
@@ -467,7 +469,7 @@ func (s *sBalance) GetWithdrawManuals(ctx context.Context, req *v1.GetWithdrawMa
 		size = 50
 	}
 
-	query := dao.BalanceLogManual.Ctx(ctx).Where("site_id = ?", siteId).Where("trade_type = ?", 10) // 10=多出扣款
+	query := dao.BalanceLogManual.Ctx(ctx).Where("site_id = ?", siteId).Where("trade_type = ?", balanceConsts.TradeTypeManualCut) // 多出扣款
 
 	if req.Username != "" {
 		query = query.Where("username = ?", req.Username)
@@ -506,7 +508,7 @@ func (s *sBalance) GetWithdrawManuals(ctx context.Context, req *v1.GetWithdrawMa
 			TradeNo:    manual.TradeNo,
 			Money:      manual.Money,
 			Status:     int32(manual.Status),
-			StatusName: s.getStatusName(manual.Status),
+			StatusName: balanceConsts.GetStatusName(manual.Status),
 			AdminId:    int32(manual.AdminId),
 			AdminName:  "",
 			Remark:     manual.Remark,
@@ -602,7 +604,7 @@ func (s *sBalance) DealWithWithdraw(ctx context.Context, req *v1.DealWithWithdra
 		}, nil
 	}
 
-	if withdraw.Status != 1 {
+	if withdraw.Status != balanceConsts.StatusPending {
 		return &v1.DealWithWithdrawRes{
 			Success: false,
 			Message: "该提现记录已处理，请勿重复操作",
@@ -616,15 +618,15 @@ func (s *sBalance) DealWithWithdraw(ctx context.Context, req *v1.DealWithWithdra
 
 		switch req.Type {
 		case 1: // 确认提现
-			newStatus = 2
+			newStatus = balanceConsts.StatusSuccess
 			message = "提现确认成功"
 			// TODO: 调用第三方支付API
 		case 0: // 拒绝提现
-			newStatus = 3
+			newStatus = balanceConsts.StatusFail
 			message = "提现已拒绝"
 			// TODO: 调用用户服务解冻余额
 		case 2: // 补单提现
-			newStatus = 2
+			newStatus = balanceConsts.StatusSuccess
 			message = "补单提现成功"
 			// TODO: 调用第三方支付API
 		default:
@@ -661,42 +663,11 @@ func (s *sBalance) DealWithWithdraw(ctx context.Context, req *v1.DealWithWithdra
 }
 
 // 辅助方法
-func (s *sBalance) getTradeTypeName(tradeType int) string {
-	names := map[int]string{
-		1:  "转入",
-		2:  "充值",
-		3:  "红利",
-		4:  "返水",
-		5:  "转出",
-		6:  "提现成功",
-		7:  "提现返回",
-		8:  "提现冻结",
-		9:  "丢失补款",
-		10: "多出扣款",
-	}
-	if name, ok := names[tradeType]; ok {
-		return name
-	}
-	return "未知"
-}
-
-func (s *sBalance) getStatusName(status int) string {
-	names := map[int]string{
-		1: "待审核",
-		2: "成功",
-		3: "失败",
-	}
-	if name, ok := names[status]; ok {
-		return name
-	}
-	return "未知"
-}
-
 func (s *sBalance) getPaymentStatusName(status int) string {
 	names := map[int]string{
-		1: "未付",
-		2: "成功",
-		3: "失败",
+		balanceConsts.StatusPending: "未付",
+		balanceConsts.StatusSuccess: "成功",
+		balanceConsts.StatusFail:    "失败",
 	}
 	if name, ok := names[status]; ok {
 		return name
@@ -706,10 +677,10 @@ func (s *sBalance) getPaymentStatusName(status int) string {
 
 func (s *sBalance) getWithdrawStatusName(status int) string {
 	names := map[int]string{
-		1: "待审核",
-		2: "成功",
-		3: "失败",
-		4: "处理中",
+		balanceConsts.StatusPending: "待审核",
+		balanceConsts.StatusSuccess: "成功",
+		balanceConsts.StatusFail:    "失败",
+		4:                           "处理中",
 	}
 	if name, ok := names[status]; ok {
 		return name
@@ -866,14 +837,14 @@ func (s *sBalance) ManualUserBalance(ctx context.Context, req *v1.ManualUserBala
 
 		if req.Type == 1 { // 加款
 			balanceNew = balanceOld + req.Money
-			tradeType = 9 // 丢失补款
+			tradeType = balanceConsts.TradeTypeManualAdd // 丢失补款
 			remark = "手动加款"
 		} else { // 扣款
 			if balanceOld < req.Money {
 				return fmt.Errorf("余额不足")
 			}
 			balanceNew = balanceOld - req.Money
-			tradeType = 10 // 多出扣款
+			tradeType = balanceConsts.TradeTypeManualCut // 多出扣款
 			remark = "手动扣款"
 		}
 
@@ -906,7 +877,7 @@ func (s *sBalance) ManualUserBalance(ctx context.Context, req *v1.ManualUserBala
 			"money":          req.Money,
 			"balance_new":    balanceNew,
 			"balance_frozen": balance.BalanceFrozen,
-			"status":         2, // 成功
+			"status":         balanceConsts.StatusSuccess,
 			"remark":         remark,
 			"created_at":     "NOW()",
 			"updated_at":     "NOW()",
@@ -923,7 +894,7 @@ func (s *sBalance) ManualUserBalance(ctx context.Context, req *v1.ManualUserBala
 			"username":   "testuser", // TODO: 从用户服务获取
 			"trade_no":   tradeNo,
 			"money":      req.Money,
-			"status":     2, // 成功
+			"status":     balanceConsts.StatusSuccess,
 			"admin_id":   1, // TODO: 从上下文获取管理员ID
 			"remark":     remark,
 			"created_at": "NOW()",
@@ -1324,18 +1295,10 @@ func (s *sBalance) GetChangeList(ctx context.Context, req *v1.GetChangeListReq) 
 	))
 	defer span.End()
 
-	// 静态交易类型列表
-	changeList := map[int32]string{
-		1:  "转入",
-		2:  "充值",
-		3:  "红利",
-		4:  "返水",
-		5:  "转出",
-		6:  "提现成功",
-		7:  "提现返回",
-		8:  "提现冻结",
-		9:  "丢失补款",
-		10: "多出扣款",
+	// 使用常量定义的交易类型列表
+	changeList := make(map[int32]string)
+	for k, v := range balanceConsts.TradeTypeNames {
+		changeList[int32(k)] = v
 	}
 
 	return &v1.GetChangeListRes{

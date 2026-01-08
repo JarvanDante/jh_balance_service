@@ -95,3 +95,18 @@ func GetStatusName(status int) string {
 	}
 	return "未知"
 }
+
+// GetChangeTypeByTradeType 根据交易类型获取账变类型
+func GetChangeTypeByTradeType(tradeType int) int {
+	for _, t := range IncomeTradeTypes {
+		if t == tradeType {
+			return ChangeTypeIncome
+		}
+	}
+	for _, t := range PayTradeTypes {
+		if t == tradeType {
+			return ChangeTypePay
+		}
+	}
+	return 0
+}
