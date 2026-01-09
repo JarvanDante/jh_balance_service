@@ -24,6 +24,7 @@ type BalanceUserColumns struct {
 	Id            string //
 	SiteId        string // 站点ID
 	UserId        string // 会员ID
+	Username      string // 会员用户名
 	Balance       string // 可用金额
 	BalanceFrozen string // 冻结金额
 	BalanceDebt   string // 负债金额。防止账户余额出现负数的情况。例如：注单结算错误，需要扣掉会员账户金额。如果会员账户金额足够，则直接扣除会员账户金额；如果会员账户金额不足，则不扣除会员账户金额，直接存入负债金额。在下次会员有资金变动的时候，先来计算这笔金额
@@ -38,6 +39,7 @@ var balanceUserColumns = BalanceUserColumns{
 	Id:            "id",
 	SiteId:        "site_id",
 	UserId:        "user_id",
+	Username:      "username",
 	Balance:       "balance",
 	BalanceFrozen: "balance_frozen",
 	BalanceDebt:   "balance_debt",

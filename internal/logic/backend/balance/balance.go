@@ -716,19 +716,17 @@ func (s *sBalance) QueryUserBalance(ctx context.Context, req *v1.QueryUserBalanc
 
 	ctx, span := tracing.StartSpan(ctx, "balance.QueryUserBalance", trace.WithAttributes(
 		attribute.String("method", "QueryUserBalance"),
-		attribute.String("username", req.Username),
+		attribute.String("username", string(req.UserId)),
 	))
 	defer span.End()
 
-	if req.Username == "" {
-		return nil, fmt.Errorf("用户名不能为空")
+	if req.UserId == 0 {
+		return nil, fmt.Errorf("用户id不能为空")
 	}
 
 	siteId := 1
 
-	// TODO: 调用用户服务获取用户ID
-	// 暂时写死用户ID
-	userId := 123
+	userId := req.UserId
 
 	// 查询用户余额
 	var balance entity.BalanceUser
@@ -743,7 +741,7 @@ func (s *sBalance) QueryUserBalance(ctx context.Context, req *v1.QueryUserBalanc
 
 	balanceInfo := &v1.UserBalanceInfo{
 		UserId:         int32(balance.UserId),
-		Username:       req.Username,
+		Username:       balance.Username,
 		Balance:        balance.Balance,
 		BalanceFrozen:  balance.BalanceFrozen,
 		Points:         float64(balance.Points),
