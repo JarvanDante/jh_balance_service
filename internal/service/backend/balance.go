@@ -24,6 +24,7 @@ type (
 		GetPaymentAccountUpdate(ctx context.Context, req *v1.GetPaymentAccountUpdateReq) (*v1.GetPaymentAccountUpdateRes, error)
 		UpdatePaymentAccount(ctx context.Context, req *v1.UpdatePaymentAccountReq) (*v1.UpdatePaymentAccountRes, error)
 		DeletePaymentAccount(ctx context.Context, req *v1.DeletePaymentAccountReq) (*v1.DeletePaymentAccountRes, error)
+		GetManualList(ctx context.Context, req *v1.GetManualListReq) (*v1.GetManualListRes, error)
 	}
 )
 

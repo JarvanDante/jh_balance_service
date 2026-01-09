@@ -806,14 +806,29 @@ func (s *sBalance) ManualUserBalance(ctx context.Context, req *v1.ManualUserBala
 	if req.UserId <= 0 {
 		return nil, fmt.Errorf("用户ID不能为空")
 	}
-	if req.Type != 1 && req.Type != 2 {
+
+	// 验证操作类型是否有效（1-6为有效类型）
+	validTypes := map[int32]bool{
+		1: true, // TYPE_ADD_RECHARGE
+		2: true, // TYPE_ADD_BONUS
+		3: true, // TYPE_ADD_REBATE
+		4: true, // TYPE_ADD_DIRECT
+		5: true, // TYPE_CUT_WITHDRAW
+		6: true, // TYPE_CUT_DIRECT
+	}
+	if !validTypes[req.Type] {
 		return nil, fmt.Errorf("操作类型无效")
 	}
+
 	if req.Money <= 0 {
 		return nil, fmt.Errorf("操作金额必须大于0")
 	}
 
 	siteId := 1
+
+	// 判断是加款还是扣款
+	isAddType := req.Type == 1 || req.Type == 2 || req.Type == 3 || req.Type == 4
+	isDeductType := req.Type == 5 || req.Type == 6
 
 	// 开启事务
 	err := dao.BalanceUser.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
@@ -833,17 +848,17 @@ func (s *sBalance) ManualUserBalance(ctx context.Context, req *v1.ManualUserBala
 		var tradeType int
 		var remark string
 
-		if req.Type == 1 { // 加款
+		if isAddType { // 加款
 			balanceNew = balanceOld + req.Money
-			tradeType = balanceConsts.TradeTypeManualAdd // 丢失补款
-			remark = "手动加款"
-		} else { // 扣款
+			tradeType = int(req.Type)
+			remark = balanceConsts.GetTypeName(int(req.Type))
+		} else if isDeductType { // 扣款
 			if balanceOld < req.Money {
 				return fmt.Errorf("余额不足")
 			}
 			balanceNew = balanceOld - req.Money
-			tradeType = balanceConsts.TradeTypeManualCut // 多出扣款
-			remark = "手动扣款"
+			tradeType = int(req.Type)
+			remark = balanceConsts.GetTypeName(int(req.Type))
 		}
 
 		if req.Remark != "" {
@@ -867,7 +882,7 @@ func (s *sBalance) ManualUserBalance(ctx context.Context, req *v1.ManualUserBala
 		// 记录账变
 		_, err = dao.BalanceChange.Ctx(ctx).TX(tx).Insert(g.Map{
 			"site_id":        siteId,
-			"trade_type":     tradeType,
+			"trade_type":     balanceConsts.GetBalanceChangeTradeType(int(req.Type)),
 			"user_id":        req.UserId,
 			"username":       "testuser", // TODO: 从用户服务获取
 			"trade_no":       tradeNo,
@@ -916,9 +931,7 @@ func (s *sBalance) ManualUserBalance(ctx context.Context, req *v1.ManualUserBala
 		Success: true,
 		Message: "操作成功",
 	}, nil
-}
-
-// GetPaymentAccounts 获取支付接口列表
+} // GetPaymentAccounts 获取支付接口列表
 func (s *sBalance) GetPaymentAccounts(ctx context.Context, req *v1.GetPaymentAccountsReq) (*v1.GetPaymentAccountsRes, error) {
 	if req == nil {
 		return nil, fmt.Errorf("请求参数不能为空")
@@ -1301,5 +1314,37 @@ func (s *sBalance) GetChangeList(ctx context.Context, req *v1.GetChangeListReq) 
 
 	return &v1.GetChangeListRes{
 		List: changeList,
+	}, nil
+}
+
+// GetManualList 获取操作类型列表
+func (s *sBalance) GetManualList(ctx context.Context, req *v1.GetManualListReq) (*v1.GetManualListRes, error) {
+	if req == nil {
+		return nil, fmt.Errorf("请求参数不能为空")
+	}
+
+	ctx, span := tracing.StartSpan(ctx, "balance.GetManualList", trace.WithAttributes(
+		attribute.String("method", "GetManualList"),
+	))
+	defer span.End()
+
+	// 需要过滤的类型（第三方相关的操作类型）
+	excludeTypes := map[int]bool{
+		7:  true, // TYPE_GAME_ADD_DIRECT
+		8:  true, // TYPE_GAME_CUT_DIRECT
+		9:  true, // TYPE_GAME_TRANSFER_IN
+		10: true, // TYPE_GAME_TRANSFER_OUT
+	}
+
+	// 返回操作类型列表（过滤掉第三方相关的类型）
+	manualList := make(map[int32]string)
+	for typeCode, typeName := range balanceConsts.TypeNames {
+		if !excludeTypes[typeCode] {
+			manualList[int32(typeCode)] = typeName
+		}
+	}
+
+	return &v1.GetManualListRes{
+		List: manualList,
 	}, nil
 }

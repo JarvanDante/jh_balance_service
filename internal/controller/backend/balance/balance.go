@@ -100,3 +100,8 @@ func (*Controller) DeletePaymentAccount(ctx context.Context, req *v1.DeletePayme
 func (*Controller) GetChangeList(ctx context.Context, req *v1.GetChangeListReq) (*v1.GetChangeListRes, error) {
 	return backend.Balance().GetChangeList(ctx, req)
 }
+
+// GetManualList 获取操作类型列表
+func (*Controller) GetManualList(ctx context.Context, req *v1.GetManualListReq) (*v1.GetManualListRes, error) {
+	return backend.Balance().GetManualList(ctx, req)
+}
