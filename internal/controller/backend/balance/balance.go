@@ -51,6 +51,11 @@ func (*Controller) GetWithdrawReview(ctx context.Context, req *v1.GetWithdrawRev
 	return backend.Balance().GetWithdrawReview(ctx, req)
 }
 
+// DealWithWithdraw 处理提现
+func (*Controller) DealWithWithdraw(ctx context.Context, req *v1.DealWithWithdrawReq) (res *v1.DealWithWithdrawRes, err error) {
+	return backend.Balance().DealWithWithdraw(ctx, req)
+}
+
 // QueryUserBalance 查询用户余额
 func (*Controller) QueryUserBalance(ctx context.Context, req *v1.QueryUserBalanceReq) (res *v1.QueryUserBalanceRes, err error) {
 	return backend.Balance().QueryUserBalance(ctx, req)
