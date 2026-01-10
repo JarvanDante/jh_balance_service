@@ -332,7 +332,7 @@ func (s *sBalance) ConfirmPaymentOrder(ctx context.Context, req *v1.ConfirmPayme
 			Update(g.Map{
 				"status":     balanceConsts.StatusSuccess,
 				"remark":     req.Remark,
-				"updated_at": "NOW()",
+				"updated_at": time.Now(),
 			})
 		if err != nil {
 			return fmt.Errorf("更新订单状态失败: %v", err)
@@ -640,7 +640,7 @@ func (s *sBalance) DealWithWithdraw(ctx context.Context, req *v1.DealWithWithdra
 				"status":     newStatus,
 				"fee":        req.Fee,
 				"remark":     req.Remark,
-				"updated_at": "NOW()",
+				"updated_at": time.Now(),
 			})
 		if err != nil {
 			return fmt.Errorf("更新提现记录失败: %v", err)
@@ -865,12 +865,15 @@ func (s *sBalance) ManualUserBalance(ctx context.Context, req *v1.ManualUserBala
 			remark = req.Remark
 		}
 
+		// 获取当前时间
+		now := time.Now()
+
 		// 更新用户余额
 		_, err = dao.BalanceUser.Ctx(ctx).TX(tx).
 			Where("id = ?", balance.Id).
 			Update(g.Map{
 				"balance":    balanceNew,
-				"updated_at": "NOW()",
+				"updated_at": now,
 			})
 		if err != nil {
 			return fmt.Errorf("更新用户余额失败: %v", err)
@@ -892,8 +895,8 @@ func (s *sBalance) ManualUserBalance(ctx context.Context, req *v1.ManualUserBala
 			"balance_frozen": balance.BalanceFrozen,
 			"status":         balanceConsts.StatusSuccess,
 			"remark":         remark,
-			"created_at":     "NOW()",
-			"updated_at":     "NOW()",
+			"created_at":     now,
+			"updated_at":     now,
 		})
 		if err != nil {
 			return fmt.Errorf("记录账变失败: %v", err)
@@ -910,8 +913,8 @@ func (s *sBalance) ManualUserBalance(ctx context.Context, req *v1.ManualUserBala
 			"status":     balanceConsts.StatusSuccess,
 			"admin_id":   1, // TODO: 从上下文获取管理员ID
 			"remark":     remark,
-			"created_at": "NOW()",
-			"updated_at": "NOW()",
+			"created_at": now,
+			"updated_at": now,
 		})
 		if err != nil {
 			return fmt.Errorf("记录操作日志失败: %v", err)
@@ -1071,8 +1074,8 @@ func (s *sBalance) CreatePaymentAccount(ctx context.Context, req *v1.CreatePayme
 		"is_decimal":   req.IsDecimal,
 		"is_int":       req.IsInt,
 		"money_list":   req.MoneyList,
-		"created_at":   "NOW()",
-		"updated_at":   "NOW()",
+		"created_at":   time.Now(),
+		"updated_at":   time.Now(),
 	})
 	if err != nil {
 		return &v1.CreatePaymentAccountRes{
@@ -1209,7 +1212,7 @@ func (s *sBalance) UpdatePaymentAccount(ctx context.Context, req *v1.UpdatePayme
 		"is_decimal":  req.IsDecimal,
 		"is_int":      req.IsInt,
 		"money_list":  req.MoneyList,
-		"updated_at":  "NOW()",
+		"updated_at":  time.Now(),
 	})
 	if err != nil {
 		return &v1.UpdatePaymentAccountRes{
