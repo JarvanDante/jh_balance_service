@@ -5,7 +5,10 @@
 package dao
 
 import (
+	"context"
 	"jh_balance_service/internal/dao/internal"
+
+	"github.com/gogf/gf/v2/database/gdb"
 )
 
 // balanceUserDao is the data access object for the table balance_user.
@@ -16,7 +19,14 @@ type balanceUserDao struct {
 
 var (
 	// BalanceUser is a globally accessible object for table balance_user operations.
-	BalanceUser = balanceUserDao{internal.NewBalanceUserDao()}
+	BalanceUser = balanceUserDao{internal.NewBalanceUserDao(DynamicDBHandler)}
 )
+
+// Ctx 重写Ctx方法，使用动态数据库连接
+func (d balanceUserDao) Ctx(ctx context.Context) *gdb.Model {
+	// 使用辅助函数获取动态Model
+	originalModel := d.BalanceUserDao.Ctx(ctx)
+	return GetDynamicModel(ctx, d.Table(), originalModel)
+}
 
 // Add your custom methods and functionality below.

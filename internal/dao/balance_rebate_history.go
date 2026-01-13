@@ -5,7 +5,10 @@
 package dao
 
 import (
+	"context"
 	"jh_balance_service/internal/dao/internal"
+
+	"github.com/gogf/gf/v2/database/gdb"
 )
 
 // balanceRebateHistoryDao is the data access object for the table balance_rebate_history.
@@ -16,7 +19,14 @@ type balanceRebateHistoryDao struct {
 
 var (
 	// BalanceRebateHistory is a globally accessible object for table balance_rebate_history operations.
-	BalanceRebateHistory = balanceRebateHistoryDao{internal.NewBalanceRebateHistoryDao()}
+	BalanceRebateHistory = balanceRebateHistoryDao{internal.NewBalanceRebateHistoryDao(DynamicDBHandler)}
 )
+
+// Ctx 重写Ctx方法，使用动态数据库连接
+func (d balanceRebateHistoryDao) Ctx(ctx context.Context) *gdb.Model {
+	// 使用辅助函数获取动态Model
+	originalModel := d.BalanceRebateHistoryDao.Ctx(ctx)
+	return GetDynamicModel(ctx, d.Table(), originalModel)
+}
 
 // Add your custom methods and functionality below.

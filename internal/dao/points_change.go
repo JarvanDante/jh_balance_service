@@ -5,7 +5,10 @@
 package dao
 
 import (
+	"context"
 	"jh_balance_service/internal/dao/internal"
+
+	"github.com/gogf/gf/v2/database/gdb"
 )
 
 // pointsChangeDao is the data access object for the table points_change.
@@ -16,7 +19,14 @@ type pointsChangeDao struct {
 
 var (
 	// PointsChange is a globally accessible object for table points_change operations.
-	PointsChange = pointsChangeDao{internal.NewPointsChangeDao()}
+	PointsChange = pointsChangeDao{internal.NewPointsChangeDao(DynamicDBHandler)}
 )
+
+// Ctx 重写Ctx方法，使用动态数据库连接
+func (d pointsChangeDao) Ctx(ctx context.Context) *gdb.Model {
+	// 使用辅助函数获取动态Model
+	originalModel := d.PointsChangeDao.Ctx(ctx)
+	return GetDynamicModel(ctx, d.Table(), originalModel)
+}
 
 // Add your custom methods and functionality below.

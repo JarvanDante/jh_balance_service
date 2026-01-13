@@ -110,23 +110,22 @@ func getContainerIP() string {
 	return "127.0.0.1"
 }
 
-func InitConsul() error {
+func InitConsul() (*api.Client, error) {
 	ctx := context.Background()
 	cfg := api.DefaultConfig()
 	addr := g.Cfg().MustGet(ctx, "consul.addr").String()
 	if addr == "" {
-		return fmt.Errorf("consul.addr 配置不能为空")
+		return nil, fmt.Errorf("consul.addr 配置不能为空")
 	}
 	cfg.Address = addr
 
 	var err error
 	client, err = api.NewClient(cfg)
 	if err != nil {
-		return fmt.Errorf("init consul failed: %v", err)
+		return nil, fmt.Errorf("init consul failed: %v", err)
 	}
 
-	// 自动注册服务
-	return RegisterService()
+	return client, nil
 }
 
 func RegisterService() error {

@@ -5,7 +5,10 @@
 package dao
 
 import (
+	"context"
 	"jh_balance_service/internal/dao/internal"
+
+	"github.com/gogf/gf/v2/database/gdb"
 )
 
 // balanceLogBonusDao is the data access object for the table balance_log_bonus.
@@ -16,7 +19,14 @@ type balanceLogBonusDao struct {
 
 var (
 	// BalanceLogBonus is a globally accessible object for table balance_log_bonus operations.
-	BalanceLogBonus = balanceLogBonusDao{internal.NewBalanceLogBonusDao()}
+	BalanceLogBonus = balanceLogBonusDao{internal.NewBalanceLogBonusDao(DynamicDBHandler)}
 )
+
+// Ctx 重写Ctx方法，使用动态数据库连接
+func (d balanceLogBonusDao) Ctx(ctx context.Context) *gdb.Model {
+	// 使用辅助函数获取动态Model
+	originalModel := d.BalanceLogBonusDao.Ctx(ctx)
+	return GetDynamicModel(ctx, d.Table(), originalModel)
+}
 
 // Add your custom methods and functionality below.

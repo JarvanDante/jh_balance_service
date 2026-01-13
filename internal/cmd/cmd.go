@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"jh_balance_service/internal/controller/backend/balance"
+	"jh_balance_service/internal/middleware"
 	"jh_balance_service/internal/registry"
 	"jh_balance_service/internal/tracing"
 
@@ -26,18 +27,37 @@ var (
 			}
 			defer cleanup()
 
-			// 初始化服务注册
-			err = registry.InitConsul()
+			// 初始化Consul客户端
+			consulClient, err := registry.InitConsul()
 			if err != nil {
 				g.Log().Fatalf(ctx, "Failed to initialize Consul: %v", err)
 			}
 
+			// 注册服务到Consul
+			if err := registry.RegisterService(); err != nil {
+				g.Log().Fatalf(ctx, "Failed to register service: %v", err)
+			}
+
+			// 初始化数据库配置管理器
+			dbManager := registry.GetDBConfigManager()
+			if err := dbManager.Init(consulClient); err != nil {
+				g.Log().Fatalf(ctx, "Failed to init balance db config manager: %v", err)
+			}
+			defer dbManager.Stop()
+
+			// 创建数据库拦截器
+			dbInterceptor := middleware.NewDBInterceptor()
+
 			c := grpcx.Server.NewConfig()
 			c.Options = append(c.Options, []grpc.ServerOption{
 				grpcx.Server.ChainUnary(
+					dbInterceptor.UnaryServerInterceptor(),
 					grpcx.Server.UnaryValidate,
-				)}...,
-			)
+				),
+				grpcx.Server.ChainStream(
+					dbInterceptor.StreamServerInterceptor(),
+				),
+			}...)
 			s := grpcx.Server.New(c)
 
 			// 注册服务

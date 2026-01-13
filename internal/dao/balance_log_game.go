@@ -5,7 +5,10 @@
 package dao
 
 import (
+	"context"
 	"jh_balance_service/internal/dao/internal"
+
+	"github.com/gogf/gf/v2/database/gdb"
 )
 
 // balanceLogGameDao is the data access object for the table balance_log_game.
@@ -16,7 +19,14 @@ type balanceLogGameDao struct {
 
 var (
 	// BalanceLogGame is a globally accessible object for table balance_log_game operations.
-	BalanceLogGame = balanceLogGameDao{internal.NewBalanceLogGameDao()}
+	BalanceLogGame = balanceLogGameDao{internal.NewBalanceLogGameDao(DynamicDBHandler)}
 )
+
+// Ctx 重写Ctx方法，使用动态数据库连接
+func (d balanceLogGameDao) Ctx(ctx context.Context) *gdb.Model {
+	// 使用辅助函数获取动态Model
+	originalModel := d.BalanceLogGameDao.Ctx(ctx)
+	return GetDynamicModel(ctx, d.Table(), originalModel)
+}
 
 // Add your custom methods and functionality below.

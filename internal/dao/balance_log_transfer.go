@@ -5,7 +5,10 @@
 package dao
 
 import (
+	"context"
 	"jh_balance_service/internal/dao/internal"
+
+	"github.com/gogf/gf/v2/database/gdb"
 )
 
 // balanceLogTransferDao is the data access object for the table balance_log_transfer.
@@ -16,7 +19,14 @@ type balanceLogTransferDao struct {
 
 var (
 	// BalanceLogTransfer is a globally accessible object for table balance_log_transfer operations.
-	BalanceLogTransfer = balanceLogTransferDao{internal.NewBalanceLogTransferDao()}
+	BalanceLogTransfer = balanceLogTransferDao{internal.NewBalanceLogTransferDao(DynamicDBHandler)}
 )
+
+// Ctx 重写Ctx方法，使用动态数据库连接
+func (d balanceLogTransferDao) Ctx(ctx context.Context) *gdb.Model {
+	// 使用辅助函数获取动态Model
+	originalModel := d.BalanceLogTransferDao.Ctx(ctx)
+	return GetDynamicModel(ctx, d.Table(), originalModel)
+}
 
 // Add your custom methods and functionality below.

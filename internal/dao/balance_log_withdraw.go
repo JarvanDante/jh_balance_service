@@ -5,7 +5,10 @@
 package dao
 
 import (
+	"context"
 	"jh_balance_service/internal/dao/internal"
+
+	"github.com/gogf/gf/v2/database/gdb"
 )
 
 // balanceLogWithdrawDao is the data access object for the table balance_log_withdraw.
@@ -16,7 +19,14 @@ type balanceLogWithdrawDao struct {
 
 var (
 	// BalanceLogWithdraw is a globally accessible object for table balance_log_withdraw operations.
-	BalanceLogWithdraw = balanceLogWithdrawDao{internal.NewBalanceLogWithdrawDao()}
+	BalanceLogWithdraw = balanceLogWithdrawDao{internal.NewBalanceLogWithdrawDao(DynamicDBHandler)}
 )
+
+// Ctx 重写Ctx方法，使用动态数据库连接
+func (d balanceLogWithdrawDao) Ctx(ctx context.Context) *gdb.Model {
+	// 使用辅助函数获取动态Model
+	originalModel := d.BalanceLogWithdrawDao.Ctx(ctx)
+	return GetDynamicModel(ctx, d.Table(), originalModel)
+}
 
 // Add your custom methods and functionality below.

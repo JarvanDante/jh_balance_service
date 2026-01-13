@@ -5,7 +5,10 @@
 package dao
 
 import (
+	"context"
 	"jh_balance_service/internal/dao/internal"
+
+	"github.com/gogf/gf/v2/database/gdb"
 )
 
 // balanceSiteDao is the data access object for the table balance_site.
@@ -16,7 +19,14 @@ type balanceSiteDao struct {
 
 var (
 	// BalanceSite is a globally accessible object for table balance_site operations.
-	BalanceSite = balanceSiteDao{internal.NewBalanceSiteDao()}
+	BalanceSite = balanceSiteDao{internal.NewBalanceSiteDao(DynamicDBHandler)}
 )
+
+// Ctx 重写Ctx方法，使用动态数据库连接
+func (d balanceSiteDao) Ctx(ctx context.Context) *gdb.Model {
+	// 使用辅助函数获取动态Model
+	originalModel := d.BalanceSiteDao.Ctx(ctx)
+	return GetDynamicModel(ctx, d.Table(), originalModel)
+}
 
 // Add your custom methods and functionality below.
