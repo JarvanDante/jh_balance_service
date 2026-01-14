@@ -324,8 +324,8 @@ func (s *sBalance) ConfirmPaymentOrder(ctx context.Context, req *v1.ConfirmPayme
 		}, nil
 	}
 
-	// 开启事务
-	err = dao.BalanceLogPayment.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+	// 开启事务 - 使用 Ctx(ctx) 保持动态数据库路由
+	err = dao.BalanceLogPayment.Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
 		// 更新订单状态
 		_, err := dao.BalanceLogPayment.Ctx(ctx).TX(tx).
 			Where("id = ?", req.Id).
@@ -612,8 +612,8 @@ func (s *sBalance) DealWithWithdraw(ctx context.Context, req *v1.DealWithWithdra
 	}
 
 	var message string
-	// 开启事务处理
-	err = dao.BalanceLogWithdraw.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+	// 开启事务处理 - 使用 Ctx(ctx) 保持动态数据库路由
+	err = dao.BalanceLogWithdraw.Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
 		var newStatus int
 
 		switch req.Type {
@@ -830,8 +830,8 @@ func (s *sBalance) ManualUserBalance(ctx context.Context, req *v1.ManualUserBala
 	isAddType := req.Type == 1 || req.Type == 2 || req.Type == 3 || req.Type == 4
 	isDeductType := req.Type == 5 || req.Type == 6
 
-	// 开启事务
-	err := dao.BalanceUser.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+	// 开启事务 - 使用 Ctx(ctx) 保持动态数据库路由
+	err := dao.BalanceUser.Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
 		// 查询用户当前余额
 		var balance entity.BalanceUser
 		err := dao.BalanceUser.Ctx(ctx).TX(tx).Where("site_id = ? AND user_id = ?", siteId, req.UserId).Scan(&balance)
