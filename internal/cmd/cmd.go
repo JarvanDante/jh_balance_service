@@ -3,9 +3,13 @@ package cmd
 import (
 	"context"
 	"jh_balance_service/internal/controller/backend/balance"
+	frontendBalance "jh_balance_service/internal/controller/frontend/balance"
 	"jh_balance_service/internal/middleware"
 	"jh_balance_service/internal/registry"
 	"jh_balance_service/internal/tracing"
+
+	// 导入logic包以触发init函数
+	_ "jh_balance_service/internal/logic/frontend/balance"
 
 	"github.com/gogf/gf/contrib/rpc/grpcx/v2"
 	"github.com/gogf/gf/v2/frame/g"
@@ -62,6 +66,7 @@ var (
 
 			// 注册服务
 			balance.Register(s)
+			frontendBalance.Register(s)
 
 			s.Run()
 			return nil

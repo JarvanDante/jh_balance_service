@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -12,18 +13,38 @@ import (
 	"github.com/hashicorp/consul/api"
 )
 
-// SiteConfig 站点配置结构
+// SiteConfig 站点配置结构（匹配新的KV格式）
 type SiteConfig struct {
-	SiteID        int    `json:"site_id"`
+	Meta   MetaConfig   `json:"Meta"`
+	Base   BaseConfig   `json:"Base"`
+	Domain DomainConfig `json:"Domain"`
+}
+
+// MetaConfig 元数据配置
+type MetaConfig struct {
+	Version     int64  `json:"version"`
+	PublishedAt string `json:"published_at"`
+	AdminId     int    `json:"admin_id"`
+}
+
+// BaseConfig 基础配置
+type BaseConfig struct {
+	SiteId        int    `json:"site_id"`
 	Code          string `json:"code"`
+	TimeZone      string `json:"timezone"`
 	Currency      string `json:"currency"`
 	DbLinkSite    string `json:"db_link_site"`
 	DbLinkBalance string `json:"db_link_balance"`
 	DbLinkGame    string `json:"db_link_game"`
 	Status        int    `json:"status"`
-	Timezone      string `json:"timezone"`
-	Version       int64  `json:"version"`
-	PublishedAt   string `json:"published_at"`
+}
+
+// DomainConfig 域名配置
+type DomainConfig struct {
+	API      []string `json:"api"`
+	H5       []string `json:"h5"`
+	Admin    []string `json:"admin"`
+	Callback []string `json:"callback"`
 }
 
 // DBConfigManager 数据库配置管理器
@@ -86,16 +107,26 @@ func (m *DBConfigManager) loadAllSiteConfigs() error {
 		return fmt.Errorf("获取站点配置列表失败: %v", err)
 	}
 
+	updatedCount := 0
 	for _, pair := range pairs {
-		// 只处理 sites/{code}/base 格式的key
-		if len(pair.Key) > 6 && pair.Key[len(pair.Key)-5:] == "/base" {
-			if err := m.updateSiteConfig(pair.Key, pair.Value); err != nil {
-				g.Log().Errorf(m.ctx, "更新站点配置失败: key=%s, error=%v", pair.Key, err)
-			}
+		// 解析 key: sites/{site_code}
+		parts := strings.Split(pair.Key, "/")
+		if len(parts) != 2 {
+			continue
+		}
+
+		updated, err := m.updateSiteConfig(pair.Key, pair.Value)
+		if err != nil {
+			g.Log().Errorf(m.ctx, "更新站点配置失败: key=%s, error=%v", pair.Key, err)
+		} else if updated {
+			updatedCount++
 		}
 	}
 
-	g.Log().Infof(m.ctx, "Balance服务加载了 %d 个站点配置", len(m.siteConfigs))
+	// 只在有配置更新时输出日志
+	if updatedCount > 0 {
+		g.Log().Infof(m.ctx, "Balance服务更新了 %d 个站点配置，当前共 %d 个站点", updatedCount, len(m.siteConfigs))
+	}
 	return nil
 }
 
@@ -115,39 +146,61 @@ func (m *DBConfigManager) watchSiteConfigs() {
 	}
 }
 
-// updateSiteConfig 更新站点配置
-func (m *DBConfigManager) updateSiteConfig(key string, value []byte) error {
+// updateSiteConfig 更新站点配置，返回是否有更新
+func (m *DBConfigManager) updateSiteConfig(key string, value []byte) (bool, error) {
 	var config SiteConfig
 	if err := json.Unmarshal(value, &config); err != nil {
-		return fmt.Errorf("解析站点配置失败: %v", err)
+		return false, fmt.Errorf("解析站点配置失败: %v", err)
+	}
+
+	siteCode := config.Base.Code
+	if siteCode == "" {
+		return false, fmt.Errorf("站点代码为空")
 	}
 
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
 	// 检查配置是否有变化
-	oldConfig, exists := m.siteConfigs[config.Code]
-	if exists && oldConfig.Version >= config.Version {
-		return nil // 配置没有变化或版本更旧
+	oldConfig, exists := m.siteConfigs[siteCode]
+	if exists && oldConfig.Meta.Version >= config.Meta.Version {
+		return false, nil // 配置没有变化或版本更旧
 	}
 
-	// 更新配置
-	m.siteConfigs[config.Code] = &config
-
-	// 动态注册数据库配置组
-	if err := m.createBalanceDBConnection(config.Code, &config); err != nil {
-		g.Log().Errorf(m.ctx, "注册Balance数据库配置组失败: site=%s, error=%v", config.Code, err)
-		return err
+	// 检查数据库连接是否变化
+	dbChanged := false
+	if !exists {
+		// 新站点，需要注册连接池
+		dbChanged = true
+	} else {
+		// 检查Balance数据库连接是否有变化
+		if oldConfig.Base.DbLinkBalance != config.Base.DbLinkBalance {
+			dbChanged = true
+			g.Log().Infof(m.ctx, "站点 %s Balance数据库连接配置发生变化，将重新注册连接池", siteCode)
+		}
 	}
 
-	g.Log().Infof(m.ctx, "Balance服务站点配置已更新: site=%s, version=%d", config.Code, config.Version)
-	return nil
+	// 更新配置到内存
+	m.siteConfigs[siteCode] = &config
+
+	// 只在数据库连接变化时才重新注册连接池
+	if dbChanged {
+		if err := m.createBalanceDBConnection(siteCode, &config); err != nil {
+			g.Log().Errorf(m.ctx, "注册Balance数据库配置组失败: site=%s, error=%v", siteCode, err)
+			return false, err
+		}
+		g.Log().Infof(m.ctx, "Balance服务站点配置已更新（含DB连接池）: site=%s, version=%d", siteCode, config.Meta.Version)
+	} else {
+		g.Log().Debugf(m.ctx, "Balance服务站点配置已更新（仅业务配置）: site=%s, version=%d", siteCode, config.Meta.Version)
+	}
+
+	return true, nil
 }
 
 // createBalanceDBConnection 为站点创建Balance数据库连接
 func (m *DBConfigManager) createBalanceDBConnection(siteCode string, config *SiteConfig) error {
 	// 如果没有Balance数据库连接配置，跳过
-	if config.DbLinkBalance == "" {
+	if config.Base.DbLinkBalance == "" {
 		g.Log().Warningf(m.ctx, "站点 %s 没有配置Balance数据库连接", siteCode)
 		return nil
 	}
@@ -155,12 +208,38 @@ func (m *DBConfigManager) createBalanceDBConnection(siteCode string, config *Sit
 	// 创建数据库配置组名称
 	groupName := fmt.Sprintf("site_%s", siteCode)
 
-	// 动态设置数据库配置
-	gdb.AddConfigNode(groupName, gdb.ConfigNode{
-		Link: config.DbLinkBalance,
-	})
+	// 解析连接字符串，移除 "mysql:" 前缀
+	link := config.Base.DbLinkBalance
+	if len(link) > 6 && link[:6] == "mysql:" {
+		link = link[6:] // 移除 "mysql:"
+	}
 
-	g.Log().Infof(m.ctx, "已注册Balance数据库配置组: %s -> %s", groupName, config.DbLinkBalance)
+	// 动态设置数据库配置
+	configNode := gdb.ConfigNode{
+		Type: "mysql",
+		Link: link,
+	}
+
+	gdb.AddConfigNode(groupName, configNode)
+
+	// 验证配置并测试连接
+	registeredConfig := gdb.GetConfig(groupName)
+	if registeredConfig != nil && len(registeredConfig) > 0 {
+		// 尝试实际连接测试
+		testDB := g.DB(groupName)
+		if testDB != nil {
+			_, err := testDB.GetValue(m.ctx, "SELECT 1")
+			if err != nil {
+				g.Log().Errorf(m.ctx, "Balance数据库连接测试失败: %s, error: %v", groupName, err)
+				return fmt.Errorf("数据库连接测试失败: %v", err)
+			}
+			g.Log().Debugf(m.ctx, "Balance数据库连接池注册成功: %s", groupName)
+		}
+	} else {
+		g.Log().Errorf(m.ctx, "Balance配置注册失败: %s", groupName)
+		return fmt.Errorf("配置注册失败")
+	}
+
 	return nil
 }
 
@@ -196,7 +275,7 @@ func (m *DBConfigManager) GetSiteCodeBySiteID(siteID int64) string {
 	defer m.mutex.RUnlock()
 
 	for code, config := range m.siteConfigs {
-		if int64(config.SiteID) == siteID {
+		if int64(config.Base.SiteId) == siteID {
 			return code
 		}
 	}

@@ -30,6 +30,7 @@ type BalanceUserColumns struct {
 	BalanceDebt   string // 负债金额。防止账户余额出现负数的情况。例如：注单结算错误，需要扣掉会员账户金额。如果会员账户金额足够，则直接扣除会员账户金额；如果会员账户金额不足，则不扣除会员账户金额，直接存入负债金额。在下次会员有资金变动的时候，先来计算这笔金额
 	Points        string // 会员积分
 	BalanceStatus string // 资金状态。1=正常；0=锁定
+	Currency      string // 币类型
 	CreatedAt     string //
 	UpdatedAt     string //
 }
@@ -45,6 +46,7 @@ var balanceUserColumns = BalanceUserColumns{
 	BalanceDebt:   "balance_debt",
 	Points:        "points",
 	BalanceStatus: "balance_status",
+	Currency:      "currency",
 	CreatedAt:     "created_at",
 	UpdatedAt:     "updated_at",
 }
