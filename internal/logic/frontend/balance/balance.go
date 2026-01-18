@@ -9,6 +9,7 @@ import (
 
 	v1 "jh_balance_service/api/frontend/balance/v1"
 	"jh_balance_service/internal/dao"
+	"jh_balance_service/internal/middleware"
 	"jh_balance_service/internal/model/entity"
 	"jh_balance_service/internal/service/frontend"
 )
@@ -120,4 +121,59 @@ func (s *sBalance) InitBalanceUser(ctx context.Context, req *v1.InitBalanceUserR
 		Success: true,
 		Message: "用户余额初始化成功",
 	}, nil
+}
+
+// RefreshBalance 刷新用户余额
+func (s *sBalance) RefreshBalance(ctx context.Context, req *v1.RefreshBalanceReq) (res *v1.RefreshBalanceRes, err error) {
+	// 从JWT token获取用户ID
+	userId, exists := middleware.GetUserIdFromContext(ctx)
+	if !exists {
+		g.Log().Error(ctx, "未获取用户ID")
+		return nil, fmt.Errorf("未登录")
+	}
+
+	siteId, exists := middleware.GetSiteIdFromContext(ctx)
+	if !exists {
+		g.Log().Error(ctx, "未获取站点ID")
+		return nil, fmt.Errorf("未获取站点ID")
+	}
+
+	g.Log().Infof(ctx, "刷新用户余额: site_id=%d, user_id=%d", siteId, userId)
+
+	// 查询用户余额
+	var balanceUser *entity.BalanceUser
+	err = dao.BalanceUser.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Scan(&balanceUser)
+
+	if err != nil {
+		g.Log().Errorf(ctx, "查询用户余额失败: %v", err)
+		return nil, fmt.Errorf("获取余额失败")
+	}
+
+	// 如果用户余额记录不存在，返回默认值
+	if balanceUser == nil {
+		g.Log().Infof(ctx, "用户余额记录不存在: site_id=%d, user_id=%d", siteId, userId)
+		return &v1.RefreshBalanceRes{
+			Balance:       "0.00",
+			BalanceFrozen: "0.00",
+			Points:        0,
+		}, nil
+	}
+
+	// 格式化余额（保留2位小数）
+	balance := fmt.Sprintf("%.2f", balanceUser.Balance)
+	balanceFrozen := fmt.Sprintf("%.2f", balanceUser.BalanceFrozen)
+
+	g.Log().Infof(ctx, "刷新用户余额成功: user_id=%d, balance=%s, balance_frozen=%s, points=%d",
+		userId, balance, balanceFrozen, balanceUser.Points)
+
+	res = &v1.RefreshBalanceRes{
+		Balance:       balance,
+		BalanceFrozen: balanceFrozen,
+		Points:        int64(balanceUser.Points),
+	}
+
+	return res, nil
 }

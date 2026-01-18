@@ -23,3 +23,8 @@ func (c *Controller) InitBalanceUser(ctx context.Context, req *v1.InitBalanceUse
 	g.Log().Infof(ctx, "Frontend Balance Controller收到InitBalanceUser请求")
 	return frontend.Balance().InitBalanceUser(ctx, req)
 }
+
+// RefreshBalance 刷新用户余额
+func (c *Controller) RefreshBalance(ctx context.Context, req *v1.RefreshBalanceReq) (res *v1.RefreshBalanceRes, err error) {
+	return frontend.Balance().RefreshBalance(ctx, req)
+}

@@ -7,6 +7,8 @@ option go_package = "jh_balance_service/api/frontend/balance/v1";
 service Balance {
     // 初始化用户余额
     rpc InitBalanceUser(InitBalanceUserReq) returns (InitBalanceUserRes) {}
+    // 刷新用户余额
+    rpc RefreshBalance(RefreshBalanceReq) returns (RefreshBalanceRes) {}
 }
 
 // 初始化用户余额请求
@@ -21,4 +23,15 @@ message InitBalanceUserReq {
 message InitBalanceUserRes {
     bool success = 1;       // 是否成功
     string message = 2;     // 消息
+}
+
+// 刷新用户余额请求
+message RefreshBalanceReq {
+}
+
+// 刷新用户余额响应
+message RefreshBalanceRes {
+    string balance = 1;         // 余额
+    string balance_frozen = 2;  // 冻结余额
+    int64 points = 3;           // 积分
 }
