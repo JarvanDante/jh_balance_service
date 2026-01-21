@@ -28,3 +28,8 @@ func (c *Controller) InitBalanceUser(ctx context.Context, req *v1.InitBalanceUse
 func (c *Controller) RefreshBalance(ctx context.Context, req *v1.RefreshBalanceReq) (res *v1.RefreshBalanceRes, err error) {
 	return frontend.Balance().RefreshBalance(ctx, req)
 }
+
+//// AdjustBalance 调整用户余额
+//func (c *Controller) AdjustBalance(ctx context.Context, req *v1.AdjustBalanceReq) (res *v1.AdjustBalanceRes, err error) {
+//	return frontend.Balance().AdjustBalance(ctx, req)
+//}

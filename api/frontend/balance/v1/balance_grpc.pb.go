@@ -22,6 +22,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	Balance_InitBalanceUser_FullMethodName = "/frontend_balance.Balance/InitBalanceUser"
 	Balance_RefreshBalance_FullMethodName  = "/frontend_balance.Balance/RefreshBalance"
+	Balance_AdjustBalance_FullMethodName   = "/frontend_balance.Balance/AdjustBalance"
 )
 
 // BalanceClient is the client API for Balance service.
@@ -32,6 +33,8 @@ type BalanceClient interface {
 	InitBalanceUser(ctx context.Context, in *InitBalanceUserReq, opts ...grpc.CallOption) (*InitBalanceUserRes, error)
 	// 刷新用户余额
 	RefreshBalance(ctx context.Context, in *RefreshBalanceReq, opts ...grpc.CallOption) (*RefreshBalanceRes, error)
+	// 调整用户余额（加款/扣款）
+	AdjustBalance(ctx context.Context, in *AdjustBalanceReq, opts ...grpc.CallOption) (*AdjustBalanceRes, error)
 }
 
 type balanceClient struct {
@@ -62,6 +65,16 @@ func (c *balanceClient) RefreshBalance(ctx context.Context, in *RefreshBalanceRe
 	return out, nil
 }
 
+func (c *balanceClient) AdjustBalance(ctx context.Context, in *AdjustBalanceReq, opts ...grpc.CallOption) (*AdjustBalanceRes, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AdjustBalanceRes)
+	err := c.cc.Invoke(ctx, Balance_AdjustBalance_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BalanceServer is the server API for Balance service.
 // All implementations must embed UnimplementedBalanceServer
 // for forward compatibility.
@@ -70,6 +83,8 @@ type BalanceServer interface {
 	InitBalanceUser(context.Context, *InitBalanceUserReq) (*InitBalanceUserRes, error)
 	// 刷新用户余额
 	RefreshBalance(context.Context, *RefreshBalanceReq) (*RefreshBalanceRes, error)
+	// 调整用户余额（加款/扣款）
+	AdjustBalance(context.Context, *AdjustBalanceReq) (*AdjustBalanceRes, error)
 	mustEmbedUnimplementedBalanceServer()
 }
 
@@ -85,6 +100,9 @@ func (UnimplementedBalanceServer) InitBalanceUser(context.Context, *InitBalanceU
 }
 func (UnimplementedBalanceServer) RefreshBalance(context.Context, *RefreshBalanceReq) (*RefreshBalanceRes, error) {
 	return nil, status.Error(codes.Unimplemented, "method RefreshBalance not implemented")
+}
+func (UnimplementedBalanceServer) AdjustBalance(context.Context, *AdjustBalanceReq) (*AdjustBalanceRes, error) {
+	return nil, status.Error(codes.Unimplemented, "method AdjustBalance not implemented")
 }
 func (UnimplementedBalanceServer) mustEmbedUnimplementedBalanceServer() {}
 func (UnimplementedBalanceServer) testEmbeddedByValue()                 {}
@@ -143,6 +161,24 @@ func _Balance_RefreshBalance_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Balance_AdjustBalance_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AdjustBalanceReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BalanceServer).AdjustBalance(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Balance_AdjustBalance_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BalanceServer).AdjustBalance(ctx, req.(*AdjustBalanceReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Balance_ServiceDesc is the grpc.ServiceDesc for Balance service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -157,6 +193,10 @@ var Balance_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RefreshBalance",
 			Handler:    _Balance_RefreshBalance_Handler,
+		},
+		{
+			MethodName: "AdjustBalance",
+			Handler:    _Balance_AdjustBalance_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
