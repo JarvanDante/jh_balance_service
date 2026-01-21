@@ -183,8 +183,8 @@ func (s *sBalance) RefreshBalance(ctx context.Context, req *v1.RefreshBalanceReq
 // AdjustBalance 调整用户余额（加款/扣款）
 func (s *sBalance) AdjustBalance(ctx context.Context, req *v1.AdjustBalanceReq) (res *v1.AdjustBalanceRes, err error) {
 	g.Log().Infof(ctx, "========== Balance服务收到AdjustBalance请求 ==========")
-	g.Log().Infof(ctx, "请求参数: site_id=%d, user_id=%d, amount=%.2f, type=%d, game_name=%s, game_id=%s",
-		req.SiteId, req.UserId, req.Amount, req.Type, req.GameName, req.GameId)
+	g.Log().Infof(ctx, "请求参数: site_id=%d, user_id=%d, type=%d, game_name=%s, game_id=%s",
+		req.SiteId, req.UserId, req.Type, req.GameName, req.GameId)
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -203,14 +203,6 @@ func (s *sBalance) AdjustBalance(ctx context.Context, req *v1.AdjustBalanceReq) 
 		return &v1.AdjustBalanceRes{
 			Success: false,
 			Message: "用户ID无效",
-		}, nil
-	}
-
-	if req.Amount == 0.00 {
-		g.Log().Errorf(ctx, "金额不能为空或为0")
-		return &v1.AdjustBalanceRes{
-			Success: false,
-			Message: "金额不能为空或为0",
 		}, nil
 	}
 
@@ -241,6 +233,7 @@ func (s *sBalance) transferToGame(ctx context.Context, req *v1.AdjustBalanceReq)
 	var newBalance float64
 	var newBalanceFrozen float64
 	var username string
+	var amount float64
 
 	//操作类型
 	tradeType := balanceConsts.LOG_TYPE_TRANSFER_OUT
@@ -266,12 +259,6 @@ func (s *sBalance) transferToGame(ctx context.Context, req *v1.AdjustBalanceReq)
 		}
 
 		username = balanceUser.Username
-		newBalance = balanceUser.Balance - float64(req.Amount) // 减
-		newBalanceFrozen = balanceUser.BalanceFrozen + float64(req.Amount)
-		// 检查余额是否足够
-		if newBalance < 0 {
-			return fmt.Errorf("中心账户余额不足")
-		}
 
 		// 更新余额
 		_, err = dao.BalanceUser.Ctx(ctx).
@@ -294,7 +281,7 @@ func (s *sBalance) transferToGame(ctx context.Context, req *v1.AdjustBalanceReq)
 			GameId:    gconv.Int(req.GameId),      // 可以从req中传入
 			InOrOut:   balanceConsts.TRANSFER_OUT, // 0=转出
 			TradeNo:   tradeNo,
-			Money:     float64(req.Amount),
+			Money:     amount,
 			Status:    balanceConsts.StatusPending, // 1=待确认
 			Remark:    "中心账户 -> " + req.GameName,
 			CreatedAt: gtime.Now(),
@@ -313,7 +300,7 @@ func (s *sBalance) transferToGame(ctx context.Context, req *v1.AdjustBalanceReq)
 			TradeType: tradeType,
 			GameId:    gconv.Int(req.GameId),
 			TradeNo:   tradeNo,
-			Money:     float64(req.Amount),
+			Money:     amount,
 			Status:    balanceConsts.StatusPending, // 1=处理中
 			Remark:    "中心账户 -> " + req.GameName,
 			CreatedAt: gtime.Now(),
@@ -333,7 +320,7 @@ func (s *sBalance) transferToGame(ctx context.Context, req *v1.AdjustBalanceReq)
 			TradeType:     uint(tradeType),
 			TradeNo:       tradeNo,
 			BalanceOld:    balanceUser.Balance,
-			Money:         float64(req.Amount),
+			Money:         amount,
 			BalanceNew:    newBalance,
 			BalanceFrozen: newBalanceFrozen,
 			Status:        balanceConsts.StatusPending, // 1=待审核
@@ -356,15 +343,6 @@ func (s *sBalance) transferToGame(ctx context.Context, req *v1.AdjustBalanceReq)
 			Message: err.Error(),
 		}, nil
 	}
-
-	// TODO: 发送到RabbitMQ队列，调用三方游戏API进行转账
-	// 消息格式：{"site_id": siteId, "user_id": req.UserId, "order_no": req.OrderNo, "amount": amount, "type": req.Type}
-	// 队列名称：game_transfer_queue
-	//
-	// RabbitMQ消费者处理逻辑：
-	// 1. 调用三方游戏API进行转账
-	// 2. 如果成功：调用updateTransferStatus(ctx, req.OrderNo, 2) 更新状态为成功
-	// 3. 如果失败：调用compensateBalance(ctx, siteId, req.UserId, req.OrderNo, amount) 补偿余额并更新状态为失败
 
 	balance := fmt.Sprintf("%.2f", newBalance)
 
@@ -601,6 +579,57 @@ func (s *sBalance) CompensateBalance(ctx context.Context, req *v1.CompensateBala
 	}, nil
 }
 
+//GetLastBalanceLogGame
+/**
+ * @desc：获取最后一次进入游戏game_id
+ * @param ctx
+ * @param req
+ * @return *v1.GetLastBalanceLogGameRes
+ * @return error
+ * @author : Carson
+ */
+func (s *sBalance) GetLastBalanceLogGame(ctx context.Context, req *v1.GetLastBalanceLogGameReq) (*v1.GetLastBalanceLogGameRes, error) {
+	siteId := req.SiteId
+	userId := req.UserId
+
+	var last *entity.BalanceLogGame
+	err := dao.BalanceLogGame.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Scan(&last)
+	if err != nil {
+		return nil, err
+	}
+
+	// 查询用户余额（加锁）
+	var balanceUser *entity.BalanceUser
+	err = dao.BalanceUser.Ctx(ctx).
+		Where("site_id", req.SiteId).
+		Where("user_id", req.UserId).
+		LockUpdate().
+		Scan(&balanceUser)
+
+	if err != nil {
+		return nil, fmt.Errorf("查询用户余额失败")
+	}
+
+	if balanceUser == nil {
+		return nil, fmt.Errorf("用户余额记录不存在")
+	}
+
+	if last == nil {
+		return &v1.GetLastBalanceLogGameRes{
+			GameId: 0,
+			Amount: float32(balanceUser.Balance),
+		}, nil
+	}
+
+	return &v1.GetLastBalanceLogGameRes{
+		GameId: int32(last.GameId),
+		Amount: 0,
+	}, nil
+}
+
 //===================================================================================================
 //transferFromGame
 /**
@@ -656,6 +685,7 @@ func (s *sBalance) transferFromGame(ctx context.Context, req *v1.AdjustBalanceRe
 		//	return fmt.Errorf("更新余额失败")
 		//}
 
+		amount := 222
 		// 记录游戏日志表（status=1待处理）
 		gameLog := &entity.BalanceLogGame{
 			SiteId:    int(req.SiteId),
@@ -663,7 +693,7 @@ func (s *sBalance) transferFromGame(ctx context.Context, req *v1.AdjustBalanceRe
 			GameId:    gconv.Int(req.GameId),     // 可以从req中传入
 			InOrOut:   balanceConsts.TRANSFER_IN, // 1=转入
 			TradeNo:   tradeNo,
-			Money:     float64(req.Amount),
+			Money:     float64(amount),
 			Status:    balanceConsts.StatusPending, // 1=pending
 			Remark:    req.GameName + " -> 中心账户",
 			CreatedAt: gtime.Now(),
@@ -682,7 +712,7 @@ func (s *sBalance) transferFromGame(ctx context.Context, req *v1.AdjustBalanceRe
 			TradeType: int(req.Type),
 			GameId:    gconv.Int(req.GameId),
 			TradeNo:   tradeNo,
-			Money:     float64(req.Amount),
+			Money:     float64(amount),
 			Status:    balanceConsts.StatusPending, // 1=处理中
 			Remark:    req.GameName + " -> 中心账户",
 			CreatedAt: gtime.Now(),
@@ -702,7 +732,7 @@ func (s *sBalance) transferFromGame(ctx context.Context, req *v1.AdjustBalanceRe
 			TradeType:     uint(tradeType),
 			TradeNo:       tradeNo,
 			BalanceOld:    balanceUser.Balance,
-			Money:         float64(req.Amount),
+			Money:         float64(amount),
 			BalanceNew:    newBalance,
 			BalanceFrozen: balanceUser.BalanceFrozen,
 			Status:        balanceConsts.StatusPending, // 1=待审核
