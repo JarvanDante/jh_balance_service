@@ -13,6 +13,7 @@ import (
 	"jh_balance_service/internal/middleware"
 	"jh_balance_service/internal/model/entity"
 	"jh_balance_service/internal/service/frontend"
+	"jh_balance_service/internal/util"
 )
 
 type sBalance struct{}
@@ -181,8 +182,24 @@ func (s *sBalance) RefreshBalance(ctx context.Context, req *v1.RefreshBalanceReq
 
 // AdjustBalance 调整用户余额（加款/扣款）
 func (s *sBalance) AdjustBalance(ctx context.Context, req *v1.AdjustBalanceReq) (res *v1.AdjustBalanceRes, err error) {
+	g.Log().Infof(ctx, "========== Balance服务收到AdjustBalance请求 ==========")
+	g.Log().Infof(ctx, "请求参数: site_id=%d, user_id=%d, amount=%.2f, type=%d, game_name=%s, game_id=%s",
+		req.SiteId, req.UserId, req.Amount, req.Type, req.GameName, req.GameId)
+
+	defer func() {
+		if r := recover(); r != nil {
+			g.Log().Errorf(ctx, "AdjustBalance发生panic: %v", r)
+			res = &v1.AdjustBalanceRes{
+				Success: false,
+				Message: fmt.Sprintf("处理失败: %v", r),
+			}
+			err = nil
+		}
+	}()
+
 	// 参数验证
 	if req.UserId <= 0 {
+		g.Log().Errorf(ctx, "用户ID无效: %d", req.UserId)
 		return &v1.AdjustBalanceRes{
 			Success: false,
 			Message: "用户ID无效",
@@ -190,29 +207,21 @@ func (s *sBalance) AdjustBalance(ctx context.Context, req *v1.AdjustBalanceReq) 
 	}
 
 	if req.Amount == 0.00 {
+		g.Log().Errorf(ctx, "金额不能为空或为0")
 		return &v1.AdjustBalanceRes{
 			Success: false,
 			Message: "金额不能为空或为0",
 		}, nil
 	}
 
-	//// 获取站点ID
-	//siteId, exists := middleware.GetSiteIdFromContext(ctx)
-	//if !exists {
-	//	return &v1.AdjustBalanceRes{
-	//		Success: false,
-	//		Message: "未获取站点ID",
-	//	}, nil
-	//}
-
 	// 判断是加款还是扣款
 	if req.Type == 0 {
-		// 扣款
-		// 转出：从中心账户转账到游戏账户
+		// 扣款 - 转出：从中心账户转账到游戏账户
+		g.Log().Infof(ctx, "执行扣款操作（转出到游戏）")
 		return s.transferToGame(ctx, req)
 	} else {
-		// 加款
-		// 转入：从游戏账户转账到中心账户
+		// 加款 - 转入：从游戏账户转账到中心账户
+		g.Log().Infof(ctx, "执行加款操作（从游戏转入）")
 		return s.transferFromGame(ctx, req)
 	}
 }
@@ -236,7 +245,7 @@ func (s *sBalance) transferToGame(ctx context.Context, req *v1.AdjustBalanceReq)
 	//操作类型
 	tradeType := balanceConsts.LOG_TYPE_TRANSFER_OUT
 	//生成流水号
-	tradeNo := dao.GenerateTradeNo(ctx, tradeType)
+	tradeNo := util.GenerateTradeNo(ctx, tradeType)
 
 	// 事务一：扣除余额、创建pending=1状态的记录
 	err := dao.BalanceUser.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
@@ -282,7 +291,7 @@ func (s *sBalance) transferToGame(ctx context.Context, req *v1.AdjustBalanceReq)
 		gameLog := &entity.BalanceLogGame{
 			SiteId:    int(req.SiteId),
 			UserId:    int(req.UserId),
-			GameId:    0,                          // 可以从req中传入
+			GameId:    gconv.Int(req.GameId),      // 可以从req中传入
 			InOrOut:   balanceConsts.TRANSFER_OUT, // 0=转出
 			TradeNo:   tradeNo,
 			Money:     float64(req.Amount),
@@ -367,10 +376,12 @@ func (s *sBalance) transferToGame(ctx context.Context, req *v1.AdjustBalanceReq)
 	}, nil
 }
 
-// updateTransferStatus 更新转账状态（事务二：成功）
+// UpdateTransferStatus 更新转账状态（事务二：成功）
 // 由RabbitMQ消费者在三方游戏API转账成功后调用
-func (s *sBalance) updateTransferStatus(ctx context.Context, siteId int, userId int, orderNo string, amount float64) error {
-	return dao.BalanceUser.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+func (s *sBalance) UpdateTransferStatus(ctx context.Context, req *v1.UpdateTransferStatusReq) (*v1.UpdateTransferStatusRes, error) {
+	orderNo := req.OrderNo
+
+	err := dao.BalanceUser.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
 
 		//幂等判断
 		var balanceLog *entity.BalanceLog
@@ -386,6 +397,10 @@ func (s *sBalance) updateTransferStatus(ctx context.Context, siteId int, userId 
 		if balanceLog.Status == balanceConsts.StatusSuccess || balanceLog.Status == balanceConsts.StatusFail {
 			return nil // 幂等：已经处理过，直接认为成功
 		}
+
+		siteId := balanceLog.SiteId
+		userId := balanceLog.UserId
+		amount := balanceLog.Money
 
 		// 查询用户余额（加锁）
 		var balanceUser *entity.BalanceUser
@@ -446,9 +461,10 @@ func (s *sBalance) updateTransferStatus(ctx context.Context, siteId int, userId 
 		_, err = dao.BalanceChange.Ctx(ctx).
 			Where("trade_no", orderNo).
 			Update(g.Map{
-				"remark":     "（已确认）成功",
-				"status":     balanceConsts.StatusSuccess, // 2=成功
-				"updated_at": gtime.Now(),
+				"balance_frozen": newBalanceFrozen,
+				"remark":         "（已确认）成功",
+				"status":         balanceConsts.StatusSuccess, // 2=成功
+				"updated_at":     gtime.Now(),
 			})
 		if err != nil {
 			return err
@@ -456,12 +472,29 @@ func (s *sBalance) updateTransferStatus(ctx context.Context, siteId int, userId 
 
 		return nil
 	})
+
+	if err != nil {
+		return &v1.UpdateTransferStatusRes{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
+	return &v1.UpdateTransferStatusRes{
+		Success: true,
+		Message: "更新转账状态成功",
+	}, nil
 }
 
-// compensateBalance 补偿余额（事务三：失败）
+// CompensateBalance 补偿余额（事务三：失败）
 // 由RabbitMQ消费者在三方游戏API转账失败后调用
-func (s *sBalance) compensateBalance(ctx context.Context, siteId int32, userId int32, orderNo string, amount float64) error {
-	return dao.BalanceUser.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+func (s *sBalance) CompensateBalance(ctx context.Context, req *v1.CompensateBalanceReq) (*v1.CompensateBalanceRes, error) {
+	siteId := req.SiteId
+	userId := req.UserId
+	orderNo := req.OrderNo
+	amount := float64(req.Amount)
+
+	err := dao.BalanceUser.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
 
 		//幂等判断
 		var balanceLog *entity.BalanceLog
@@ -554,6 +587,18 @@ func (s *sBalance) compensateBalance(ctx context.Context, siteId int32, userId i
 
 		return nil
 	})
+
+	if err != nil {
+		return &v1.CompensateBalanceRes{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
+	return &v1.CompensateBalanceRes{
+		Success: true,
+		Message: "补偿余额成功",
+	}, nil
 }
 
 //===================================================================================================
@@ -575,7 +620,7 @@ func (s *sBalance) transferFromGame(ctx context.Context, req *v1.AdjustBalanceRe
 	//操作类型
 	tradeType := balanceConsts.LOG_TYPE_TRANSFER_IN
 	//生成流水号
-	tradeNo := dao.GenerateTradeNo(ctx, tradeType)
+	tradeNo := util.GenerateTradeNo(ctx, tradeType)
 
 	// 开启事务
 	err := dao.BalanceUser.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {

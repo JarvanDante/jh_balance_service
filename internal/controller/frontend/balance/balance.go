@@ -29,7 +29,26 @@ func (c *Controller) RefreshBalance(ctx context.Context, req *v1.RefreshBalanceR
 	return frontend.Balance().RefreshBalance(ctx, req)
 }
 
-//// AdjustBalance 调整用户余额
-//func (c *Controller) AdjustBalance(ctx context.Context, req *v1.AdjustBalanceReq) (res *v1.AdjustBalanceRes, err error) {
-//	return frontend.Balance().AdjustBalance(ctx, req)
-//}
+// AdjustBalance 调整用户余额
+func (c *Controller) AdjustBalance(ctx context.Context, req *v1.AdjustBalanceReq) (res *v1.AdjustBalanceRes, err error) {
+	g.Log().Infof(ctx, "========== Balance Controller收到AdjustBalance请求 ==========")
+	g.Log().Infof(ctx, "请求参数: site_id=%d, user_id=%d, amount=%.2f, type=%d",
+		req.SiteId, req.UserId, req.Amount, req.Type)
+
+	res, err = frontend.Balance().AdjustBalance(ctx, req)
+
+	g.Log().Infof(ctx, "Balance Controller处理完成: success=%v, err=%v",
+		res != nil && res.Success, err)
+
+	return res, err
+}
+
+// UpdateTransferStatus 更新转账状态
+func (c *Controller) UpdateTransferStatus(ctx context.Context, req *v1.UpdateTransferStatusReq) (res *v1.UpdateTransferStatusRes, err error) {
+	return frontend.Balance().UpdateTransferStatus(ctx, req)
+}
+
+// CompensateBalance 补偿余额
+func (c *Controller) CompensateBalance(ctx context.Context, req *v1.CompensateBalanceReq) (res *v1.CompensateBalanceRes, err error) {
+	return frontend.Balance().CompensateBalance(ctx, req)
+}
