@@ -233,7 +233,7 @@ func (s *sBalance) transferToGame(ctx context.Context, req *v1.AdjustBalanceReq)
 	var newBalance float64
 	var newBalanceFrozen float64
 	var username string
-	var amount float64
+	amount := float64(req.Amount) // 从请求中获取金额
 
 	//操作类型
 	tradeType := balanceConsts.LOG_TYPE_TRANSFER_OUT
@@ -259,6 +259,15 @@ func (s *sBalance) transferToGame(ctx context.Context, req *v1.AdjustBalanceReq)
 		}
 
 		username = balanceUser.Username
+
+		// 检查余额是否足够
+		if balanceUser.Balance < amount {
+			return fmt.Errorf("余额不足，当前余额: %.2f, 需要: %.2f", balanceUser.Balance, amount)
+		}
+
+		// 计算新余额：扣除余额，增加冻结金额
+		newBalance = balanceUser.Balance - amount
+		newBalanceFrozen = balanceUser.BalanceFrozen + amount
 
 		// 更新余额
 		_, err = dao.BalanceUser.Ctx(ctx).
