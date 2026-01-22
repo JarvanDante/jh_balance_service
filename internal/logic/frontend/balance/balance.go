@@ -661,7 +661,7 @@ func (s *sBalance) CompensateBalance(ctx context.Context, req *v1.CompensateBala
 
 //GetLastBalanceLogGame
 /**
- * @desc：获取最后一次进入游戏game_id
+ * @desc：获取最后一次成功进入游戏的game_id和用户余额
  * @param ctx
  * @param req
  * @return *v1.GetLastBalanceLogGameRes
@@ -672,21 +672,11 @@ func (s *sBalance) GetLastBalanceLogGame(ctx context.Context, req *v1.GetLastBal
 	siteId := req.SiteId
 	userId := req.UserId
 
-	var last *entity.BalanceLogGame
-	err := dao.BalanceLogGame.Ctx(ctx).
-		Where("site_id", siteId).
-		Where("user_id", userId).
-		Scan(&last)
-	if err != nil {
-		return nil, err
-	}
-
-	// 查询用户余额（加锁）
+	// 查询用户余额
 	var balanceUser *entity.BalanceUser
-	err = dao.BalanceUser.Ctx(ctx).
+	err := dao.BalanceUser.Ctx(ctx).
 		Where("site_id", req.SiteId).
 		Where("user_id", req.UserId).
-		LockUpdate().
 		Scan(&balanceUser)
 
 	if err != nil {
@@ -697,6 +687,20 @@ func (s *sBalance) GetLastBalanceLogGame(ctx context.Context, req *v1.GetLastBal
 		return nil, fmt.Errorf("用户余额记录不存在")
 	}
 
+	// 查询最后一次成功的游戏记录（status=2）
+	var last *entity.BalanceLogGame
+	err = dao.BalanceLogGame.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Where("status", balanceConsts.StatusSuccess). // 只查询成功的记录
+		OrderDesc("id").
+		Limit(1).
+		Scan(&last)
+	if err != nil {
+		return nil, err
+	}
+
+	// 如果没有游戏记录，返回game_id=0，余额为用户中心钱包余额
 	if last == nil {
 		return &v1.GetLastBalanceLogGameRes{
 			GameId: 0,
@@ -704,9 +708,10 @@ func (s *sBalance) GetLastBalanceLogGame(ctx context.Context, req *v1.GetLastBal
 		}, nil
 	}
 
+	// 如果有游戏记录，返回最后一次游戏的game_id，余额为用户中心钱包余额
 	return &v1.GetLastBalanceLogGameRes{
 		GameId: int32(last.GameId),
-		Amount: 0,
+		Amount: float32(balanceUser.Balance),
 	}, nil
 }
 
