@@ -21,32 +21,38 @@ type MqOutboxDao struct {
 
 // MqOutboxColumns defines and stores column names for the table mq_outbox.
 type MqOutboxColumns struct {
-	Id          string //
-	BizKey      string // 业务幂等key，例如 trade_no
-	Topic       string // exchange 或 topic
-	RoutingKey  string // routing key
-	Payload     string //
-	Status      string // 0=待发送 1=已发送 2=发送失败
-	RetryCount  string //
-	NextRetryAt string //
-	LastError   string //
-	CreatedAt   string //
-	UpdatedAt   string //
+	Id            string // 主键ID
+	EventType     string // 事件类型，如 user_created / balance_transfer
+	AggregateType string // 聚合根类型，如 user / balance
+	AggregateId   string // 聚合根ID，如 user_id / trade_no
+	SiteCode      string // 站点代码
+	Exchange      string // MQ exchange
+	RoutingKey    string // MQ routing key
+	Payload       string // 发送到 MQ 的消息体
+	Status        string // 状态: 0=待发送, 1=已发送, 2=发送失败
+	RetryCount    string // 重试次数
+	NextRetryAt   string // 下次重试时间
+	LastError     string // 最后一次发送错误信息
+	CreatedAt     string // 创建时间
+	UpdatedAt     string // 更新时间
 }
 
 // mqOutboxColumns holds the columns for the table mq_outbox.
 var mqOutboxColumns = MqOutboxColumns{
-	Id:          "id",
-	BizKey:      "biz_key",
-	Topic:       "topic",
-	RoutingKey:  "routing_key",
-	Payload:     "payload",
-	Status:      "status",
-	RetryCount:  "retry_count",
-	NextRetryAt: "next_retry_at",
-	LastError:   "last_error",
-	CreatedAt:   "created_at",
-	UpdatedAt:   "updated_at",
+	Id:            "id",
+	EventType:     "event_type",
+	AggregateType: "aggregate_type",
+	AggregateId:   "aggregate_id",
+	SiteCode:      "site_code",
+	Exchange:      "exchange",
+	RoutingKey:    "routing_key",
+	Payload:       "payload",
+	Status:        "status",
+	RetryCount:    "retry_count",
+	NextRetryAt:   "next_retry_at",
+	LastError:     "last_error",
+	CreatedAt:     "created_at",
+	UpdatedAt:     "updated_at",
 }
 
 // NewMqOutboxDao creates and returns a new DAO object for table data access.
