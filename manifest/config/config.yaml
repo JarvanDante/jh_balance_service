@@ -73,3 +73,7 @@ database:
   default:
     link: "mysql:root:654321@tcp(172.19.0.4:3306)/jh_balance?parseTime=true&loc=Local" # 容器内直接访问MySQL
     debug: true
+
+# RabbitMQ 配置
+rabbitmq:
+  url: "amqp://admin:admin123@rabbitmq:5672/" # RabbitMQ连接地址
