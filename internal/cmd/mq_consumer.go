@@ -67,8 +67,3 @@ var (
 		},
 	}
 )
-
-func init() {
-	// 注册命令到主命令
-	Main.AddCommand(MqConsumer)
-}
