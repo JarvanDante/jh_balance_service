@@ -27,6 +27,14 @@ service Balance {
     rpc QueryGameBalance(QueryGameBalanceReq) returns (QueryGameBalanceRes) {}
     rpc ManualUserBalance(ManualUserBalanceReq) returns (ManualUserBalanceRes) {}
     
+    // 站点支付管理相关
+    rpc GetSitePayments(GetSitePaymentsReq) returns (GetSitePaymentsRes) {}
+    rpc UpdateSitePayment(UpdateSitePaymentReq) returns (UpdateSitePaymentRes) {}
+    
+    // 站点提现管理相关
+    rpc GetSiteWithdraws(GetSiteWithdrawsReq) returns (GetSiteWithdrawsRes) {}
+    rpc UpdateSiteWithdraw(UpdateSiteWithdrawReq) returns (UpdateSiteWithdrawRes) {}
+    
     // 操作类型选项
     rpc GetManualList(GetManualListReq) returns (GetManualListRes) {}
 }
@@ -348,4 +356,114 @@ message GetManualListReq {
 // 获取操作类型列表响应
 message GetManualListRes {
     map<int32, string> list = 1;  // 操作类型列表
+}
+
+// 获取站点支付列表请求
+message GetSitePaymentsReq {
+    int32 payment_id = 1;       // 支付ID (可选)
+    int32 status = 2;           // 状态 (可选)
+    int32 page = 3;             // 页码
+    int32 size = 4;             // 每页数量
+}
+
+// 站点支付信息
+message SitePaymentInfo {
+    int32 id = 1;                       // ID
+    int32 site_id = 2;                  // 站点ID
+    int32 payment_id = 3;               // 支付ID
+    string name = 4;                    // 支付名称
+    string code = 5;                    // 支付代码
+    int32 gateway = 6;                  // 支付网关
+    string api_url = 7;                 // 支付域名
+    string merchant_no = 8;             // 商户号
+    string md5_key = 9;                 // MD5密钥
+    double each_min = 10;               // 单笔最低
+    double each_max = 11;               // 单笔最高
+    int32 sort = 12;                    // 排序
+    string money_list = 13;             // 可选金额数组
+    int32 is_input = 14;                // 是否输入金额
+    string logo = 15;                   // logo地址
+    int32 status = 16;                  // 状态
+    string created_at = 17;             // 创建时间
+    string updated_at = 18;             // 更新时间
+}
+
+// 获取站点支付列表响应
+message GetSitePaymentsRes {
+    repeated SitePaymentInfo list = 1;  // 站点支付列表
+    int32 count = 2;                    // 总数量
+}
+
+// 更新站点支付请求
+message UpdateSitePaymentReq {
+    int32 id = 1;                       // 站点支付ID
+    int32 status = 2;                   // 状态
+    int32 sort = 3;                     // 排序
+    double each_min = 4;                // 单笔最低
+    double each_max = 5;                // 单笔最高
+    string money_list = 6;              // 可选金额数组
+    int32 is_input = 7;                 // 是否输入金额
+    string remark = 8;                  // 备注
+    string logo = 9;                    // logo地址
+}
+
+// 更新站点支付响应
+message UpdateSitePaymentRes {
+    bool success = 1;                   // 是否成功
+    string message = 2;                 // 响应消息
+}
+
+// 获取站点提现列表请求
+message GetSiteWithdrawsReq {
+    int32 withdraw_id = 1;      // 提现ID (可选)
+    int32 status = 2;           // 状态 (可选)
+    int32 page = 3;             // 页码
+    int32 size = 4;             // 每页数量
+}
+
+// 站点提现信息
+message SiteWithdrawInfo {
+    int32 id = 1;                       // ID
+    int32 site_id = 2;                  // 站点ID
+    int32 withdraw_id = 3;              // 提现ID
+    string name = 4;                    // 提现名称
+    string code = 5;                    // 提现代码
+    int32 gateway = 6;                  // 提现网关
+    string api_url = 7;                 // 提现域名
+    string merchant_no = 8;             // 商户号
+    string md5_key = 9;                 // MD5密钥
+    double each_min = 10;               // 单笔最低
+    double each_max = 11;               // 单笔最高
+    int32 sort = 12;                    // 排序
+    string money_list = 13;             // 可选金额数组
+    int32 is_input = 14;                // 是否输入金额
+    string logo = 15;                   // logo地址
+    int32 status = 16;                  // 状态
+    string created_at = 17;             // 创建时间
+    string updated_at = 18;             // 更新时间
+}
+
+// 获取站点提现列表响应
+message GetSiteWithdrawsRes {
+    repeated SiteWithdrawInfo list = 1; // 站点提现列表
+    int32 count = 2;                    // 总数量
+}
+
+// 更新站点提现请求
+message UpdateSiteWithdrawReq {
+    int32 id = 1;                       // 站点提现ID
+    int32 status = 2;                   // 状态
+    int32 sort = 3;                     // 排序
+    double each_min = 4;                // 单笔最低
+    double each_max = 5;                // 单笔最高
+    string money_list = 6;              // 可选金额数组
+    int32 is_input = 7;                 // 是否输入金额
+    string remark = 8;                  // 备注
+    string logo = 9;                    // logo地址
+}
+
+// 更新站点提现响应
+message UpdateSiteWithdrawRes {
+    bool success = 1;                   // 是否成功
+    string message = 2;                 // 响应消息
 }
