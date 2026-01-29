@@ -15,11 +15,12 @@ import (
 
 // SiteConfig 站点配置结构（匹配新的KV格式）
 type SiteConfig struct {
-	Meta    MetaConfig      `json:"Meta"`
-	Base    BaseConfig      `json:"Base"`
-	Domain  DomainConfig    `json:"Domain"`
-	Game    []GameConfig    `json:"Game"`
-	Payment []PaymentConfig `json:"Payment"`
+	Meta     MetaConfig       `json:"Meta"`
+	Base     BaseConfig       `json:"Base"`
+	Domain   DomainConfig     `json:"Domain"`
+	Game     []GameConfig     `json:"Game"`
+	Payment  []PaymentConfig  `json:"Payment"`
+	Withdraw []WithdrawConfig `json:"Withdraw"`
 }
 
 // MetaConfig 元数据配置
@@ -65,6 +66,24 @@ type GameConfig struct {
 // PaymentConfig 支付配置
 type PaymentConfig struct {
 	PaymentId  int     `json:"payment_id"`
+	Name       string  `json:"name"`
+	Code       string  `json:"code"`
+	Gateway    int     `json:"gateway"`
+	ApiUrl     string  `json:"api_url"`
+	MerchantNo string  `json:"merchant_no"`
+	Md5Key     string  `json:"md5_key"`
+	EachMin    float64 `json:"each_min"`
+	EachMax    float64 `json:"each_max"`
+	Sort       int     `json:"sort"`
+	MoneyList  string  `json:"money_list"`
+	IsInput    int     `json:"is_input"`
+	Logo       string  `json:"logo"`
+	Status     int     `json:"status"`
+}
+
+// WithdrawConfig 提现配置
+type WithdrawConfig struct {
+	WithdrawId int     `json:"withdraw_id"`
 	Name       string  `json:"name"`
 	Code       string  `json:"code"`
 	Gateway    int     `json:"gateway"`
@@ -233,6 +252,12 @@ func (m *DBConfigManager) updateSiteConfig(key string, value []byte) (bool, erro
 	// 同步支付配置到数据库
 	if err := m.syncPaymentConfig(siteCode, &config); err != nil {
 		g.Log().Errorf(m.ctx, "同步支付配置失败: site=%s, error=%v", siteCode, err)
+		// 不返回错误，允许继续
+	}
+
+	// 同步提现配置到数据库
+	if err := m.syncWithdrawConfig(siteCode, &config); err != nil {
+		g.Log().Errorf(m.ctx, "同步提现配置失败: site=%s, error=%v", siteCode, err)
 		// 不返回错误，允许继续
 	}
 
@@ -473,5 +498,156 @@ func (m *DBConfigManager) syncPaymentConfig(siteCode string, config *SiteConfig)
 	}
 
 	g.Log().Infof(m.ctx, "站点 %s 支付配置同步完成", siteCode)
+	return nil
+}
+
+// syncWithdrawConfig 同步提现配置到数据库
+func (m *DBConfigManager) syncWithdrawConfig(siteCode string, config *SiteConfig) error {
+	// 获取站点的数据库连接
+	groupName := fmt.Sprintf("site_%s", siteCode)
+	db := g.DB(groupName)
+	if db == nil {
+		g.Log().Warningf(m.ctx, "站点 %s 数据库连接不存在，跳过提现配置同步", siteCode)
+		return nil
+	}
+
+	// 检查site_withdraw表是否存在
+	tables, err := db.Tables(m.ctx)
+	if err != nil {
+		return fmt.Errorf("查询数据库表失败: %v", err)
+	}
+
+	hasTable := false
+	for _, table := range tables {
+		if table == "site_withdraw" {
+			hasTable = true
+			break
+		}
+	}
+
+	if !hasTable {
+		g.Log().Warningf(m.ctx, "站点 %s 数据库中不存在site_withdraw表，跳过提现配置同步", siteCode)
+		return nil
+	}
+
+	siteId := config.Base.SiteId
+	g.Log().Infof(m.ctx, "开始同步站点 %s (site_id=%d) 的提现配置，共 %d 个提现", siteCode, siteId, len(config.Withdraw))
+
+	// 使用事务处理
+	err = db.Transaction(m.ctx, func(ctx context.Context, tx gdb.TX) error {
+		// 1. 获取当前数据库中的所有提现ID
+		type WithdrawIdResult struct {
+			WithdrawId int `json:"withdraw_id"`
+		}
+		var existingWithdraws []WithdrawIdResult
+		err := tx.Model("site_withdraw").
+			Where("site_id", siteId).
+			Fields("withdraw_id").
+			Scan(&existingWithdraws)
+		if err != nil {
+			return fmt.Errorf("查询现有提现失败: %v", err)
+		}
+
+		existingMap := make(map[int]bool)
+		for _, w := range existingWithdraws {
+			existingMap[w.WithdrawId] = true
+		}
+
+		// 2. 处理配置中的提现
+		configWithdrawIds := make(map[int]bool)
+		for _, withdraw := range config.Withdraw {
+			configWithdrawIds[withdraw.WithdrawId] = true
+
+			// 检查是否已存在
+			count, err := tx.Model("site_withdraw").
+				Where("site_id", siteId).
+				Where("withdraw_id", withdraw.WithdrawId).
+				Count()
+			if err != nil {
+				g.Log().Errorf(ctx, "检查提现是否存在失败: withdraw_id=%d, error=%v", withdraw.WithdrawId, err)
+				continue
+			}
+
+			if count > 0 {
+				// 更新
+				_, err = tx.Model("site_withdraw").
+					Where("site_id", siteId).
+					Where("withdraw_id", withdraw.WithdrawId).
+					Data(g.Map{
+						"name":        withdraw.Name,
+						"code":        withdraw.Code,
+						"gateway":     withdraw.Gateway,
+						"api_url":     withdraw.ApiUrl,
+						"merchant_no": withdraw.MerchantNo,
+						"md5_key":     withdraw.Md5Key,
+						"each_min":    withdraw.EachMin,
+						"each_max":    withdraw.EachMax,
+						"sort":        withdraw.Sort,
+						"moneyList":   withdraw.MoneyList,
+						"is_input":    withdraw.IsInput,
+						"logo":        withdraw.Logo,
+						"status":      withdraw.Status,
+						"updated_at":  "NOW()",
+					}).
+					Update()
+				if err != nil {
+					g.Log().Errorf(ctx, "更新提现配置失败: withdraw_id=%d, error=%v", withdraw.WithdrawId, err)
+				} else {
+					g.Log().Debugf(ctx, "更新提现配置成功: site=%s, withdraw_id=%d, name=%s", siteCode, withdraw.WithdrawId, withdraw.Name)
+				}
+			} else {
+				// 插入
+				_, err = tx.Model("site_withdraw").
+					Data(g.Map{
+						"site_id":     siteId,
+						"withdraw_id": withdraw.WithdrawId,
+						"name":        withdraw.Name,
+						"code":        withdraw.Code,
+						"gateway":     withdraw.Gateway,
+						"api_url":     withdraw.ApiUrl,
+						"merchant_no": withdraw.MerchantNo,
+						"md5_key":     withdraw.Md5Key,
+						"each_min":    withdraw.EachMin,
+						"each_max":    withdraw.EachMax,
+						"sort":        withdraw.Sort,
+						"moneyList":   withdraw.MoneyList,
+						"is_input":    withdraw.IsInput,
+						"logo":        withdraw.Logo,
+						"status":      withdraw.Status,
+						"created_at":  "NOW()",
+						"updated_at":  "NOW()",
+					}).
+					Insert()
+				if err != nil {
+					g.Log().Errorf(ctx, "插入提现配置失败: withdraw_id=%d, error=%v", withdraw.WithdrawId, err)
+				} else {
+					g.Log().Infof(ctx, "插入提现配置成功: site=%s, withdraw_id=%d, name=%s", siteCode, withdraw.WithdrawId, withdraw.Name)
+				}
+			}
+		}
+
+		// 3. 删除配置中不存在的提现
+		for withdrawId := range existingMap {
+			if !configWithdrawIds[withdrawId] {
+				_, err = tx.Model("site_withdraw").
+					Where("site_id", siteId).
+					Where("withdraw_id", withdrawId).
+					Delete()
+				if err != nil {
+					g.Log().Errorf(ctx, "删除提现配置失败: withdraw_id=%d, error=%v", withdrawId, err)
+				} else {
+					g.Log().Infof(ctx, "删除提现配置成功: site=%s, withdraw_id=%d", siteCode, withdrawId)
+				}
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("同步提现配置事务失败: %v", err)
+	}
+
+	g.Log().Infof(m.ctx, "站点 %s 提现配置同步完成", siteCode)
 	return nil
 }
