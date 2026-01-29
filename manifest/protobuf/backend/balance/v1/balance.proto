@@ -27,13 +27,6 @@ service Balance {
     rpc QueryGameBalance(QueryGameBalanceReq) returns (QueryGameBalanceRes) {}
     rpc ManualUserBalance(ManualUserBalanceReq) returns (ManualUserBalanceRes) {}
     
-    // 支付接口管理相关
-    rpc GetPaymentAccounts(GetPaymentAccountsReq) returns (GetPaymentAccountsRes) {}
-    rpc CreatePaymentAccount(CreatePaymentAccountReq) returns (CreatePaymentAccountRes) {}
-    rpc GetPaymentAccountUpdate(GetPaymentAccountUpdateReq) returns (GetPaymentAccountUpdateRes) {}
-    rpc UpdatePaymentAccount(UpdatePaymentAccountReq) returns (UpdatePaymentAccountRes) {}
-    rpc DeletePaymentAccount(DeletePaymentAccountReq) returns (DeletePaymentAccountRes) {}
-    
     // 操作类型选项
     rpc GetManualList(GetManualListReq) returns (GetManualListRes) {}
 }
@@ -346,120 +339,6 @@ message ManualUserBalanceRes {
     string message = 2;         // 响应消息
     double balance_old = 3;     // 操作前余额
     double balance_new = 4;     // 操作后余额
-}
-// 获取支付接口列表请求
-message GetPaymentAccountsReq {
-    int32 payment_id = 1;       // 支付ID (可选)
-    int32 status = 2;           // 状态 (可选)
-    int32 page = 3;             // 页码
-    int32 size = 4;             // 每页数量
-}
-
-// 支付接口信息
-message PaymentAccountInfo {
-    int32 id = 1;                       // ID
-    int32 site_id = 2;                  // 站点ID
-    int32 payment_id = 3;               // 第三方支付ID
-    int32 gateway = 4;                  // 支付网关
-    string name = 5;                    // 接口名称
-    string domain = 6;                  // 支付域名
-    string merchant_no = 7;             // 商户号
-    string md5_key = 8;                 // MD5密钥
-    double each_min = 9;                // 单笔最低
-    double each_max = 10;               // 单笔最高
-    double daily_max = 11;              // 单日停用上限
-    int32 today_count = 12;             // 今日入款次数
-    double today_amount = 13;           // 今日总转账
-    int32 status = 14;                  // 状态
-    string status_name = 15;            // 状态名称
-    int32 sort = 16;                    // 排序
-    string created_at = 17;             // 创建时间
-    string updated_at = 18;             // 更新时间
-    string public_key = 19;             // 公钥
-    string private_key = 20;            // 私钥
-    int32 is_decimal = 21;              // 是否携带小数
-    int32 is_int = 22;                  // 是否为规定整数数组
-    string money_list = 23;             // 可选的金额数组
-}
-
-// 获取支付接口列表响应
-message GetPaymentAccountsRes {
-    repeated PaymentAccountInfo list = 1; // 支付接口列表
-    int32 count = 2;                      // 总数量
-}
-
-// 创建支付接口请求
-message CreatePaymentAccountReq {
-    int32 payment_id = 1;       // 第三方支付ID
-    int32 gateway = 2;          // 支付网关
-    string name = 3;            // 接口名称
-    string domain = 4;          // 支付域名
-    string merchant_no = 5;     // 商户号
-    string md5_key = 6;         // MD5密钥
-    double each_min = 7;        // 单笔最低
-    double each_max = 8;        // 单笔最高
-    double daily_max = 9;       // 单日停用上限
-    int32 status = 10;          // 状态
-    int32 sort = 11;            // 排序
-    string public_key = 12;     // 公钥
-    string private_key = 13;    // 私钥
-    int32 is_decimal = 14;      // 是否携带小数
-    int32 is_int = 15;          // 是否为规定整数数组
-    string money_list = 16;     // 可选的金额数组
-}
-
-// 创建支付接口响应
-message CreatePaymentAccountRes {
-    bool success = 1;           // 是否成功
-    string message = 2;         // 响应消息
-}
-
-// 获取支付接口编辑信息请求
-message GetPaymentAccountUpdateReq {
-    int32 id = 1;               // 支付接口ID
-}
-
-// 获取支付接口编辑信息响应
-message GetPaymentAccountUpdateRes {
-    PaymentAccountInfo data = 1; // 支付接口信息
-}
-
-// 更新支付接口请求
-message UpdatePaymentAccountReq {
-    int32 id = 1;               // 支付接口ID
-    int32 payment_id = 2;       // 第三方支付ID
-    int32 gateway = 3;          // 支付网关
-    string name = 4;            // 接口名称
-    string domain = 5;          // 支付域名
-    string merchant_no = 6;     // 商户号
-    string md5_key = 7;         // MD5密钥
-    double each_min = 8;        // 单笔最低
-    double each_max = 9;        // 单笔最高
-    double daily_max = 10;      // 单日停用上限
-    int32 status = 11;          // 状态
-    int32 sort = 12;            // 排序
-    string public_key = 13;     // 公钥
-    string private_key = 14;    // 私钥
-    int32 is_decimal = 15;      // 是否携带小数
-    int32 is_int = 16;          // 是否为规定整数数组
-    string money_list = 17;     // 可选的金额数组
-}
-
-// 更新支付接口响应
-message UpdatePaymentAccountRes {
-    bool success = 1;           // 是否成功
-    string message = 2;         // 响应消息
-}
-
-// 删除支付接口请求
-message DeletePaymentAccountReq {
-    int32 id = 1;               // 支付接口ID
-}
-
-// 删除支付接口响应
-message DeletePaymentAccountRes {
-    bool success = 1;           // 是否成功
-    string message = 2;         // 响应消息
 }
 
 // 获取操作类型列表请求

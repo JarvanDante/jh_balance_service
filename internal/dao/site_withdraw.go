@@ -5,7 +5,10 @@
 package dao
 
 import (
+	"context"
 	"jh_balance_service/internal/dao/internal"
+
+	"github.com/gogf/gf/v2/database/gdb"
 )
 
 // siteWithdrawDao is the data access object for the table site_withdraw.
@@ -16,7 +19,14 @@ type siteWithdrawDao struct {
 
 var (
 	// SiteWithdraw is a globally accessible object for table site_withdraw operations.
-	SiteWithdraw = siteWithdrawDao{internal.NewSiteWithdrawDao()}
+	SiteWithdraw = siteWithdrawDao{internal.NewSiteWithdrawDao(DynamicDBHandler)}
 )
+
+// Ctx 重写Ctx方法，使用动态数据库连接
+func (d siteWithdrawDao) Ctx(ctx context.Context) *gdb.Model {
+	// 使用辅助函数获取动态Model
+	originalModel := d.SiteWithdrawDao.Ctx(ctx)
+	return GetDynamicModel(ctx, d.Table(), originalModel)
+}
 
 // Add your custom methods and functionality below.
