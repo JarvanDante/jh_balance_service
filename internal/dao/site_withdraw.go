@@ -8,15 +8,15 @@ import (
 	"jh_balance_service/internal/dao/internal"
 )
 
-// withdrawPaymentDao is the data access object for the table withdraw_payment.
+// siteWithdrawDao is the data access object for the table site_withdraw.
 // You can define custom methods on it to extend its functionality as needed.
-type withdrawPaymentDao struct {
-	*internal.WithdrawPaymentDao
+type siteWithdrawDao struct {
+	*internal.SiteWithdrawDao
 }
 
 var (
-	// WithdrawPayment is a globally accessible object for table withdraw_payment operations.
-	WithdrawPayment = withdrawPaymentDao{internal.NewWithdrawPaymentDao()}
+	// SiteWithdraw is a globally accessible object for table site_withdraw operations.
+	SiteWithdraw = siteWithdrawDao{internal.NewSiteWithdrawDao()}
 )
 
 // Add your custom methods and functionality below.

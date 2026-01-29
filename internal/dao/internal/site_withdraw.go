@@ -11,19 +11,19 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 )
 
-// WithdrawPaymentDao is the data access object for the table withdraw_payment.
-type WithdrawPaymentDao struct {
-	table    string                 // table is the underlying table name of the DAO.
-	group    string                 // group is the database configuration group name of the current DAO.
-	columns  WithdrawPaymentColumns // columns contains all the column names of Table for convenient usage.
-	handlers []gdb.ModelHandler     // handlers for customized model modification.
+// SiteWithdrawDao is the data access object for the table site_withdraw.
+type SiteWithdrawDao struct {
+	table    string              // table is the underlying table name of the DAO.
+	group    string              // group is the database configuration group name of the current DAO.
+	columns  SiteWithdrawColumns // columns contains all the column names of Table for convenient usage.
+	handlers []gdb.ModelHandler  // handlers for customized model modification.
 }
 
-// WithdrawPaymentColumns defines and stores column names for the table withdraw_payment.
-type WithdrawPaymentColumns struct {
+// SiteWithdrawColumns defines and stores column names for the table site_withdraw.
+type SiteWithdrawColumns struct {
 	Id         string //
 	SiteId     string // 站点ID
-	PaymentId  string // 总站里提现ID
+	WithdrawId string // 总站里提现ID
 	Name       string //
 	Code       string //
 	Gateway    string // 提现网关1在线支付2银行
@@ -42,11 +42,11 @@ type WithdrawPaymentColumns struct {
 	UpdatedAt  string //
 }
 
-// withdrawPaymentColumns holds the columns for the table withdraw_payment.
-var withdrawPaymentColumns = WithdrawPaymentColumns{
+// siteWithdrawColumns holds the columns for the table site_withdraw.
+var siteWithdrawColumns = SiteWithdrawColumns{
 	Id:         "id",
 	SiteId:     "site_id",
-	PaymentId:  "payment_id",
+	WithdrawId: "withdraw_id",
 	Name:       "name",
 	Code:       "code",
 	Gateway:    "gateway",
@@ -65,38 +65,38 @@ var withdrawPaymentColumns = WithdrawPaymentColumns{
 	UpdatedAt:  "updated_at",
 }
 
-// NewWithdrawPaymentDao creates and returns a new DAO object for table data access.
-func NewWithdrawPaymentDao(handlers ...gdb.ModelHandler) *WithdrawPaymentDao {
-	return &WithdrawPaymentDao{
+// NewSiteWithdrawDao creates and returns a new DAO object for table data access.
+func NewSiteWithdrawDao(handlers ...gdb.ModelHandler) *SiteWithdrawDao {
+	return &SiteWithdrawDao{
 		group:    "default",
-		table:    "withdraw_payment",
-		columns:  withdrawPaymentColumns,
+		table:    "site_withdraw",
+		columns:  siteWithdrawColumns,
 		handlers: handlers,
 	}
 }
 
 // DB retrieves and returns the underlying raw database management object of the current DAO.
-func (dao *WithdrawPaymentDao) DB() gdb.DB {
+func (dao *SiteWithdrawDao) DB() gdb.DB {
 	return g.DB(dao.group)
 }
 
 // Table returns the table name of the current DAO.
-func (dao *WithdrawPaymentDao) Table() string {
+func (dao *SiteWithdrawDao) Table() string {
 	return dao.table
 }
 
 // Columns returns all column names of the current DAO.
-func (dao *WithdrawPaymentDao) Columns() WithdrawPaymentColumns {
+func (dao *SiteWithdrawDao) Columns() SiteWithdrawColumns {
 	return dao.columns
 }
 
 // Group returns the database configuration group name of the current DAO.
-func (dao *WithdrawPaymentDao) Group() string {
+func (dao *SiteWithdrawDao) Group() string {
 	return dao.group
 }
 
 // Ctx creates and returns a Model for the current DAO. It automatically sets the context for the current operation.
-func (dao *WithdrawPaymentDao) Ctx(ctx context.Context) *gdb.Model {
+func (dao *SiteWithdrawDao) Ctx(ctx context.Context) *gdb.Model {
 	model := dao.DB().Model(dao.table)
 	for _, handler := range dao.handlers {
 		model = handler(model)
@@ -110,6 +110,6 @@ func (dao *WithdrawPaymentDao) Ctx(ctx context.Context) *gdb.Model {
 //
 // Note: Do not commit or roll back the transaction in function f,
 // as it is automatically handled by this function.
-func (dao *WithdrawPaymentDao) Transaction(ctx context.Context, f func(ctx context.Context, tx gdb.TX) error) (err error) {
+func (dao *SiteWithdrawDao) Transaction(ctx context.Context, f func(ctx context.Context, tx gdb.TX) error) (err error) {
 	return dao.Ctx(ctx).Transaction(ctx, f)
 }

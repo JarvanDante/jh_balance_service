@@ -8,11 +8,11 @@ import (
 	"github.com/gogf/gf/v2/os/gtime"
 )
 
-// WithdrawPayment is the golang structure for table withdraw_payment.
-type WithdrawPayment struct {
+// SiteWithdraw is the golang structure for table site_withdraw.
+type SiteWithdraw struct {
 	Id         uint        `json:"id"         orm:"id"          description:""`
 	SiteId     int         `json:"siteId"     orm:"site_id"     description:"站点ID"`
-	PaymentId  int         `json:"paymentId"  orm:"payment_id"  description:"总站里提现ID"`
+	WithdrawId int         `json:"withdrawId" orm:"withdraw_id" description:"总站里提现ID"`
 	Name       string      `json:"name"       orm:"name"        description:""`
 	Code       string      `json:"code"       orm:"code"        description:""`
 	Gateway    int         `json:"gateway"    orm:"gateway"     description:"提现网关1在线支付2银行"`

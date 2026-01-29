@@ -9,12 +9,12 @@ import (
 	"github.com/gogf/gf/v2/os/gtime"
 )
 
-// WithdrawPayment is the golang structure of table withdraw_payment for DAO operations like Where/Data.
-type WithdrawPayment struct {
-	g.Meta     `orm:"table:withdraw_payment, do:true"`
+// SiteWithdraw is the golang structure of table site_withdraw for DAO operations like Where/Data.
+type SiteWithdraw struct {
+	g.Meta     `orm:"table:site_withdraw, do:true"`
 	Id         any         //
 	SiteId     any         // 站点ID
-	PaymentId  any         // 总站里提现ID
+	WithdrawId any         // 总站里提现ID
 	Name       any         //
 	Code       any         //
 	Gateway    any         // 提现网关1在线支付2银行
