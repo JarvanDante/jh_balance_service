@@ -15,9 +15,11 @@ import (
 
 // SiteConfig 站点配置结构（匹配新的KV格式）
 type SiteConfig struct {
-	Meta   MetaConfig   `json:"Meta"`
-	Base   BaseConfig   `json:"Base"`
-	Domain DomainConfig `json:"Domain"`
+	Meta    MetaConfig      `json:"Meta"`
+	Base    BaseConfig      `json:"Base"`
+	Domain  DomainConfig    `json:"Domain"`
+	Game    []GameConfig    `json:"Game"`
+	Payment []PaymentConfig `json:"Payment"`
 }
 
 // MetaConfig 元数据配置
@@ -45,6 +47,37 @@ type DomainConfig struct {
 	H5       []string `json:"h5"`
 	Admin    []string `json:"admin"`
 	Callback []string `json:"callback"`
+}
+
+// GameConfig 游戏配置
+type GameConfig struct {
+	GameId    int    `json:"game_id"`
+	Type      int    `json:"type"`
+	Name      string `json:"name"`
+	Platform  string `json:"platform"`
+	ImageCode string `json:"image_code"`
+	DbName    string `json:"db_name"`
+	ApiId     string `json:"api_id"`
+	ApiKey    string `json:"api_key"`
+	ApiUrl    string `json:"api_url"`
+}
+
+// PaymentConfig 支付配置
+type PaymentConfig struct {
+	PaymentId  int     `json:"payment_id"`
+	Name       string  `json:"name"`
+	Code       string  `json:"code"`
+	Gateway    int     `json:"gateway"`
+	ApiUrl     string  `json:"api_url"`
+	MerchantNo string  `json:"merchant_no"`
+	Md5Key     string  `json:"md5_key"`
+	EachMin    float64 `json:"each_min"`
+	EachMax    float64 `json:"each_max"`
+	Sort       int     `json:"sort"`
+	MoneyList  string  `json:"money_list"`
+	IsInput    int     `json:"is_input"`
+	Logo       string  `json:"logo"`
+	Status     int     `json:"status"`
 }
 
 // DBConfigManager 数据库配置管理器
@@ -123,10 +156,10 @@ func (m *DBConfigManager) loadAllSiteConfigs() error {
 		}
 	}
 
-	// 只在有配置更新时输出日志
-	if updatedCount > 0 {
-		g.Log().Infof(m.ctx, "Balance服务更新了 %d 个站点配置，当前共 %d 个站点", updatedCount, len(m.siteConfigs))
-	}
+	// 删除定时任务的日志输出（避免日志过多）
+	// if updatedCount > 0 {
+	// 	g.Log().Infof(m.ctx, "Balance服务更新了 %d 个站点配置，当前共 %d 个站点", updatedCount, len(m.siteConfigs))
+	// }
 	return nil
 }
 
@@ -189,9 +222,18 @@ func (m *DBConfigManager) updateSiteConfig(key string, value []byte) (bool, erro
 			g.Log().Errorf(m.ctx, "注册Balance数据库配置组失败: site=%s, error=%v", siteCode, err)
 			return false, err
 		}
-		g.Log().Infof(m.ctx, "Balance服务站点配置已更新（含DB连接池）: site=%s, version=%d", siteCode, config.Meta.Version)
-	} else {
-		g.Log().Debugf(m.ctx, "Balance服务站点配置已更新（仅业务配置）: site=%s, version=%d", siteCode, config.Meta.Version)
+		// 删除定时任务的日志输出
+		// g.Log().Infof(m.ctx, "Balance服务站点配置已更新（含DB连接池）: site=%s, version=%d", siteCode, config.Meta.Version)
+	}
+	// 删除定时任务的日志输出
+	// else {
+	// 	g.Log().Debugf(m.ctx, "Balance服务站点配置已更新（仅业务配置）: site=%s, version=%d", siteCode, config.Meta.Version)
+	// }
+
+	// 同步支付配置到数据库
+	if err := m.syncPaymentConfig(siteCode, &config); err != nil {
+		g.Log().Errorf(m.ctx, "同步支付配置失败: site=%s, error=%v", siteCode, err)
+		// 不返回错误，允许继续
 	}
 
 	return true, nil
@@ -281,4 +323,155 @@ func (m *DBConfigManager) GetSiteCodeBySiteID(siteID int64) string {
 	}
 
 	return ""
+}
+
+// syncPaymentConfig 同步支付配置到数据库
+func (m *DBConfigManager) syncPaymentConfig(siteCode string, config *SiteConfig) error {
+	// 获取站点的数据库连接
+	groupName := fmt.Sprintf("site_%s", siteCode)
+	db := g.DB(groupName)
+	if db == nil {
+		g.Log().Warningf(m.ctx, "站点 %s 数据库连接不存在，跳过支付配置同步", siteCode)
+		return nil
+	}
+
+	// 检查site_payment表是否存在
+	tables, err := db.Tables(m.ctx)
+	if err != nil {
+		return fmt.Errorf("查询数据库表失败: %v", err)
+	}
+
+	hasTable := false
+	for _, table := range tables {
+		if table == "site_payment" {
+			hasTable = true
+			break
+		}
+	}
+
+	if !hasTable {
+		g.Log().Warningf(m.ctx, "站点 %s 数据库中不存在site_payment表，跳过支付配置同步", siteCode)
+		return nil
+	}
+
+	siteId := config.Base.SiteId
+	g.Log().Infof(m.ctx, "开始同步站点 %s (site_id=%d) 的支付配置，共 %d 个支付", siteCode, siteId, len(config.Payment))
+
+	// 使用事务处理
+	err = db.Transaction(m.ctx, func(ctx context.Context, tx gdb.TX) error {
+		// 1. 获取当前数据库中的所有支付ID
+		type PaymentIdResult struct {
+			PaymentId int `json:"payment_id"`
+		}
+		var existingPayments []PaymentIdResult
+		err := tx.Model("site_payment").
+			Where("site_id", siteId).
+			Fields("payment_id").
+			Scan(&existingPayments)
+		if err != nil {
+			return fmt.Errorf("查询现有支付失败: %v", err)
+		}
+
+		existingMap := make(map[int]bool)
+		for _, p := range existingPayments {
+			existingMap[p.PaymentId] = true
+		}
+
+		// 2. 处理配置中的支付
+		configPaymentIds := make(map[int]bool)
+		for _, payment := range config.Payment {
+			configPaymentIds[payment.PaymentId] = true
+
+			// 检查是否已存在
+			count, err := tx.Model("site_payment").
+				Where("site_id", siteId).
+				Where("payment_id", payment.PaymentId).
+				Count()
+			if err != nil {
+				g.Log().Errorf(ctx, "检查支付是否存在失败: payment_id=%d, error=%v", payment.PaymentId, err)
+				continue
+			}
+
+			if count > 0 {
+				// 更新
+				_, err = tx.Model("site_payment").
+					Where("site_id", siteId).
+					Where("payment_id", payment.PaymentId).
+					Data(g.Map{
+						"name":        payment.Name,
+						"code":        payment.Code,
+						"gateway":     payment.Gateway,
+						"api_url":     payment.ApiUrl,
+						"merchant_no": payment.MerchantNo,
+						"md5_key":     payment.Md5Key,
+						"each_min":    payment.EachMin,
+						"each_max":    payment.EachMax,
+						"sort":        payment.Sort,
+						"moneyList":   payment.MoneyList,
+						"is_input":    payment.IsInput,
+						"logo":        payment.Logo,
+						"status":      payment.Status,
+						"updated_at":  "NOW()",
+					}).
+					Update()
+				if err != nil {
+					g.Log().Errorf(ctx, "更新支付配置失败: payment_id=%d, error=%v", payment.PaymentId, err)
+				} else {
+					g.Log().Debugf(ctx, "更新支付配置成功: site=%s, payment_id=%d, name=%s", siteCode, payment.PaymentId, payment.Name)
+				}
+			} else {
+				// 插入
+				_, err = tx.Model("site_payment").
+					Data(g.Map{
+						"site_id":     siteId,
+						"payment_id":  payment.PaymentId,
+						"name":        payment.Name,
+						"code":        payment.Code,
+						"gateway":     payment.Gateway,
+						"api_url":     payment.ApiUrl,
+						"merchant_no": payment.MerchantNo,
+						"md5_key":     payment.Md5Key,
+						"each_min":    payment.EachMin,
+						"each_max":    payment.EachMax,
+						"sort":        payment.Sort,
+						"moneyList":   payment.MoneyList,
+						"is_input":    payment.IsInput,
+						"logo":        payment.Logo,
+						"status":      payment.Status,
+						"created_at":  "NOW()",
+						"updated_at":  "NOW()",
+					}).
+					Insert()
+				if err != nil {
+					g.Log().Errorf(ctx, "插入支付配置失败: payment_id=%d, error=%v", payment.PaymentId, err)
+				} else {
+					g.Log().Infof(ctx, "插入支付配置成功: site=%s, payment_id=%d, name=%s", siteCode, payment.PaymentId, payment.Name)
+				}
+			}
+		}
+
+		// 3. 删除配置中不存在的支付
+		for paymentId := range existingMap {
+			if !configPaymentIds[paymentId] {
+				_, err = tx.Model("site_payment").
+					Where("site_id", siteId).
+					Where("payment_id", paymentId).
+					Delete()
+				if err != nil {
+					g.Log().Errorf(ctx, "删除支付配置失败: payment_id=%d, error=%v", paymentId, err)
+				} else {
+					g.Log().Infof(ctx, "删除支付配置成功: site=%s, payment_id=%d", siteCode, paymentId)
+				}
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("同步支付配置事务失败: %v", err)
+	}
+
+	g.Log().Infof(m.ctx, "站点 %s 支付配置同步完成", siteCode)
+	return nil
 }
