@@ -25,7 +25,6 @@ type UserBankColumns struct {
 	SiteId      string // 站点ID
 	UserId      string // 会员ID
 	Type        string // 银行类型1=GCash,2=Maya
-	BankName    string // 银行名称
 	CardAccount string // 银行账户名
 	CardNo      string // 银行卡号
 	IsDefault   string // 默认地址。1=默认，0=非默认
@@ -39,7 +38,6 @@ var userBankColumns = UserBankColumns{
 	SiteId:      "site_id",
 	UserId:      "user_id",
 	Type:        "type",
-	BankName:    "bank_name",
 	CardAccount: "card_account",
 	CardNo:      "card_no",
 	IsDefault:   "is_default",

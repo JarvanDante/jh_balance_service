@@ -14,7 +14,6 @@ type UserBank struct {
 	SiteId      int         `json:"siteId"      orm:"site_id"      description:"站点ID"`
 	UserId      int         `json:"userId"      orm:"user_id"      description:"会员ID"`
 	Type        int         `json:"type"        orm:"type"         description:"银行类型1=GCash,2=Maya"`
-	BankName    string      `json:"bankName"    orm:"bank_name"    description:"银行名称"`
 	CardAccount string      `json:"cardAccount" orm:"card_account" description:"银行账户名"`
 	CardNo      string      `json:"cardNo"      orm:"card_no"      description:"银行卡号"`
 	IsDefault   int         `json:"isDefault"   orm:"is_default"   description:"默认地址。1=默认，0=非默认"`
