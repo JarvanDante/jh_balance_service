@@ -17,6 +17,10 @@ service Balance {
     rpc CompensateBalance(CompensateBalanceReq) returns (CompensateBalanceRes) {}
     // 最后一次进入游戏
     rpc GetLastBalanceLogGame(GetLastBalanceLogGameReq) returns (GetLastBalanceLogGameRes) {}
+    // 获取支付渠道列表
+    rpc GetPaymentList(GetPaymentListReq) returns (GetPaymentListRes) {}
+    // 获取提现渠道列表
+    rpc GetWithdrawList(GetWithdrawListReq) returns (GetWithdrawListRes) {}
 }
 
 // 初始化用户余额请求
@@ -96,4 +100,58 @@ message GetLastBalanceLogGameReq{
 message GetLastBalanceLogGameRes{
     int32 game_id = 1;          // 游戏ID
     float amount = 2;           // 游戏ID无刚用户余额，游戏ID有则为0
+}
+
+// 获取支付渠道列表请求
+message GetPaymentListReq {
+}
+
+// 支付渠道信息
+message PaymentInfo {
+    int32 id = 1;               // ID
+    int32 site_id = 2;          // 站点ID
+    int32 payment_id = 3;       // 总站支付ID
+    string name = 4;            // 名称
+    string code = 5;            // 代码
+    int32 gateway = 6;          // 支付网关：1=在线支付 2=银行
+    float each_min = 7;         // 单笔最低
+    float each_max = 8;         // 单笔最高
+    int32 sort = 9;             // 排序
+    repeated string money_list = 10;  // 可选金额数组
+    int32 is_input = 11;        // 是否支持输入金额：0=不支持 1=支持
+    string remark = 12;         // 描述
+    string logo = 13;           // logo地址
+    int32 status = 14;          // 状态
+}
+
+// 获取支付渠道列表响应
+message GetPaymentListRes {
+    repeated PaymentInfo list = 1;  // 支付渠道列表
+}
+
+// 获取提现渠道列表请求
+message GetWithdrawListReq {
+}
+
+// 提现渠道信息
+message WithdrawInfo {
+    int32 id = 1;               // ID
+    int32 site_id = 2;          // 站点ID
+    int32 withdraw_id = 3;      // 总站提现ID
+    string name = 4;            // 名称
+    string code = 5;            // 代码
+    int32 gateway = 6;          // 提现网关：1=在线支付 2=银行
+    float each_min = 7;         // 单笔最低
+    float each_max = 8;         // 单笔最高
+    int32 sort = 9;             // 排序
+    repeated string money_list = 10;  // 可选金额数组
+    int32 is_input = 11;        // 是否支持输入金额：0=不支持 1=支持
+    string remark = 12;         // 描述
+    string logo = 13;           // logo地址
+    int32 status = 14;          // 状态
+}
+
+// 获取提现渠道列表响应
+message GetWithdrawListRes {
+    repeated WithdrawInfo list = 1;  // 提现渠道列表
 }

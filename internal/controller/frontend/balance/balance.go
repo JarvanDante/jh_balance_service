@@ -48,3 +48,13 @@ func (c *Controller) CompensateBalance(ctx context.Context, req *v1.CompensateBa
 func (c *Controller) GetLastBalanceLogGame(ctx context.Context, req *v1.GetLastBalanceLogGameReq) (res *v1.GetLastBalanceLogGameRes, err error) {
 	return frontend.Balance().GetLastBalanceLogGame(ctx, req)
 }
+
+// GetPaymentList 获取支付渠道列表
+func (c *Controller) GetPaymentList(ctx context.Context, req *v1.GetPaymentListReq) (res *v1.GetPaymentListRes, err error) {
+	return frontend.Balance().GetPaymentList(ctx, req)
+}
+
+// GetWithdrawList 获取提现渠道列表
+func (c *Controller) GetWithdrawList(ctx context.Context, req *v1.GetWithdrawListReq) (res *v1.GetWithdrawListRes, err error) {
+	return frontend.Balance().GetWithdrawList(ctx, req)
+}

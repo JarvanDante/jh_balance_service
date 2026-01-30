@@ -169,6 +169,7 @@ echo "=== 清理不需要的文件 ==="
 # 定义需要删除的目录列表
 DIRS_TO_DELETE=(
     "internal/controller/balance"
+    "internal/controller/game"
     # 如果有其他需要删除的目录，在这里添加
     # "internal/controller/other_dir"
 )

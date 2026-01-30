@@ -3,11 +3,14 @@ package balance
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gtime"
 	"github.com/gogf/gf/v2/util/gconv"
 	"google.golang.org/grpc/metadata"
+
 	v1 "jh_balance_service/api/frontend/balance/v1"
 	gamev1 "jh_balance_service/api/grpc/game/v1"
 	balanceConsts "jh_balance_service/internal/consts/backend/balance"
@@ -916,5 +919,121 @@ func (s *sBalance) transferFromGame(ctx context.Context, req *v1.AdjustBalanceRe
 		Message: "转出请求已提交，等待处理",
 		Balance: "0.00", // 余额暂时不变
 		OrderNo: tradeNo,
+	}, nil
+}
+
+// GetPaymentList 获取支付渠道列表
+func (s *sBalance) GetPaymentList(ctx context.Context, req *v1.GetPaymentListReq) (*v1.GetPaymentListRes, error) {
+	// 从context获取站点ID
+	siteId, exists := middleware.GetSiteIdFromContext(ctx)
+	if !exists {
+		g.Log().Error(ctx, "未获取站点ID")
+		return nil, fmt.Errorf("未获取站点ID")
+	}
+
+	g.Log().Infof(ctx, "查询支付渠道列表: site_id=%d", siteId)
+
+	// 查询status=1的支付渠道，按sort从大到小排序
+	var payments []*entity.SitePayment
+	err := dao.SitePayment.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("status", 1).
+		OrderDesc("sort").
+		Scan(&payments)
+
+	if err != nil {
+		g.Log().Errorf(ctx, "查询支付渠道失败: %v", err)
+		return nil, fmt.Errorf("查询支付渠道失败")
+	}
+
+	// 转换为响应格式
+	list := make([]*v1.PaymentInfo, 0, len(payments))
+	for _, p := range payments {
+		// 解析moneyList字段（用逗号分隔）
+		var moneyList []string
+		if p.MoneyList != "" {
+			moneyList = strings.Split(p.MoneyList, ",")
+		}
+
+		list = append(list, &v1.PaymentInfo{
+			Id:        int32(p.Id),
+			SiteId:    int32(p.SiteId),
+			PaymentId: int32(p.PaymentId),
+			Name:      p.Name,
+			Code:      p.Code,
+			Gateway:   int32(p.Gateway),
+			EachMin:   float32(p.EachMin),
+			EachMax:   float32(p.EachMax),
+			Sort:      int32(p.Sort),
+			MoneyList: moneyList,
+			IsInput:   int32(p.IsInput),
+			Remark:    p.Remark,
+			Logo:      p.Logo,
+			Status:    int32(p.Status),
+		})
+	}
+
+	g.Log().Infof(ctx, "查询支付渠道成功: 共%d条", len(list))
+
+	return &v1.GetPaymentListRes{
+		List: list,
+	}, nil
+}
+
+// GetWithdrawList 获取提现渠道列表
+func (s *sBalance) GetWithdrawList(ctx context.Context, req *v1.GetWithdrawListReq) (*v1.GetWithdrawListRes, error) {
+	// 从context获取站点ID
+	siteId, exists := middleware.GetSiteIdFromContext(ctx)
+	if !exists {
+		g.Log().Error(ctx, "未获取站点ID")
+		return nil, fmt.Errorf("未获取站点ID")
+	}
+
+	g.Log().Infof(ctx, "查询提现渠道列表: site_id=%d", siteId)
+
+	// 查询status=1的提现渠道，按sort从大到小排序
+	var withdraws []*entity.SiteWithdraw
+	err := dao.SiteWithdraw.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("status", 1).
+		OrderDesc("sort").
+		Scan(&withdraws)
+
+	if err != nil {
+		g.Log().Errorf(ctx, "查询提现渠道失败: %v", err)
+		return nil, fmt.Errorf("查询提现渠道失败")
+	}
+
+	// 转换为响应格式
+	list := make([]*v1.WithdrawInfo, 0, len(withdraws))
+	for _, w := range withdraws {
+		// 解析moneyList字段（用逗号分隔）
+		var moneyList []string
+		if w.MoneyList != "" {
+			moneyList = strings.Split(w.MoneyList, ",")
+		}
+
+		list = append(list, &v1.WithdrawInfo{
+			Id:         int32(w.Id),
+			SiteId:     int32(w.SiteId),
+			WithdrawId: int32(w.WithdrawId),
+			Name:       w.Name,
+			Code:       w.Code,
+			Gateway:    int32(w.Gateway),
+			EachMin:    float32(w.EachMin),
+			EachMax:    float32(w.EachMax),
+			Sort:       int32(w.Sort),
+			MoneyList:  moneyList,
+			IsInput:    int32(w.IsInput),
+			Remark:     w.Remark,
+			Logo:       w.Logo,
+			Status:     int32(w.Status),
+		})
+	}
+
+	g.Log().Infof(ctx, "查询提现渠道成功: 共%d条", len(list))
+
+	return &v1.GetWithdrawListRes{
+		List: list,
 	}, nil
 }
