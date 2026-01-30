@@ -418,7 +418,9 @@ func (m *DBConfigManager) syncPaymentConfig(siteCode string, config *SiteConfig)
 			}
 
 			if count > 0 {
-				// 更新
+				// 更新：只覆盖总后台管理的字段，保留子系统自定义的字段
+				// 总后台管理的字段：site_id, payment_id, name, code, gateway, api_url, merchant_no, md5_key
+				// 子系统管理的字段：each_min, each_max, sort, is_input, moneyList, remark, logo, status
 				_, err = tx.Model("site_payment").
 					Where("site_id", siteId).
 					Where("payment_id", payment.PaymentId).
@@ -429,23 +431,16 @@ func (m *DBConfigManager) syncPaymentConfig(siteCode string, config *SiteConfig)
 						"api_url":     payment.ApiUrl,
 						"merchant_no": payment.MerchantNo,
 						"md5_key":     payment.Md5Key,
-						"each_min":    payment.EachMin,
-						"each_max":    payment.EachMax,
-						"sort":        payment.Sort,
-						"moneyList":   payment.MoneyList,
-						"is_input":    payment.IsInput,
-						"logo":        payment.Logo,
-						"status":      payment.Status,
 						"updated_at":  "NOW()",
 					}).
 					Update()
 				if err != nil {
 					g.Log().Errorf(ctx, "更新支付配置失败: payment_id=%d, error=%v", payment.PaymentId, err)
 				} else {
-					g.Log().Debugf(ctx, "更新支付配置成功: site=%s, payment_id=%d, name=%s", siteCode, payment.PaymentId, payment.Name)
+					g.Log().Debugf(ctx, "更新支付配置成功（仅总后台字段）: site=%s, payment_id=%d, name=%s", siteCode, payment.PaymentId, payment.Name)
 				}
 			} else {
-				// 插入
+				// 插入：新记录需要设置所有字段的默认值
 				_, err = tx.Model("site_payment").
 					Data(g.Map{
 						"site_id":     siteId,
@@ -456,13 +451,13 @@ func (m *DBConfigManager) syncPaymentConfig(siteCode string, config *SiteConfig)
 						"api_url":     payment.ApiUrl,
 						"merchant_no": payment.MerchantNo,
 						"md5_key":     payment.Md5Key,
-						"each_min":    payment.EachMin,
-						"each_max":    payment.EachMax,
-						"sort":        payment.Sort,
-						"moneyList":   payment.MoneyList,
-						"is_input":    payment.IsInput,
-						"logo":        payment.Logo,
-						"status":      payment.Status,
+						"each_min":    0,  // 默认值
+						"each_max":    0,  // 默认值
+						"sort":        0,  // 默认值
+						"moneyList":   "", // 默认值
+						"is_input":    1,  // 默认值：允许输入
+						"logo":        "", // 默认值
+						"status":      1,  // 默认值：启用
 						"created_at":  "NOW()",
 						"updated_at":  "NOW()",
 					}).
@@ -569,7 +564,9 @@ func (m *DBConfigManager) syncWithdrawConfig(siteCode string, config *SiteConfig
 			}
 
 			if count > 0 {
-				// 更新
+				// 更新：只覆盖总后台管理的字段，保留子系统自定义的字段
+				// 总后台管理的字段：site_id, withdraw_id, name, code, gateway, api_url, merchant_no, md5_key
+				// 子系统管理的字段：each_min, each_max, sort, is_input, moneyList, remark, logo, status
 				_, err = tx.Model("site_withdraw").
 					Where("site_id", siteId).
 					Where("withdraw_id", withdraw.WithdrawId).
@@ -580,23 +577,16 @@ func (m *DBConfigManager) syncWithdrawConfig(siteCode string, config *SiteConfig
 						"api_url":     withdraw.ApiUrl,
 						"merchant_no": withdraw.MerchantNo,
 						"md5_key":     withdraw.Md5Key,
-						"each_min":    withdraw.EachMin,
-						"each_max":    withdraw.EachMax,
-						"sort":        withdraw.Sort,
-						"moneyList":   withdraw.MoneyList,
-						"is_input":    withdraw.IsInput,
-						"logo":        withdraw.Logo,
-						"status":      withdraw.Status,
 						"updated_at":  "NOW()",
 					}).
 					Update()
 				if err != nil {
 					g.Log().Errorf(ctx, "更新提现配置失败: withdraw_id=%d, error=%v", withdraw.WithdrawId, err)
 				} else {
-					g.Log().Debugf(ctx, "更新提现配置成功: site=%s, withdraw_id=%d, name=%s", siteCode, withdraw.WithdrawId, withdraw.Name)
+					g.Log().Debugf(ctx, "更新提现配置成功（仅总后台字段）: site=%s, withdraw_id=%d, name=%s", siteCode, withdraw.WithdrawId, withdraw.Name)
 				}
 			} else {
-				// 插入
+				// 插入：新记录需要设置所有字段的默认值
 				_, err = tx.Model("site_withdraw").
 					Data(g.Map{
 						"site_id":     siteId,
@@ -607,13 +597,13 @@ func (m *DBConfigManager) syncWithdrawConfig(siteCode string, config *SiteConfig
 						"api_url":     withdraw.ApiUrl,
 						"merchant_no": withdraw.MerchantNo,
 						"md5_key":     withdraw.Md5Key,
-						"each_min":    withdraw.EachMin,
-						"each_max":    withdraw.EachMax,
-						"sort":        withdraw.Sort,
-						"moneyList":   withdraw.MoneyList,
-						"is_input":    withdraw.IsInput,
-						"logo":        withdraw.Logo,
-						"status":      withdraw.Status,
+						"each_min":    0,  // 默认值
+						"each_max":    0,  // 默认值
+						"sort":        0,  // 默认值
+						"moneyList":   "", // 默认值
+						"is_input":    1,  // 默认值：允许输入
+						"logo":        "", // 默认值
+						"status":      1,  // 默认值：启用
 						"created_at":  "NOW()",
 						"updated_at":  "NOW()",
 					}).
