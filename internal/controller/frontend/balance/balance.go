@@ -31,16 +31,7 @@ func (c *Controller) RefreshBalance(ctx context.Context, req *v1.RefreshBalanceR
 
 // AdjustBalance 调整用户余额
 func (c *Controller) AdjustBalance(ctx context.Context, req *v1.AdjustBalanceReq) (res *v1.AdjustBalanceRes, err error) {
-	g.Log().Infof(ctx, "========== Balance Controller收到AdjustBalance请求 ==========")
-	g.Log().Infof(ctx, "请求参数: site_id=%d, user_id=%d, type=%d",
-		req.SiteId, req.UserId, req.Type)
-
-	res, err = frontend.Balance().AdjustBalance(ctx, req)
-
-	g.Log().Infof(ctx, "Balance Controller处理完成: success=%v, err=%v",
-		res != nil && res.Success, err)
-
-	return res, err
+	return frontend.Balance().AdjustBalance(ctx, req)
 }
 
 // UpdateTransferStatus 更新转账状态

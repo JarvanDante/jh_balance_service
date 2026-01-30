@@ -127,6 +127,7 @@ func (s *sBalance) InitBalanceUser(ctx context.Context, req *v1.InitBalanceUserR
 
 // RefreshBalance 刷新用户余额
 func (s *sBalance) RefreshBalance(ctx context.Context, req *v1.RefreshBalanceReq) (res *v1.RefreshBalanceRes, err error) {
+
 	// 从JWT token获取用户ID
 	userId, exists := middleware.GetUserIdFromContext(ctx)
 	if !exists {
@@ -669,6 +670,7 @@ func (s *sBalance) CompensateBalance(ctx context.Context, req *v1.CompensateBala
  * @author : Carson
  */
 func (s *sBalance) GetLastBalanceLogGame(ctx context.Context, req *v1.GetLastBalanceLogGameReq) (*v1.GetLastBalanceLogGameRes, error) {
+
 	siteId := req.SiteId
 	userId := req.UserId
 
@@ -692,7 +694,8 @@ func (s *sBalance) GetLastBalanceLogGame(ctx context.Context, req *v1.GetLastBal
 	err = dao.BalanceLogGame.Ctx(ctx).
 		Where("site_id", siteId).
 		Where("user_id", userId).
-		Where("status", balanceConsts.StatusSuccess). // 只查询成功的记录
+		Where("status", balanceConsts.StatusSuccess).   // 只查询成功的记录
+		Where("in_or_out", balanceConsts.TRANSFER_OUT). // 转出：从中心账户转出到游戏账户
 		OrderDesc("id").
 		Limit(1).
 		Scan(&last)
