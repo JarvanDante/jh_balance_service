@@ -7,9 +7,12 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gtime"
 	"github.com/gogf/gf/v2/util/gconv"
+	"google.golang.org/grpc/metadata"
 	v1 "jh_balance_service/api/frontend/balance/v1"
+	gamev1 "jh_balance_service/api/grpc/game/v1"
 	balanceConsts "jh_balance_service/internal/consts/backend/balance"
 	"jh_balance_service/internal/dao"
+	"jh_balance_service/internal/grpc_client"
 	"jh_balance_service/internal/middleware"
 	"jh_balance_service/internal/model/entity"
 	"jh_balance_service/internal/service/frontend"
@@ -143,6 +146,19 @@ func (s *sBalance) RefreshBalance(ctx context.Context, req *v1.RefreshBalanceReq
 
 	g.Log().Infof(ctx, "刷新用户余额: site_id=%d, user_id=%d", siteId, userId)
 
+	// 查询用户最后一次成功进入游戏的game_id
+	lastGameRes, err := s.GetLastBalanceLogGame(ctx, &v1.GetLastBalanceLogGameReq{
+		SiteId: int32(siteId),
+		UserId: int32(userId),
+	})
+	if err != nil {
+		g.Log().Errorf(ctx, "查询最后一次游戏记录失败: %v", err)
+		// 不影响主流程，继续查询余额
+	}
+
+	var totalBalance float64
+	var gameBalance float64
+
 	// 查询用户余额
 	var balanceUser *entity.BalanceUser
 	err = dao.BalanceUser.Ctx(ctx).
@@ -165,12 +181,71 @@ func (s *sBalance) RefreshBalance(ctx context.Context, req *v1.RefreshBalanceReq
 		}, nil
 	}
 
+	// 本地余额
+	localBalance := balanceUser.Balance
+	totalBalance = localBalance
+
+	// 如果有最后一次游戏记录且game_id>0，则需要查询三方游戏余额
+	if lastGameRes != nil && lastGameRes.GameId > 0 {
+		g.Log().Infof(ctx, "用户最后一次进入游戏: game_id=%d", lastGameRes.GameId)
+
+		// 获取用户信息
+		username := middleware.GetUsernameFromContext(ctx)
+		siteCode, _ := middleware.GetSiteCodeFromContext(ctx)
+		currency := middleware.GetCurrencyFromContext(ctx)
+		if currency == "" {
+			currency = "MMK(K)"
+		}
+
+		g.Log().Infof(ctx, "准备调用 game 服务: user_id=%d, site_id=%d, username=%s, site_code=%s, currency=%s",
+			userId, siteId, username, siteCode, currency)
+
+		// 调用 game 服务查询三方游戏余额
+		gameClient, conn, err := grpc_client.GetGameClient(ctx)
+		if err != nil {
+			g.Log().Errorf(ctx, "获取 Game 客户端失败: %v", err)
+			// 不影响主流程，继续返回本地余额
+		} else {
+			defer conn.Close() // 确保连接关闭
+
+			// 创建新的 context，添加用户信息到 metadata
+			md := metadata.New(map[string]string{
+				"user_id":   gconv.String(userId),
+				"site_id":   gconv.String(siteId),
+				"username":  username,
+				"site_code": siteCode,
+				"currency":  currency,
+			})
+			ctxWithMetadata := metadata.NewOutgoingContext(ctx, md)
+
+			// 调用 GetGameBalance 方法
+			gameBalanceRes, err := gameClient.GetGameBalance(ctxWithMetadata, &gamev1.GetGameBalanceReq{
+				GameId: lastGameRes.GameId,
+			})
+
+			if err != nil {
+				g.Log().Errorf(ctx, "查询三方游戏余额失败: %v", err)
+				// 不影响主流程，继续返回本地余额
+			} else if gameBalanceRes != nil && gameBalanceRes.Success {
+				gameBalance = float64(gameBalanceRes.Balance)
+				g.Log().Infof(ctx, "查询三方游戏余额成功: game_id=%d, balance=%.2f", lastGameRes.GameId, gameBalance)
+			} else {
+				g.Log().Warningf(ctx, "查询三方游戏余额失败: %s", gameBalanceRes.Message)
+			}
+		}
+	} else {
+		g.Log().Infof(ctx, "用户没有进入过游戏或game_id=0，只返回本地余额")
+	}
+
+	// 总余额 = 本地余额 + 三方游戏余额
+	totalBalance = localBalance + gameBalance
+
 	// 格式化余额（保留2位小数）
-	balance := fmt.Sprintf("%.2f", balanceUser.Balance)
+	balance := fmt.Sprintf("%.2f", totalBalance)
 	balanceFrozen := fmt.Sprintf("%.2f", balanceUser.BalanceFrozen)
 
-	g.Log().Infof(ctx, "刷新用户余额成功: user_id=%d, balance=%s, balance_frozen=%s, points=%d",
-		userId, balance, balanceFrozen, balanceUser.Points)
+	g.Log().Infof(ctx, "刷新用户余额成功: user_id=%d, local_balance=%.2f, game_balance=%.2f, total_balance=%s, balance_frozen=%s, points=%d",
+		userId, localBalance, gameBalance, balance, balanceFrozen, balanceUser.Points)
 
 	res = &v1.RefreshBalanceRes{
 		Balance:       balance,
@@ -685,8 +760,13 @@ func (s *sBalance) GetLastBalanceLogGame(ctx context.Context, req *v1.GetLastBal
 		return nil, fmt.Errorf("查询用户余额失败")
 	}
 
+	// 如果用户余额记录不存在，返回game_id=0，余额为0
 	if balanceUser == nil {
-		return nil, fmt.Errorf("用户余额记录不存在")
+		g.Log().Infof(ctx, "用户余额记录不存在: site_id=%d, user_id=%d, 返回默认值", req.SiteId, req.UserId)
+		return &v1.GetLastBalanceLogGameRes{
+			GameId: 0,
+			Amount: 0,
+		}, nil
 	}
 
 	// 查询最后一次成功的游戏记录（status=2）

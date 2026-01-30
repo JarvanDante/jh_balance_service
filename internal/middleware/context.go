@@ -58,3 +58,31 @@ func GetSiteCodeFromContext(ctx context.Context) (string, bool) {
 	}
 	return "", false
 }
+
+// GetUsernameFromContext 从上下文中获取用户名
+func GetUsernameFromContext(ctx context.Context) string {
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		if usernames := md.Get("username"); len(usernames) > 0 {
+			return usernames[0]
+		}
+	}
+
+	if username, ok := ctx.Value("username").(string); ok {
+		return username
+	}
+	return ""
+}
+
+// GetCurrencyFromContext 从上下文中获取货币类型
+func GetCurrencyFromContext(ctx context.Context) string {
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		if currencies := md.Get("currency"); len(currencies) > 0 {
+			return currencies[0]
+		}
+	}
+
+	if currency, ok := ctx.Value("currency").(string); ok {
+		return currency
+	}
+	return ""
+}
