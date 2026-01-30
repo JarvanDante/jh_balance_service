@@ -58,3 +58,23 @@ func (c *Controller) GetPaymentList(ctx context.Context, req *v1.GetPaymentListR
 func (c *Controller) GetWithdrawList(ctx context.Context, req *v1.GetWithdrawListReq) (res *v1.GetWithdrawListRes, err error) {
 	return frontend.Balance().GetWithdrawList(ctx, req)
 }
+
+// AddBankCard 添加银行卡
+func (c *Controller) AddBankCard(ctx context.Context, req *v1.AddBankCardReq) (res *v1.AddBankCardRes, err error) {
+	return frontend.Balance().AddBankCard(ctx, req)
+}
+
+// GetBankCardList 查询银行卡列表
+func (c *Controller) GetBankCardList(ctx context.Context, req *v1.GetBankCardListReq) (res *v1.GetBankCardListRes, err error) {
+	return frontend.Balance().GetBankCardList(ctx, req)
+}
+
+// DeleteBankCard 删除银行卡
+func (c *Controller) DeleteBankCard(ctx context.Context, req *v1.DeleteBankCardReq) (res *v1.DeleteBankCardRes, err error) {
+	return frontend.Balance().DeleteBankCard(ctx, req)
+}
+
+// SetDefaultBankCard 设置默认银行卡
+func (c *Controller) SetDefaultBankCard(ctx context.Context, req *v1.SetDefaultBankCardReq) (res *v1.SetDefaultBankCardRes, err error) {
+	return frontend.Balance().SetDefaultBankCard(ctx, req)
+}

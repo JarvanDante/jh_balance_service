@@ -1037,3 +1037,321 @@ func (s *sBalance) GetWithdrawList(ctx context.Context, req *v1.GetWithdrawListR
 		List: list,
 	}, nil
 }
+
+// AddBankCard 添加银行卡
+func (s *sBalance) AddBankCard(ctx context.Context, req *v1.AddBankCardReq) (*v1.AddBankCardRes, error) {
+	// 从context获取站点ID和用户ID
+	siteId, exists := middleware.GetSiteIdFromContext(ctx)
+	if !exists {
+		g.Log().Error(ctx, "未获取站点ID")
+		return &v1.AddBankCardRes{
+			Success: false,
+			Message: "未获取站点ID",
+		}, nil
+	}
+
+	userId, exists := middleware.GetUserIdFromContext(ctx)
+	if !exists {
+		g.Log().Error(ctx, "未获取用户ID")
+		return &v1.AddBankCardRes{
+			Success: false,
+			Message: "未获取用户ID",
+		}, nil
+	}
+
+	g.Log().Infof(ctx, "添加银行卡: site_id=%d, user_id=%d, type=%d", siteId, userId, req.Type)
+
+	// 参数验证
+	if req.Type != 1 && req.Type != 2 {
+		return &v1.AddBankCardRes{
+			Success: false,
+			Message: "类型无效，必须是1(GCASH)或2(Maya)",
+		}, nil
+	}
+
+	if req.CardAccount == "" {
+		return &v1.AddBankCardRes{
+			Success: false,
+			Message: "账户名不能为空",
+		}, nil
+	}
+
+	if req.CardNo == "" {
+		return &v1.AddBankCardRes{
+			Success: false,
+			Message: "卡号不能为空",
+		}, nil
+	}
+
+	// 检查该类型是否已存在银行卡
+	var existingCard *entity.UserBank
+	err := dao.UserBank.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Where("type", req.Type).
+		Scan(&existingCard)
+
+	if err != nil {
+		g.Log().Errorf(ctx, "查询银行卡失败: %v", err)
+		return &v1.AddBankCardRes{
+			Success: false,
+			Message: "查询银行卡失败",
+		}, nil
+	}
+
+	// 如果该类型已存在银行卡，返回错误
+	if existingCard != nil {
+		typeName := "GCASH"
+		if req.Type == 2 {
+			typeName = "Maya"
+		}
+		return &v1.AddBankCardRes{
+			Success: false,
+			Message: fmt.Sprintf("%s类型的银行卡已存在，每种类型只能添加一张", typeName),
+		}, nil
+	}
+
+	// 新增银行卡时，先将所有银行卡的默认状态改为0
+	_, err = dao.UserBank.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Update(g.Map{"is_default": 0})
+
+	if err != nil {
+		g.Log().Errorf(ctx, "更新默认状态失败: %v", err)
+		return &v1.AddBankCardRes{
+			Success: false,
+			Message: "更新默认状态失败",
+		}, nil
+	}
+
+	// 插入新银行卡，is_default固定为1
+	bankCard := &entity.UserBank{
+		SiteId:      int(siteId),
+		UserId:      int(userId),
+		Type:        int(req.Type),
+		CardAccount: req.CardAccount,
+		CardNo:      req.CardNo,
+		IsDefault:   1, // 新增的银行卡默认为默认卡
+		CreatedAt:   gtime.Now(),
+		UpdatedAt:   gtime.Now(),
+	}
+
+	_, err = dao.UserBank.Ctx(ctx).Insert(bankCard)
+	if err != nil {
+		g.Log().Errorf(ctx, "添加银行卡失败: %v", err)
+		return &v1.AddBankCardRes{
+			Success: false,
+			Message: "添加银行卡失败",
+		}, nil
+	}
+
+	g.Log().Infof(ctx, "添加银行卡成功")
+
+	return &v1.AddBankCardRes{
+		Success: true,
+		Message: "添加成功",
+	}, nil
+}
+
+// GetBankCardList 查询银行卡列表
+func (s *sBalance) GetBankCardList(ctx context.Context, req *v1.GetBankCardListReq) (*v1.GetBankCardListRes, error) {
+	// 从context获取站点ID和用户ID
+	siteId, exists := middleware.GetSiteIdFromContext(ctx)
+	if !exists {
+		g.Log().Error(ctx, "未获取站点ID")
+		return nil, fmt.Errorf("未获取站点ID")
+	}
+
+	userId, exists := middleware.GetUserIdFromContext(ctx)
+	if !exists {
+		g.Log().Error(ctx, "未获取用户ID")
+		return nil, fmt.Errorf("未获取用户ID")
+	}
+
+	g.Log().Infof(ctx, "查询银行卡列表: site_id=%d, user_id=%d", siteId, userId)
+
+	// 查询银行卡列表
+	var bankCards []*entity.UserBank
+	err := dao.UserBank.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		OrderDesc("is_default").
+		OrderDesc("created_at").
+		Scan(&bankCards)
+
+	if err != nil {
+		g.Log().Errorf(ctx, "查询银行卡列表失败: %v", err)
+		return nil, fmt.Errorf("查询银行卡列表失败")
+	}
+
+	// 转换为响应格式
+	list := make([]*v1.BankCardInfo, 0, len(bankCards))
+	for _, card := range bankCards {
+		list = append(list, &v1.BankCardInfo{
+			Id:          int32(card.Id),
+			Type:        int32(card.Type),
+			CardAccount: card.CardAccount,
+			CardNo:      card.CardNo,
+			IsDefault:   int32(card.IsDefault),
+			CreatedAt:   card.CreatedAt.Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	g.Log().Infof(ctx, "查询银行卡列表成功: 共%d条", len(list))
+
+	return &v1.GetBankCardListRes{
+		List: list,
+	}, nil
+}
+
+// DeleteBankCard 删除银行卡
+func (s *sBalance) DeleteBankCard(ctx context.Context, req *v1.DeleteBankCardReq) (*v1.DeleteBankCardRes, error) {
+	// 从context获取站点ID和用户ID
+	siteId, exists := middleware.GetSiteIdFromContext(ctx)
+	if !exists {
+		g.Log().Error(ctx, "未获取站点ID")
+		return &v1.DeleteBankCardRes{
+			Success: false,
+			Message: "未获取站点ID",
+		}, nil
+	}
+
+	userId, exists := middleware.GetUserIdFromContext(ctx)
+	if !exists {
+		g.Log().Error(ctx, "未获取用户ID")
+		return &v1.DeleteBankCardRes{
+			Success: false,
+			Message: "未获取用户ID",
+		}, nil
+	}
+
+	g.Log().Infof(ctx, "删除银行卡: site_id=%d, user_id=%d, id=%d", siteId, userId, req.Id)
+
+	// 参数验证
+	if req.Id <= 0 {
+		return &v1.DeleteBankCardRes{
+			Success: false,
+			Message: "银行卡ID无效",
+		}, nil
+	}
+
+	// 删除银行卡（只能删除自己的）
+	result, err := dao.UserBank.Ctx(ctx).
+		Where("id", req.Id).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Delete()
+
+	if err != nil {
+		g.Log().Errorf(ctx, "删除银行卡失败: %v", err)
+		return &v1.DeleteBankCardRes{
+			Success: false,
+			Message: "删除银行卡失败",
+		}, nil
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return &v1.DeleteBankCardRes{
+			Success: false,
+			Message: "银行卡不存在或无权删除",
+		}, nil
+	}
+
+	g.Log().Infof(ctx, "删除银行卡成功")
+
+	return &v1.DeleteBankCardRes{
+		Success: true,
+		Message: "删除成功",
+	}, nil
+}
+
+// SetDefaultBankCard 设置默认银行卡
+func (s *sBalance) SetDefaultBankCard(ctx context.Context, req *v1.SetDefaultBankCardReq) (*v1.SetDefaultBankCardRes, error) {
+	// 从context获取站点ID和用户ID
+	siteId, exists := middleware.GetSiteIdFromContext(ctx)
+	if !exists {
+		g.Log().Error(ctx, "未获取站点ID")
+		return &v1.SetDefaultBankCardRes{
+			Success: false,
+			Message: "未获取站点ID",
+		}, nil
+	}
+
+	userId, exists := middleware.GetUserIdFromContext(ctx)
+	if !exists {
+		g.Log().Error(ctx, "未获取用户ID")
+		return &v1.SetDefaultBankCardRes{
+			Success: false,
+			Message: "未获取用户ID",
+		}, nil
+	}
+
+	g.Log().Infof(ctx, "设置默认银行卡: site_id=%d, user_id=%d, id=%d", siteId, userId, req.Id)
+
+	// 参数验证
+	if req.Id <= 0 {
+		return &v1.SetDefaultBankCardRes{
+			Success: false,
+			Message: "银行卡ID无效",
+		}, nil
+	}
+
+	// 验证银行卡是否存在且属于当前用户
+	var bankCard *entity.UserBank
+	err := dao.UserBank.Ctx(ctx).
+		Where("id", req.Id).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Scan(&bankCard)
+
+	if err != nil {
+		g.Log().Errorf(ctx, "查询银行卡失败: %v", err)
+		return &v1.SetDefaultBankCardRes{
+			Success: false,
+			Message: "查询银行卡失败",
+		}, nil
+	}
+
+	if bankCard == nil {
+		return &v1.SetDefaultBankCardRes{
+			Success: false,
+			Message: "银行卡不存在或无权操作",
+		}, nil
+	}
+
+	// 先将所有银行卡的默认状态改为0
+	_, err = dao.UserBank.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Update(g.Map{"is_default": 0})
+
+	if err != nil {
+		g.Log().Errorf(ctx, "更新默认状态失败: %v", err)
+		return &v1.SetDefaultBankCardRes{
+			Success: false,
+			Message: "更新默认状态失败",
+		}, nil
+	}
+
+	// 将指定银行卡设置为默认
+	_, err = dao.UserBank.Ctx(ctx).
+		Where("id", req.Id).
+		Update(g.Map{"is_default": 1})
+
+	if err != nil {
+		g.Log().Errorf(ctx, "设置默认银行卡失败: %v", err)
+		return &v1.SetDefaultBankCardRes{
+			Success: false,
+			Message: "设置默认银行卡失败",
+		}, nil
+	}
+
+	g.Log().Infof(ctx, "设置默认银行卡成功")
+
+	return &v1.SetDefaultBankCardRes{
+		Success: true,
+		Message: "设置成功",
+	}, nil
+}

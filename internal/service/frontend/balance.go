@@ -15,6 +15,10 @@ type IBalance interface {
 	GetLastBalanceLogGame(ctx context.Context, req *v1.GetLastBalanceLogGameReq) (res *v1.GetLastBalanceLogGameRes, err error)
 	GetPaymentList(ctx context.Context, req *v1.GetPaymentListReq) (res *v1.GetPaymentListRes, err error)
 	GetWithdrawList(ctx context.Context, req *v1.GetWithdrawListReq) (res *v1.GetWithdrawListRes, err error)
+	AddBankCard(ctx context.Context, req *v1.AddBankCardReq) (res *v1.AddBankCardRes, err error)
+	GetBankCardList(ctx context.Context, req *v1.GetBankCardListReq) (res *v1.GetBankCardListRes, err error)
+	DeleteBankCard(ctx context.Context, req *v1.DeleteBankCardReq) (res *v1.DeleteBankCardRes, err error)
+	SetDefaultBankCard(ctx context.Context, req *v1.SetDefaultBankCardReq) (res *v1.SetDefaultBankCardRes, err error)
 }
 
 var localBalance IBalance
