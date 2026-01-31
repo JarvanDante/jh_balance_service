@@ -6,6 +6,7 @@ import (
 	"time"
 
 	_ "github.com/gogf/gf/contrib/drivers/mysql/v2"
+	_ "github.com/gogf/gf/contrib/nosql/redis/v2"
 
 	_ "jh_balance_service/internal/logic"
 	_ "jh_balance_service/internal/logic/backend/balance"

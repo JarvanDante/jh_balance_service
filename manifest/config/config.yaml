@@ -64,6 +64,13 @@ logger:
 # 时区配置
 timezone: "Asia/Shanghai" # 北京时间
 
+# Redis 配置
+redis:
+  default:
+    address: 172.19.0.6:6379
+    db: 1
+    pass: 654321
+
 # Database.
 database:
   logger:

@@ -4,11 +4,14 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gogf/gf/v2/database/gdb"
+	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gtime"
 	"github.com/gogf/gf/v2/util/gconv"
+	"github.com/google/uuid"
 	"google.golang.org/grpc/metadata"
 
 	v1 "jh_balance_service/api/frontend/balance/v1"
@@ -1354,4 +1357,122 @@ func (s *sBalance) SetDefaultBankCard(ctx context.Context, req *v1.SetDefaultBan
 		Success: true,
 		Message: "设置成功",
 	}, nil
+}
+
+// GetDepositNonce 获取充值 nonce
+func (s *sBalance) GetDepositNonce(ctx context.Context, req *v1.GetDepositNonceReq) (*v1.GetDepositNonceRes, error) {
+	// 生成 UUID 作为 nonce
+	nonce := uuid.New().String()
+
+	// 获取当前时间戳
+	timestamp := time.Now().Unix()
+
+	// 设置过期时间（60秒）
+	expiresIn := int64(60)
+
+	g.Log().Infof(ctx, "生成 nonce: %s, timestamp: %d, expiresIn: %d", nonce, timestamp, expiresIn)
+
+	// 将 nonce 存储到 Redis，设置过期时间
+	// 使用 user_id 作为 key 的一部分，确保每个用户只能有一个有效的 nonce
+	userID, exists := middleware.GetUserIdFromContext(ctx)
+	if !exists {
+		g.Log().Error(ctx, "未获取用户ID")
+		return nil, gerror.New("未登录")
+	}
+
+	siteID, exists := middleware.GetSiteIdFromContext(ctx)
+	if !exists {
+		g.Log().Error(ctx, "未获取站点ID")
+		return nil, gerror.New("未获取站点ID")
+	}
+
+	redisKey := fmt.Sprintf("deposit:nonce:%d:%d", siteID, userID)
+
+	g.Log().Infof(ctx, "存储 nonce 到 Redis: key=%s, value=%s, expiresIn=%d", redisKey, nonce, expiresIn)
+
+	// 存储 nonce 到 Redis
+	err := g.Redis().SetEX(ctx, redisKey, nonce, expiresIn)
+	if err != nil {
+		g.Log().Errorf(ctx, "存储充值 nonce 失败: %v, key=%s, value=%s, expiresIn=%d", err, redisKey, nonce, expiresIn)
+		return nil, gerror.Newf("生成 nonce 失败: %v", err)
+	}
+
+	g.Log().Infof(ctx, "Redis 存储成功")
+
+	// 验证是否真的存储成功
+	val, err := g.Redis().Get(ctx, redisKey)
+	if err != nil {
+		g.Log().Errorf(ctx, "验证 Redis 存储失败: %v", err)
+	} else {
+		g.Log().Infof(ctx, "验证 Redis 存储成功: key=%s, value=%s", redisKey, val.String())
+	}
+
+	result := &v1.GetDepositNonceRes{
+		Nonce:     nonce,
+		Timestamp: timestamp,
+		ExpiresIn: expiresIn,
+	}
+
+	g.Log().Infof(ctx, "返回结果: nonce=%s, timestamp=%d, expiresIn=%d", result.Nonce, result.Timestamp, result.ExpiresIn)
+
+	return result, nil
+}
+
+// GetWithdrawNonce 获取提现 nonce
+func (s *sBalance) GetWithdrawNonce(ctx context.Context, req *v1.GetWithdrawNonceReq) (*v1.GetWithdrawNonceRes, error) {
+	// 生成 UUID 作为 nonce
+	nonce := uuid.New().String()
+
+	// 获取当前时间戳
+	timestamp := time.Now().Unix()
+
+	// 设置过期时间（60秒）
+	expiresIn := int64(60)
+
+	g.Log().Infof(ctx, "生成 nonce: %s, timestamp: %d, expiresIn: %d", nonce, timestamp, expiresIn)
+
+	// 将 nonce 存储到 Redis，设置过期时间
+	// 使用 user_id 作为 key 的一部分，确保每个用户只能有一个有效的 nonce
+	userID, exists := middleware.GetUserIdFromContext(ctx)
+	if !exists {
+		g.Log().Error(ctx, "未获取用户ID")
+		return nil, gerror.New("未登录")
+	}
+
+	siteID, exists := middleware.GetSiteIdFromContext(ctx)
+	if !exists {
+		g.Log().Error(ctx, "未获取站点ID")
+		return nil, gerror.New("未获取站点ID")
+	}
+
+	redisKey := fmt.Sprintf("withdraw:nonce:%d:%d", siteID, userID)
+
+	g.Log().Infof(ctx, "存储 nonce 到 Redis: key=%s, value=%s, expiresIn=%d", redisKey, nonce, expiresIn)
+
+	// 存储 nonce 到 Redis
+	err := g.Redis().SetEX(ctx, redisKey, nonce, expiresIn)
+	if err != nil {
+		g.Log().Errorf(ctx, "存储提现 nonce 失败: %v, key=%s, value=%s, expiresIn=%d", err, redisKey, nonce, expiresIn)
+		return nil, gerror.Newf("生成 nonce 失败: %v", err)
+	}
+
+	g.Log().Infof(ctx, "Redis 存储成功")
+
+	// 验证是否真的存储成功
+	val, err := g.Redis().Get(ctx, redisKey)
+	if err != nil {
+		g.Log().Errorf(ctx, "验证 Redis 存储失败: %v", err)
+	} else {
+		g.Log().Infof(ctx, "验证 Redis 存储成功: key=%s, value=%s", redisKey, val.String())
+	}
+
+	result := &v1.GetWithdrawNonceRes{
+		Nonce:     nonce,
+		Timestamp: timestamp,
+		ExpiresIn: expiresIn,
+	}
+
+	g.Log().Infof(ctx, "返回结果: nonce=%s, timestamp=%d, expiresIn=%d", result.Nonce, result.Timestamp, result.ExpiresIn)
+
+	return result, nil
 }

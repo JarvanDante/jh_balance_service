@@ -19,6 +19,8 @@ type IBalance interface {
 	GetBankCardList(ctx context.Context, req *v1.GetBankCardListReq) (res *v1.GetBankCardListRes, err error)
 	DeleteBankCard(ctx context.Context, req *v1.DeleteBankCardReq) (res *v1.DeleteBankCardRes, err error)
 	SetDefaultBankCard(ctx context.Context, req *v1.SetDefaultBankCardReq) (res *v1.SetDefaultBankCardRes, err error)
+	GetDepositNonce(ctx context.Context, req *v1.GetDepositNonceReq) (res *v1.GetDepositNonceRes, err error)
+	GetWithdrawNonce(ctx context.Context, req *v1.GetWithdrawNonceReq) (res *v1.GetWithdrawNonceRes, err error)
 }
 
 var localBalance IBalance

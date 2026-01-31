@@ -78,3 +78,13 @@ func (c *Controller) DeleteBankCard(ctx context.Context, req *v1.DeleteBankCardR
 func (c *Controller) SetDefaultBankCard(ctx context.Context, req *v1.SetDefaultBankCardReq) (res *v1.SetDefaultBankCardRes, err error) {
 	return frontend.Balance().SetDefaultBankCard(ctx, req)
 }
+
+// GetDepositNonce 获取充值 nonce
+func (c *Controller) GetDepositNonce(ctx context.Context, req *v1.GetDepositNonceReq) (res *v1.GetDepositNonceRes, err error) {
+	return frontend.Balance().GetDepositNonce(ctx, req)
+}
+
+// GetWithdrawNonce 获取提现 nonce
+func (c *Controller) GetWithdrawNonce(ctx context.Context, req *v1.GetWithdrawNonceReq) (res *v1.GetWithdrawNonceRes, err error) {
+	return frontend.Balance().GetWithdrawNonce(ctx, req)
+}

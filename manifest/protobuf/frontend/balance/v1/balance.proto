@@ -29,6 +29,10 @@ service Balance {
     rpc DeleteBankCard(DeleteBankCardReq) returns (DeleteBankCardRes) {}
     // 设置默认银行卡
     rpc SetDefaultBankCard(SetDefaultBankCardReq) returns (SetDefaultBankCardRes) {}
+    // 获取充值 nonce
+    rpc GetDepositNonce(GetDepositNonceReq) returns (GetDepositNonceRes) {}
+    // 获取提现 nonce
+    rpc GetWithdrawNonce(GetWithdrawNonceReq) returns (GetWithdrawNonceRes) {}
 }
 
 // 初始化用户余额请求
@@ -217,4 +221,26 @@ message SetDefaultBankCardReq {
 message SetDefaultBankCardRes {
     bool success = 1;           // 是否成功
     string message = 2;         // 消息
+}
+
+// 获取充值 nonce 请求
+message GetDepositNonceReq {
+}
+
+// 获取充值 nonce 响应
+message GetDepositNonceRes {
+    string nonce = 1;           // 随机数
+    int64 timestamp = 2;        // 时间戳
+    int64 expires_in = 3;       // 过期时间（秒）
+}
+
+// 获取提现 nonce 请求
+message GetWithdrawNonceReq {
+}
+
+// 获取提现 nonce 响应
+message GetWithdrawNonceRes {
+    string nonce = 1;           // 随机数
+    int64 timestamp = 2;        // 时间戳
+    int64 expires_in = 3;       // 过期时间（秒）
 }
