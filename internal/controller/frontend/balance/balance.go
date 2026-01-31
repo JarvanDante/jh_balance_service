@@ -88,3 +88,8 @@ func (c *Controller) GetDepositNonce(ctx context.Context, req *v1.GetDepositNonc
 func (c *Controller) GetWithdrawNonce(ctx context.Context, req *v1.GetWithdrawNonceReq) (res *v1.GetWithdrawNonceRes, err error) {
 	return frontend.Balance().GetWithdrawNonce(ctx, req)
 }
+
+// CreateDepositOrder 创建充值订单
+func (c *Controller) CreateDepositOrder(ctx context.Context, req *v1.CreateDepositOrderReq) (res *v1.CreateDepositOrderRes, err error) {
+	return frontend.Balance().CreateDepositOrder(ctx, req)
+}

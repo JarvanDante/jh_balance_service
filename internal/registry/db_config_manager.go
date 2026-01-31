@@ -10,6 +10,7 @@ import (
 
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/os/gtime"
 	"github.com/hashicorp/consul/api"
 )
 
@@ -431,7 +432,7 @@ func (m *DBConfigManager) syncPaymentConfig(siteCode string, config *SiteConfig)
 						"api_url":     payment.ApiUrl,
 						"merchant_no": payment.MerchantNo,
 						"md5_key":     payment.Md5Key,
-						"updated_at":  "NOW()",
+						"updated_at":  gtime.Now(),
 					}).
 					Update()
 				if err != nil {
@@ -458,8 +459,8 @@ func (m *DBConfigManager) syncPaymentConfig(siteCode string, config *SiteConfig)
 						"is_input":    1,  // 默认值：允许输入
 						"logo":        "", // 默认值
 						"status":      1,  // 默认值：启用
-						"created_at":  "NOW()",
-						"updated_at":  "NOW()",
+						"created_at":  gtime.Now(),
+						"updated_at":  gtime.Now(),
 					}).
 					Insert()
 				if err != nil {
@@ -577,7 +578,7 @@ func (m *DBConfigManager) syncWithdrawConfig(siteCode string, config *SiteConfig
 						"api_url":     withdraw.ApiUrl,
 						"merchant_no": withdraw.MerchantNo,
 						"md5_key":     withdraw.Md5Key,
-						"updated_at":  "NOW()",
+						"updated_at":  gtime.Now(),
 					}).
 					Update()
 				if err != nil {
@@ -604,8 +605,8 @@ func (m *DBConfigManager) syncWithdrawConfig(siteCode string, config *SiteConfig
 						"is_input":    1,  // 默认值：允许输入
 						"logo":        "", // 默认值
 						"status":      1,  // 默认值：启用
-						"created_at":  "NOW()",
-						"updated_at":  "NOW()",
+						"created_at":  gtime.Now(),
+						"updated_at":  gtime.Now(),
 					}).
 					Insert()
 				if err != nil {

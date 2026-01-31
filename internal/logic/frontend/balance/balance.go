@@ -1476,3 +1476,255 @@ func (s *sBalance) GetWithdrawNonce(ctx context.Context, req *v1.GetWithdrawNonc
 
 	return result, nil
 }
+
+// CreateDepositOrder 创建充值订单
+func (s *sBalance) CreateDepositOrder(ctx context.Context, req *v1.CreateDepositOrderReq) (*v1.CreateDepositOrderRes, error) {
+	// 1. 获取用户信息
+	userId, exists := middleware.GetUserIdFromContext(ctx)
+	if !exists {
+		g.Log().Error(ctx, "未获取用户ID")
+		return nil, gerror.New("未登录")
+	}
+
+	siteId, exists := middleware.GetSiteIdFromContext(ctx)
+	if !exists {
+		g.Log().Error(ctx, "未获取站点ID")
+		return nil, gerror.New("未获取站点ID")
+	}
+
+	username := middleware.GetUsernameFromContext(ctx)
+
+	g.Log().Infof(ctx, "CreateDepositOrder 开始: siteId=%d, userId=%d, username=%s, paymentId=%d, money=%.2f",
+		siteId, userId, username, req.PaymentId, req.Money)
+
+	//==========防重放先注释====================
+	//// 2. 验证 nonce（防重放）
+	//redisKey := fmt.Sprintf("deposit:nonce:%d:%d", siteId, userId)
+	//storedNonce, err := g.Redis().Get(ctx, redisKey)
+	//if err != nil || storedNonce.String() != req.Nonce {
+	//	g.Log().Errorf(ctx, "nonce 验证失败: stored=%s, provided=%s", storedNonce.String(), req.Nonce)
+	//	return nil, gerror.New("nonce 无效或已过期，请刷新页面重试")
+	//}
+	//// 删除 nonce（单次使用）
+	//_, err = g.Redis().Del(ctx, redisKey)
+	//if err != nil {
+	//	g.Log().Warningf(ctx, "删除 nonce 失败: %v", err)
+	//}
+	//==========防重放先注释====================
+
+	// 3. 验证参数
+	if req.Money < 0.01 {
+		return nil, gerror.New("充值金额最小为0.01")
+	}
+
+	if req.OrderType == "" {
+		req.OrderType = "deposit"
+	}
+
+	var err error
+	// 4. 查询支付渠道配置
+	var sitePayment *entity.SitePayment
+	err = dao.SitePayment.Ctx(ctx).
+		Where("payment_id", req.PaymentId).
+		Where("site_id", siteId).
+		Where("status", 1).
+		Scan(&sitePayment)
+
+	if err != nil {
+		g.Log().Errorf(ctx, "查询支付渠道失败: %v", err)
+		return nil, gerror.New("查询支付渠道失败")
+	}
+
+	if sitePayment == nil {
+		g.Log().Errorf(ctx, "支付渠道不存在: paymentId=%d", req.PaymentId)
+		return nil, gerror.New("支付渠道不存在或已关闭")
+	}
+
+	// 5. 验证金额限制
+	if sitePayment.EachMin > 0 && req.Money < sitePayment.EachMin {
+		return nil, gerror.Newf("最低充值金额为%.2f", sitePayment.EachMin)
+	}
+	if sitePayment.EachMax > 0 && req.Money > sitePayment.EachMax {
+		return nil, gerror.Newf("最高充值金额为%.2f", sitePayment.EachMax)
+	}
+
+	// 6. 生成交易流水号
+	tradeNo := s.generateTradeNo("ZF")
+
+	g.Log().Infof(ctx, "生成交易流水号: %s", tradeNo)
+
+	// 7. 创建支付订单记录
+	_, err = dao.BalanceLogPayment.Ctx(ctx).Insert(&entity.BalanceLogPayment{
+		SiteId:           int(siteId),
+		UserId:           int(userId),
+		Username:         username,
+		TradeNo:          tradeNo,
+		Money:            req.Money,
+		PaymentAccountId: int(req.PaymentId),
+		Status:           0, // 待支付
+		CreatedAt:        gtime.Now(),
+		UpdatedAt:        gtime.Now(),
+	})
+
+	if err != nil {
+		g.Log().Errorf(ctx, "创建订单失败: %v", err)
+		return nil, gerror.New("创建订单失败")
+	}
+
+	// 7.1 创建支付日志订单记录
+	_, err = dao.BalanceLog.Ctx(ctx).Insert(&entity.BalanceLog{
+		SiteId:    int(siteId),
+		UserId:    int(userId),
+		TradeType: balanceConsts.LOG_TYPE_PAYMENT,
+		Gateway:   sitePayment.Gateway,
+		TradeNo:   tradeNo,
+		Money:     req.Money,
+		Status:    balanceConsts.StatusPending, // 待支付
+		CreatedAt: gtime.Now(),
+		UpdatedAt: gtime.Now(),
+	})
+
+	if err != nil {
+		g.Log().Errorf(ctx, "创建日志订单失败: %v", err)
+		return nil, gerror.New("创建日志订单失败")
+	}
+
+	// 9. 调用支付平台
+	// 导入支付工厂
+	payment := s.getPaymentPlatform(ctx, sitePayment.Code)
+	if payment == nil {
+		return nil, gerror.Newf("不支持的支付平台: %s", sitePayment.Code)
+	}
+
+	// 构建订单参数
+	orderParams := &PaymentOrderParams{
+		SiteId:       int(siteId),
+		UserId:       int(userId),
+		Username:     username,
+		PaymentId:    int(req.PaymentId),
+		MerchantNo:   sitePayment.MerchantNo,
+		Md5Key:       sitePayment.Md5Key,
+		TradeNo:      tradeNo,
+		Money:        req.Money,
+		OrderType:    req.OrderType,
+		BankCode:     req.BankCode,
+		Mobile:       int(req.Mobile),
+		UserCardNo:   req.UserCardNo,
+		UserCardName: req.UserCardName,
+		Gateway:      sitePayment.Gateway,
+	}
+
+	result, err := s.createPaymentOrder(ctx, payment, orderParams)
+	if err != nil {
+		g.Log().Errorf(ctx, "调用支付平台失败: %v", err)
+		return nil, err
+	}
+
+	// 10. 更新订单信息
+	_, err = dao.BalanceLogPayment.Ctx(ctx).
+		Where("trade_no", tradeNo).
+		Update(g.Map{
+			"sys_trade_no":    result.SysTradeNo,
+			"channel_card_no": result.ChannelCardNo,
+			"channel_name":    result.ChannelName,
+			"image_url":       result.ImageUrl,
+			"updated_at":      gtime.Now(),
+		})
+
+	if err != nil {
+		g.Log().Warningf(ctx, "更新订单信息失败: %v", err)
+	}
+
+	g.Log().Infof(ctx, "CreateDepositOrder 成功: tradeNo=%s, sysTradeNo=%s", tradeNo, result.SysTradeNo)
+
+	// 11. 返回结果
+	return &v1.CreateDepositOrderRes{
+		OrderSn:       result.OrderSn,
+		SysTradeNo:    result.SysTradeNo,
+		ChannelCardNo: result.ChannelCardNo,
+		ChannelName:   result.ChannelName,
+		ImageUrl:      result.ImageUrl,
+		Result:        result.Result,
+	}, nil
+}
+
+// generateTradeNo 生成交易流水号
+func (s *sBalance) generateTradeNo(prefix string) string {
+	now := time.Now()
+	// 格式: 前缀 + 月日时分秒 + 9位随机数
+	// 使用 time.Now().UnixNano() 作为随机种子
+	randomNum := now.UnixNano() % 1000000000
+	return fmt.Sprintf("%s%s%09d", prefix, now.Format("0102150405"), randomNum)
+}
+
+// PaymentOrderParams 支付订单参数
+type PaymentOrderParams struct {
+	SiteId       int
+	UserId       int
+	Username     string
+	PaymentId    int
+	MerchantNo   string
+	Md5Key       string
+	TradeNo      string
+	Money        float64
+	OrderType    string
+	BankCode     string
+	Mobile       int
+	UserCardNo   string
+	UserCardName string
+	Gateway      int
+}
+
+// PaymentOrderResult 支付订单结果
+type PaymentOrderResult struct {
+	Code          int
+	OrderSn       string
+	SysTradeNo    string
+	ChannelCardNo string
+	ChannelName   string
+	ImageUrl      string
+	Result        string
+}
+
+// getPaymentPlatform 获取支付平台（简化版，直接返回 MG）
+func (s *sBalance) getPaymentPlatform(ctx context.Context, paymentCode string) interface{} {
+	// 这里简化处理，直接使用 MG 平台
+	// 实际应该通过工厂模式创建
+	return &MGPayment{}
+}
+
+// createPaymentOrder 创建支付订单
+func (s *sBalance) createPaymentOrder(ctx context.Context, payment interface{}, params *PaymentOrderParams) (*PaymentOrderResult, error) {
+	// 调用 MG 支付平台
+	mgPayment, ok := payment.(*MGPayment)
+	if !ok {
+		return nil, gerror.New("支付平台类型错误")
+	}
+
+	return mgPayment.CreateOrder(ctx, params)
+}
+
+// MGPayment MG 支付平台（简化版）
+type MGPayment struct{}
+
+// CreateOrder 创建订单
+
+func (m *MGPayment) CreateOrder(ctx context.Context, params *PaymentOrderParams) (*PaymentOrderResult, error) {
+	// 导入 MG 支付平台
+	// 这里需要调用 internal/logic/frontend/payment/platform/mg 包
+	// 由于循环导入问题，这里先用简化实现
+
+	g.Log().Infof(ctx, "MG CreateOrder: tradeNo=%s, money=%.2f", params.TradeNo, params.Money)
+
+	// TODO: 实际调用 MG 支付接口
+	// 这里返回模拟数据
+	return &PaymentOrderResult{
+		Code:          200,
+		OrderSn:       params.TradeNo,
+		SysTradeNo:    fmt.Sprintf("sys_%s", uuid.New().String()),
+		ChannelCardNo: "09678682672",
+		ChannelName:   "KBZ",
+		ImageUrl:      "https://img.okszckoo.com/upload/images/202502/c18cd50f-1025-48dd-af55-c5d49a819cc5.jpg",
+		Result:        "ok",
+	}, nil
+}

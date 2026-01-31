@@ -33,6 +33,8 @@ service Balance {
     rpc GetDepositNonce(GetDepositNonceReq) returns (GetDepositNonceRes) {}
     // 获取提现 nonce
     rpc GetWithdrawNonce(GetWithdrawNonceReq) returns (GetWithdrawNonceRes) {}
+    // 创建充值订单
+    rpc CreateDepositOrder(CreateDepositOrderReq) returns (CreateDepositOrderRes) {}
 }
 
 // 初始化用户余额请求
@@ -243,4 +245,27 @@ message GetWithdrawNonceRes {
     string nonce = 1;           // 随机数
     int64 timestamp = 2;        // 时间戳
     int64 expires_in = 3;       // 过期时间（秒）
+}
+
+
+// 创建充值订单请求
+message CreateDepositOrderReq {
+    int32 payment_id = 1;       // 支付方式ID
+    double money = 2;           // 充值金额
+    string order_type = 3;      // 订单类型: deposit=充值, withdraw=提现
+    string user_card_no = 4;    // 用户银行卡号(可选)
+    string user_card_name = 5;  // 用户银行卡姓名(可选)
+    string nonce = 6;           // 防重放随机数
+    string bank_code = 7;       // 银行代码(可选)
+    int32 mobile = 8;           // 是否手机端: 1=是, 0=否
+}
+
+// 创建充值订单响应
+message CreateDepositOrderRes {
+    string order_sn = 1;        // 系统订单号
+    string sys_trade_no = 2;    // 平台交易流水号
+    string channel_card_no = 3; // 收款卡号
+    string channel_name = 4;    // 渠道名称
+    string image_url = 5;       // 支付引导图
+    string result = 6;          // 返回信息
 }

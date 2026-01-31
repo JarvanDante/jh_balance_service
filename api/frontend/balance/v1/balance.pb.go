@@ -1865,6 +1865,192 @@ func (x *GetWithdrawNonceRes) GetExpiresIn() int64 {
 	return 0
 }
 
+// 创建充值订单请求
+type CreateDepositOrderReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PaymentId     int32                  `protobuf:"varint,1,opt,name=payment_id,json=paymentId,proto3" json:"payment_id" dc:"支付方式ID"`                       // 支付方式ID
+	Money         float64                `protobuf:"fixed64,2,opt,name=money,proto3" json:"money" dc:"充值金额"`                                                 // 充值金额
+	OrderType     string                 `protobuf:"bytes,3,opt,name=order_type,json=orderType,proto3" json:"order_type" dc:"订单类型: deposit=充值, withdraw=提现"` // 订单类型: deposit=充值, withdraw=提现
+	UserCardNo    string                 `protobuf:"bytes,4,opt,name=user_card_no,json=userCardNo,proto3" json:"user_card_no" dc:"用户银行卡号(可选)"`               // 用户银行卡号(可选)
+	UserCardName  string                 `protobuf:"bytes,5,opt,name=user_card_name,json=userCardName,proto3" json:"user_card_name" dc:"用户银行卡姓名(可选)"`        // 用户银行卡姓名(可选)
+	Nonce         string                 `protobuf:"bytes,6,opt,name=nonce,proto3" json:"nonce" dc:"防重放随机数"`                                                 // 防重放随机数
+	BankCode      string                 `protobuf:"bytes,7,opt,name=bank_code,json=bankCode,proto3" json:"bank_code" dc:"银行代码(可选)"`                         // 银行代码(可选)
+	Mobile        int32                  `protobuf:"varint,8,opt,name=mobile,proto3" json:"mobile" dc:"是否手机端: 1=是, 0=否"`                                     // 是否手机端: 1=是, 0=否
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateDepositOrderReq) Reset() {
+	*x = CreateDepositOrderReq{}
+	mi := &file_frontend_balance_v1_balance_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateDepositOrderReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateDepositOrderReq) ProtoMessage() {}
+
+func (x *CreateDepositOrderReq) ProtoReflect() protoreflect.Message {
+	mi := &file_frontend_balance_v1_balance_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateDepositOrderReq.ProtoReflect.Descriptor instead.
+func (*CreateDepositOrderReq) Descriptor() ([]byte, []int) {
+	return file_frontend_balance_v1_balance_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *CreateDepositOrderReq) GetPaymentId() int32 {
+	if x != nil {
+		return x.PaymentId
+	}
+	return 0
+}
+
+func (x *CreateDepositOrderReq) GetMoney() float64 {
+	if x != nil {
+		return x.Money
+	}
+	return 0
+}
+
+func (x *CreateDepositOrderReq) GetOrderType() string {
+	if x != nil {
+		return x.OrderType
+	}
+	return ""
+}
+
+func (x *CreateDepositOrderReq) GetUserCardNo() string {
+	if x != nil {
+		return x.UserCardNo
+	}
+	return ""
+}
+
+func (x *CreateDepositOrderReq) GetUserCardName() string {
+	if x != nil {
+		return x.UserCardName
+	}
+	return ""
+}
+
+func (x *CreateDepositOrderReq) GetNonce() string {
+	if x != nil {
+		return x.Nonce
+	}
+	return ""
+}
+
+func (x *CreateDepositOrderReq) GetBankCode() string {
+	if x != nil {
+		return x.BankCode
+	}
+	return ""
+}
+
+func (x *CreateDepositOrderReq) GetMobile() int32 {
+	if x != nil {
+		return x.Mobile
+	}
+	return 0
+}
+
+// 创建充值订单响应
+type CreateDepositOrderRes struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrderSn       string                 `protobuf:"bytes,1,opt,name=order_sn,json=orderSn,proto3" json:"order_sn" dc:"系统订单号"`                    // 系统订单号
+	SysTradeNo    string                 `protobuf:"bytes,2,opt,name=sys_trade_no,json=sysTradeNo,proto3" json:"sys_trade_no" dc:"平台交易流水号"`       // 平台交易流水号
+	ChannelCardNo string                 `protobuf:"bytes,3,opt,name=channel_card_no,json=channelCardNo,proto3" json:"channel_card_no" dc:"收款卡号"` // 收款卡号
+	ChannelName   string                 `protobuf:"bytes,4,opt,name=channel_name,json=channelName,proto3" json:"channel_name" dc:"渠道名称"`         // 渠道名称
+	ImageUrl      string                 `protobuf:"bytes,5,opt,name=image_url,json=imageUrl,proto3" json:"image_url" dc:"支付引导图"`                 // 支付引导图
+	Result        string                 `protobuf:"bytes,6,opt,name=result,proto3" json:"result" dc:"返回信息"`                                      // 返回信息
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateDepositOrderRes) Reset() {
+	*x = CreateDepositOrderRes{}
+	mi := &file_frontend_balance_v1_balance_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateDepositOrderRes) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateDepositOrderRes) ProtoMessage() {}
+
+func (x *CreateDepositOrderRes) ProtoReflect() protoreflect.Message {
+	mi := &file_frontend_balance_v1_balance_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateDepositOrderRes.ProtoReflect.Descriptor instead.
+func (*CreateDepositOrderRes) Descriptor() ([]byte, []int) {
+	return file_frontend_balance_v1_balance_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *CreateDepositOrderRes) GetOrderSn() string {
+	if x != nil {
+		return x.OrderSn
+	}
+	return ""
+}
+
+func (x *CreateDepositOrderRes) GetSysTradeNo() string {
+	if x != nil {
+		return x.SysTradeNo
+	}
+	return ""
+}
+
+func (x *CreateDepositOrderRes) GetChannelCardNo() string {
+	if x != nil {
+		return x.ChannelCardNo
+	}
+	return ""
+}
+
+func (x *CreateDepositOrderRes) GetChannelName() string {
+	if x != nil {
+		return x.ChannelName
+	}
+	return ""
+}
+
+func (x *CreateDepositOrderRes) GetImageUrl() string {
+	if x != nil {
+		return x.ImageUrl
+	}
+	return ""
+}
+
+func (x *CreateDepositOrderRes) GetResult() string {
+	if x != nil {
+		return x.Result
+	}
+	return ""
+}
+
 var File_frontend_balance_v1_balance_proto protoreflect.FileDescriptor
 
 const file_frontend_balance_v1_balance_proto_rawDesc = "" +
@@ -1998,8 +2184,27 @@ const file_frontend_balance_v1_balance_proto_rawDesc = "" +
 	"\x05nonce\x18\x01 \x01(\tR\x05nonce\x12\x1c\n" +
 	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\x12\x1d\n" +
 	"\n" +
-	"expires_in\x18\x03 \x01(\x03R\texpiresIn2\xef\n" +
+	"expires_in\x18\x03 \x01(\x03R\texpiresIn\"\xfe\x01\n" +
+	"\x15CreateDepositOrderReq\x12\x1d\n" +
 	"\n" +
+	"payment_id\x18\x01 \x01(\x05R\tpaymentId\x12\x14\n" +
+	"\x05money\x18\x02 \x01(\x01R\x05money\x12\x1d\n" +
+	"\n" +
+	"order_type\x18\x03 \x01(\tR\torderType\x12 \n" +
+	"\fuser_card_no\x18\x04 \x01(\tR\n" +
+	"userCardNo\x12$\n" +
+	"\x0euser_card_name\x18\x05 \x01(\tR\fuserCardName\x12\x14\n" +
+	"\x05nonce\x18\x06 \x01(\tR\x05nonce\x12\x1b\n" +
+	"\tbank_code\x18\a \x01(\tR\bbankCode\x12\x16\n" +
+	"\x06mobile\x18\b \x01(\x05R\x06mobile\"\xd4\x01\n" +
+	"\x15CreateDepositOrderRes\x12\x19\n" +
+	"\border_sn\x18\x01 \x01(\tR\aorderSn\x12 \n" +
+	"\fsys_trade_no\x18\x02 \x01(\tR\n" +
+	"sysTradeNo\x12&\n" +
+	"\x0fchannel_card_no\x18\x03 \x01(\tR\rchannelCardNo\x12!\n" +
+	"\fchannel_name\x18\x04 \x01(\tR\vchannelName\x12\x1b\n" +
+	"\timage_url\x18\x05 \x01(\tR\bimageUrl\x12\x16\n" +
+	"\x06result\x18\x06 \x01(\tR\x06result2\xd9\v\n" +
 	"\aBalance\x12_\n" +
 	"\x0fInitBalanceUser\x12$.frontend_balance.InitBalanceUserReq\x1a$.frontend_balance.InitBalanceUserRes\"\x00\x12\\\n" +
 	"\x0eRefreshBalance\x12#.frontend_balance.RefreshBalanceReq\x1a#.frontend_balance.RefreshBalanceRes\"\x00\x12Y\n" +
@@ -2014,7 +2219,8 @@ const file_frontend_balance_v1_balance_proto_rawDesc = "" +
 	"\x0eDeleteBankCard\x12#.frontend_balance.DeleteBankCardReq\x1a#.frontend_balance.DeleteBankCardRes\"\x00\x12h\n" +
 	"\x12SetDefaultBankCard\x12'.frontend_balance.SetDefaultBankCardReq\x1a'.frontend_balance.SetDefaultBankCardRes\"\x00\x12_\n" +
 	"\x0fGetDepositNonce\x12$.frontend_balance.GetDepositNonceReq\x1a$.frontend_balance.GetDepositNonceRes\"\x00\x12b\n" +
-	"\x10GetWithdrawNonce\x12%.frontend_balance.GetWithdrawNonceReq\x1a%.frontend_balance.GetWithdrawNonceRes\"\x00B,Z*jh_balance_service/api/frontend/balance/v1b\x06proto3"
+	"\x10GetWithdrawNonce\x12%.frontend_balance.GetWithdrawNonceReq\x1a%.frontend_balance.GetWithdrawNonceRes\"\x00\x12h\n" +
+	"\x12CreateDepositOrder\x12'.frontend_balance.CreateDepositOrderReq\x1a'.frontend_balance.CreateDepositOrderRes\"\x00B,Z*jh_balance_service/api/frontend/balance/v1b\x06proto3"
 
 var (
 	file_frontend_balance_v1_balance_proto_rawDescOnce sync.Once
@@ -2028,7 +2234,7 @@ func file_frontend_balance_v1_balance_proto_rawDescGZIP() []byte {
 	return file_frontend_balance_v1_balance_proto_rawDescData
 }
 
-var file_frontend_balance_v1_balance_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
+var file_frontend_balance_v1_balance_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
 var file_frontend_balance_v1_balance_proto_goTypes = []any{
 	(*InitBalanceUserReq)(nil),       // 0: frontend_balance.InitBalanceUserReq
 	(*InitBalanceUserRes)(nil),       // 1: frontend_balance.InitBalanceUserRes
@@ -2061,6 +2267,8 @@ var file_frontend_balance_v1_balance_proto_goTypes = []any{
 	(*GetDepositNonceRes)(nil),       // 28: frontend_balance.GetDepositNonceRes
 	(*GetWithdrawNonceReq)(nil),      // 29: frontend_balance.GetWithdrawNonceReq
 	(*GetWithdrawNonceRes)(nil),      // 30: frontend_balance.GetWithdrawNonceRes
+	(*CreateDepositOrderReq)(nil),    // 31: frontend_balance.CreateDepositOrderReq
+	(*CreateDepositOrderRes)(nil),    // 32: frontend_balance.CreateDepositOrderRes
 }
 var file_frontend_balance_v1_balance_proto_depIdxs = []int32{
 	13, // 0: frontend_balance.GetPaymentListRes.list:type_name -> frontend_balance.PaymentInfo
@@ -2080,22 +2288,24 @@ var file_frontend_balance_v1_balance_proto_depIdxs = []int32{
 	25, // 14: frontend_balance.Balance.SetDefaultBankCard:input_type -> frontend_balance.SetDefaultBankCardReq
 	27, // 15: frontend_balance.Balance.GetDepositNonce:input_type -> frontend_balance.GetDepositNonceReq
 	29, // 16: frontend_balance.Balance.GetWithdrawNonce:input_type -> frontend_balance.GetWithdrawNonceReq
-	1,  // 17: frontend_balance.Balance.InitBalanceUser:output_type -> frontend_balance.InitBalanceUserRes
-	3,  // 18: frontend_balance.Balance.RefreshBalance:output_type -> frontend_balance.RefreshBalanceRes
-	5,  // 19: frontend_balance.Balance.AdjustBalance:output_type -> frontend_balance.AdjustBalanceRes
-	7,  // 20: frontend_balance.Balance.UpdateTransferStatus:output_type -> frontend_balance.UpdateTransferStatusRes
-	9,  // 21: frontend_balance.Balance.CompensateBalance:output_type -> frontend_balance.CompensateBalanceRes
-	11, // 22: frontend_balance.Balance.GetLastBalanceLogGame:output_type -> frontend_balance.GetLastBalanceLogGameRes
-	14, // 23: frontend_balance.Balance.GetPaymentList:output_type -> frontend_balance.GetPaymentListRes
-	17, // 24: frontend_balance.Balance.GetWithdrawList:output_type -> frontend_balance.GetWithdrawListRes
-	19, // 25: frontend_balance.Balance.AddBankCard:output_type -> frontend_balance.AddBankCardRes
-	22, // 26: frontend_balance.Balance.GetBankCardList:output_type -> frontend_balance.GetBankCardListRes
-	24, // 27: frontend_balance.Balance.DeleteBankCard:output_type -> frontend_balance.DeleteBankCardRes
-	26, // 28: frontend_balance.Balance.SetDefaultBankCard:output_type -> frontend_balance.SetDefaultBankCardRes
-	28, // 29: frontend_balance.Balance.GetDepositNonce:output_type -> frontend_balance.GetDepositNonceRes
-	30, // 30: frontend_balance.Balance.GetWithdrawNonce:output_type -> frontend_balance.GetWithdrawNonceRes
-	17, // [17:31] is the sub-list for method output_type
-	3,  // [3:17] is the sub-list for method input_type
+	31, // 17: frontend_balance.Balance.CreateDepositOrder:input_type -> frontend_balance.CreateDepositOrderReq
+	1,  // 18: frontend_balance.Balance.InitBalanceUser:output_type -> frontend_balance.InitBalanceUserRes
+	3,  // 19: frontend_balance.Balance.RefreshBalance:output_type -> frontend_balance.RefreshBalanceRes
+	5,  // 20: frontend_balance.Balance.AdjustBalance:output_type -> frontend_balance.AdjustBalanceRes
+	7,  // 21: frontend_balance.Balance.UpdateTransferStatus:output_type -> frontend_balance.UpdateTransferStatusRes
+	9,  // 22: frontend_balance.Balance.CompensateBalance:output_type -> frontend_balance.CompensateBalanceRes
+	11, // 23: frontend_balance.Balance.GetLastBalanceLogGame:output_type -> frontend_balance.GetLastBalanceLogGameRes
+	14, // 24: frontend_balance.Balance.GetPaymentList:output_type -> frontend_balance.GetPaymentListRes
+	17, // 25: frontend_balance.Balance.GetWithdrawList:output_type -> frontend_balance.GetWithdrawListRes
+	19, // 26: frontend_balance.Balance.AddBankCard:output_type -> frontend_balance.AddBankCardRes
+	22, // 27: frontend_balance.Balance.GetBankCardList:output_type -> frontend_balance.GetBankCardListRes
+	24, // 28: frontend_balance.Balance.DeleteBankCard:output_type -> frontend_balance.DeleteBankCardRes
+	26, // 29: frontend_balance.Balance.SetDefaultBankCard:output_type -> frontend_balance.SetDefaultBankCardRes
+	28, // 30: frontend_balance.Balance.GetDepositNonce:output_type -> frontend_balance.GetDepositNonceRes
+	30, // 31: frontend_balance.Balance.GetWithdrawNonce:output_type -> frontend_balance.GetWithdrawNonceRes
+	32, // 32: frontend_balance.Balance.CreateDepositOrder:output_type -> frontend_balance.CreateDepositOrderRes
+	18, // [18:33] is the sub-list for method output_type
+	3,  // [3:18] is the sub-list for method input_type
 	3,  // [3:3] is the sub-list for extension type_name
 	3,  // [3:3] is the sub-list for extension extendee
 	0,  // [0:3] is the sub-list for field type_name
@@ -2112,7 +2322,7 @@ func file_frontend_balance_v1_balance_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_frontend_balance_v1_balance_proto_rawDesc), len(file_frontend_balance_v1_balance_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   31,
+			NumMessages:   33,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
