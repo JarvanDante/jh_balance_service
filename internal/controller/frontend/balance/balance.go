@@ -93,3 +93,8 @@ func (c *Controller) GetWithdrawNonce(ctx context.Context, req *v1.GetWithdrawNo
 func (c *Controller) CreateDepositOrder(ctx context.Context, req *v1.CreateDepositOrderReq) (res *v1.CreateDepositOrderRes, err error) {
 	return frontend.Balance().CreateDepositOrder(ctx, req)
 }
+
+// GetBalanceLog 获取账户明细
+func (c *Controller) GetBalanceLog(ctx context.Context, req *v1.GetBalanceLogReq) (res *v1.GetBalanceLogRes, err error) {
+	return frontend.Balance().GetBalanceLog(ctx, req)
+}

@@ -35,6 +35,8 @@ service Balance {
     rpc GetWithdrawNonce(GetWithdrawNonceReq) returns (GetWithdrawNonceRes) {}
     // 创建充值订单
     rpc CreateDepositOrder(CreateDepositOrderReq) returns (CreateDepositOrderRes) {}
+    // 获取账户明细
+    rpc GetBalanceLog(GetBalanceLogReq) returns (GetBalanceLogRes) {}
 }
 
 // 初始化用户余额请求
@@ -268,4 +270,37 @@ message CreateDepositOrderRes {
     string channel_name = 4;    // 渠道名称
     string image_url = 5;       // 支付引导图
     string result = 6;          // 返回信息
+}
+
+// 获取账户明细请求
+message GetBalanceLogReq {
+    string start = 1;           // 开始时间 格式: 2024-01-01 00:00:00
+    string end = 2;             // 结束时间 格式: 2024-01-01 23:59:59
+    int32 type = 3;             // 类型 0=全部 1=充值 2=提款 3=红利 4=返水 5=转账
+    int32 status = 4;           // 状态 0=全部 1=待处理 2=成功 3=失败
+    int32 page = 5;             // 页码
+    int32 size = 6;             // 每页数量
+}
+
+// 账户明细项
+message BalanceLogItem {
+    string channel = 1;         // 渠道名称
+    int32 change_type = 2;      // 交易类型 1=转入 2=转出
+    string trade_no = 3;        // 订单号
+    double money = 4;           // 金额
+    string remark = 5;          // 备注
+    int32 type = 6;             // 类型 1=充值 2=提款 3=红利 4=返水 5=转账
+    string symbol = 7;          // 符号 + 或 -
+    int32 status = 8;           // 状态 1=待处理 2=成功 3=失败
+    string time = 9;            // 时间
+}
+
+// 获取账户明细响应
+message GetBalanceLogRes {
+    double total_recharge = 1;  // 充值总计
+    double total_withdraw = 2;  // 提现总计
+    double total_bonus = 3;     // 红利总计
+    double total_rebate = 4;    // 返水总计
+    repeated BalanceLogItem list = 5;  // 明细列表
+    int32 count = 6;            // 总数
 }

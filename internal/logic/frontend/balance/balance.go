@@ -1728,3 +1728,258 @@ func (m *MGPayment) CreateOrder(ctx context.Context, params *PaymentOrderParams)
 		Result:        "ok",
 	}, nil
 }
+
+// GetBalanceLog 获取账户明细
+func (s *sBalance) GetBalanceLog(ctx context.Context, req *v1.GetBalanceLogReq) (*v1.GetBalanceLogRes, error) {
+	// 从context获取站点ID和用户ID
+	siteId, exists := middleware.GetSiteIdFromContext(ctx)
+	if !exists {
+		g.Log().Error(ctx, "未获取站点ID")
+		return nil, gerror.New("未获取站点ID")
+	}
+
+	userId, exists := middleware.GetUserIdFromContext(ctx)
+	if !exists {
+		g.Log().Error(ctx, "未获取用户ID")
+		return nil, gerror.New("未登录")
+	}
+
+	g.Log().Infof(ctx, "查询账户明细: site_id=%d, user_id=%d, start=%s, end=%s, type=%d, status=%d, page=%d, size=%d",
+		siteId, userId, req.Start, req.End, req.Type, req.Status, req.Page, req.Size)
+
+	// 参数验证
+	if req.Start == "" || req.End == "" {
+		return nil, gerror.New("开始时间和结束时间不能为空")
+	}
+
+	// 设置默认分页参数
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.Size <= 0 {
+		req.Size = 20
+	}
+
+	// 计算统计数据
+	totalRecharge := s.getTotalRecharge(ctx, int(siteId), int(userId), req.Start, req.End)
+	totalWithdraw := s.getTotalWithdraw(ctx, int(siteId), int(userId), req.Start, req.End)
+	totalBonus := s.getTotalBonus(ctx, int(siteId), int(userId), req.Start, req.End)
+	totalRebate := s.getTotalRebate(ctx, int(siteId), int(userId), req.Start, req.End)
+
+	// 构建查询条件
+	query := dao.BalanceLog.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		WhereNotIn("trade_type", g.Slice{balanceConsts.LOG_TYPE_TRANSFER_IN, balanceConsts.LOG_TYPE_TRANSFER_OUT})
+
+	// 状态筛选
+	if req.Status > 0 {
+		query = query.Where("status", req.Status)
+	}
+
+	// 类型筛选
+	if req.Type > 0 {
+		switch req.Type {
+		case 1: // 充值
+			query = query.WhereIn("trade_type", g.Slice{
+				balanceConsts.LOG_TYPE_PAYMENT,
+				balanceConsts.LOG_TYPE_TRANSFER,
+				balanceConsts.LOG_TYPE_MANUAL_ADD,
+			})
+		case 2: // 提款
+			query = query.WhereIn("trade_type", g.Slice{
+				balanceConsts.LOG_TYPE_WITHDRAW,
+				balanceConsts.LOG_TYPE_MANUAL_CUT,
+			})
+		case 3: // 红利
+			query = query.Where("trade_type", balanceConsts.LOG_TYPE_BONUS)
+		case 4: // 返水
+			query = query.Where("trade_type", balanceConsts.LOG_TYPE_REBATE)
+		case 5: // 转账
+			query = query.WhereIn("trade_type", g.Slice{
+				balanceConsts.LOG_TYPE_TRANSFER_IN,
+				balanceConsts.LOG_TYPE_TRANSFER_OUT,
+			})
+		}
+	}
+
+	// 时间范围筛选
+	if req.Start != "" && req.End != "" {
+		query = query.WhereBetween("updated_at", req.Start, req.End)
+	}
+
+	// 获取总数
+	count, err := query.Count()
+	if err != nil {
+		g.Log().Errorf(ctx, "查询账户明细总数失败: %v", err)
+		return nil, gerror.New("查询失败")
+	}
+
+	// 分页查询
+	skip := (req.Page - 1) * req.Size
+	var balanceLogs []*entity.BalanceLog
+	err = query.
+		Fields("trade_type", "trade_no", "money", "status", "remark", "updated_at").
+		Offset(int(skip)).
+		Limit(int(req.Size)).
+		OrderDesc("updated_at").
+		Scan(&balanceLogs)
+
+	if err != nil {
+		g.Log().Errorf(ctx, "查询账户明细列表失败: %v", err)
+		return nil, gerror.New("查询失败")
+	}
+
+	// 转换为响应格式
+	list := make([]*v1.BalanceLogItem, 0, len(balanceLogs))
+	for _, log := range balanceLogs {
+		item := &v1.BalanceLogItem{
+			TradeNo: log.TradeNo,
+			Money:   log.Money,
+			Remark:  log.Remark,
+			Type:    s.getFrontTypeByType(log.TradeType),
+			Symbol:  s.getSymbol(log.TradeType),
+			Status:  int32(log.Status),
+			Time:    log.UpdatedAt.Format("2006-01-02 15:04:05"),
+		}
+
+		// 获取交易类型（转入/转出）
+		item.ChangeType = s.getChangeType(log.TradeType)
+
+		list = append(list, item)
+	}
+
+	g.Log().Infof(ctx, "查询账户明细成功: 共%d条", len(list))
+
+	return &v1.GetBalanceLogRes{
+		TotalRecharge: totalRecharge,
+		TotalWithdraw: totalWithdraw,
+		TotalBonus:    totalBonus,
+		TotalRebate:   totalRebate,
+		List:          list,
+		Count:         int32(count),
+	}, nil
+}
+
+// getTotalRecharge 获取充值总计
+func (s *sBalance) getTotalRecharge(ctx context.Context, siteId, userId int, startTime, endTime string) float64 {
+	result, err := dao.BalanceLog.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		WhereIn("trade_type", g.Slice{
+			balanceConsts.LOG_TYPE_PAYMENT,
+			balanceConsts.LOG_TYPE_TRANSFER,
+			balanceConsts.LOG_TYPE_MANUAL_ADD,
+		}).
+		Where("status", balanceConsts.StatusSuccess).
+		WhereBetween("updated_at", startTime, endTime).
+		Sum("money")
+
+	if err != nil {
+		g.Log().Warningf(ctx, "查询充值总计失败: %v", err)
+		return 0
+	}
+
+	return gconv.Float64(result)
+}
+
+// getTotalWithdraw 获取提现总计
+func (s *sBalance) getTotalWithdraw(ctx context.Context, siteId, userId int, startTime, endTime string) float64 {
+	result, err := dao.BalanceLog.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		WhereIn("trade_type", g.Slice{
+			balanceConsts.LOG_TYPE_WITHDRAW,
+			balanceConsts.LOG_TYPE_MANUAL_CUT,
+		}).
+		Where("status", balanceConsts.StatusSuccess).
+		WhereBetween("updated_at", startTime, endTime).
+		Sum("money")
+
+	if err != nil {
+		g.Log().Warningf(ctx, "查询提现总计失败: %v", err)
+		return 0
+	}
+
+	return gconv.Float64(result)
+}
+
+// getTotalBonus 获取红利总计
+func (s *sBalance) getTotalBonus(ctx context.Context, siteId, userId int, startTime, endTime string) float64 {
+	result, err := dao.BalanceLog.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Where("trade_type", balanceConsts.LOG_TYPE_BONUS).
+		Where("status", balanceConsts.StatusSuccess).
+		WhereBetween("updated_at", startTime, endTime).
+		Sum("money")
+
+	if err != nil {
+		g.Log().Warningf(ctx, "查询红利总计失败: %v", err)
+		return 0
+	}
+
+	return gconv.Float64(result)
+}
+
+// getTotalRebate 获取返水总计
+func (s *sBalance) getTotalRebate(ctx context.Context, siteId, userId int, startTime, endTime string) float64 {
+	result, err := dao.BalanceLog.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Where("trade_type", balanceConsts.LOG_TYPE_REBATE).
+		Where("status", balanceConsts.StatusSuccess).
+		WhereBetween("updated_at", startTime, endTime).
+		Sum("money")
+
+	if err != nil {
+		g.Log().Warningf(ctx, "查询返水总计失败: %v", err)
+		return 0
+	}
+
+	return gconv.Float64(result)
+}
+
+// getFrontTypeByType 根据交易类型获取前端类型
+func (s *sBalance) getFrontTypeByType(tradeType int) int32 {
+	switch tradeType {
+	case balanceConsts.LOG_TYPE_PAYMENT, balanceConsts.LOG_TYPE_TRANSFER, balanceConsts.LOG_TYPE_MANUAL_ADD:
+		return 1 // 充值
+	case balanceConsts.LOG_TYPE_WITHDRAW, balanceConsts.LOG_TYPE_MANUAL_CUT:
+		return 2 // 提款
+	case balanceConsts.LOG_TYPE_BONUS:
+		return 3 // 红利
+	case balanceConsts.LOG_TYPE_REBATE:
+		return 4 // 返水
+	case balanceConsts.LOG_TYPE_TRANSFER_IN, balanceConsts.LOG_TYPE_TRANSFER_OUT:
+		return 5 // 转账
+	default:
+		return 0
+	}
+}
+
+// getSymbol 获取符号
+func (s *sBalance) getSymbol(tradeType int) string {
+	switch tradeType {
+	case balanceConsts.LOG_TYPE_PAYMENT, balanceConsts.LOG_TYPE_TRANSFER, balanceConsts.LOG_TYPE_MANUAL_ADD,
+		balanceConsts.LOG_TYPE_BONUS, balanceConsts.LOG_TYPE_REBATE, balanceConsts.LOG_TYPE_TRANSFER_IN:
+		return "+"
+	case balanceConsts.LOG_TYPE_WITHDRAW, balanceConsts.LOG_TYPE_MANUAL_CUT, balanceConsts.LOG_TYPE_TRANSFER_OUT:
+		return "-"
+	default:
+		return ""
+	}
+}
+
+// getChangeType 获取交易类型（转入/转出）
+func (s *sBalance) getChangeType(tradeType int) int32 {
+	switch tradeType {
+	case balanceConsts.LOG_TYPE_PAYMENT, balanceConsts.LOG_TYPE_TRANSFER, balanceConsts.LOG_TYPE_MANUAL_ADD,
+		balanceConsts.LOG_TYPE_BONUS, balanceConsts.LOG_TYPE_REBATE, balanceConsts.LOG_TYPE_TRANSFER_IN:
+		return 1 // 转入
+	case balanceConsts.LOG_TYPE_WITHDRAW, balanceConsts.LOG_TYPE_MANUAL_CUT, balanceConsts.LOG_TYPE_TRANSFER_OUT:
+		return 2 // 转出
+	default:
+		return 0
+	}
+}
