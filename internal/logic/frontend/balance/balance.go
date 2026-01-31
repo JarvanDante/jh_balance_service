@@ -1833,6 +1833,12 @@ func (s *sBalance) GetBalanceLog(ctx context.Context, req *v1.GetBalanceLogReq) 
 	// 转换为响应格式
 	list := make([]*v1.BalanceLogItem, 0, len(balanceLogs))
 	for _, log := range balanceLogs {
+		// 格式化时间
+		timeStr := ""
+		if log.UpdatedAt != nil {
+			timeStr = log.UpdatedAt.String()
+		}
+
 		item := &v1.BalanceLogItem{
 			TradeNo: log.TradeNo,
 			Money:   log.Money,
@@ -1840,7 +1846,7 @@ func (s *sBalance) GetBalanceLog(ctx context.Context, req *v1.GetBalanceLogReq) 
 			Type:    s.getFrontTypeByType(log.TradeType),
 			Symbol:  s.getSymbol(log.TradeType),
 			Status:  int32(log.Status),
-			Time:    log.UpdatedAt.Format("2006-01-02 15:04:05"),
+			Time:    timeStr,
 		}
 
 		// 获取交易类型（转入/转出）
