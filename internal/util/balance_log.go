@@ -5,10 +5,17 @@ import (
 	"crypto/rand"
 	"fmt"
 	balanceConsts "jh_balance_service/internal/consts/backend/balance"
+	"jh_balance_service/internal/middleware"
 	"math/big"
+	randNew "math/rand"
 	"strings"
 	"time"
 )
+
+var letters = []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+// 创建独立随机源（推荐方式）
+var r = randNew.New(randNew.NewSource(time.Now().UnixNano()))
 
 //GenerateTradeNo
 /**
@@ -20,15 +27,28 @@ import (
 func GenerateTradeNo(ctx context.Context, tradeType int) string {
 	prefix := getTradePrefix(tradeType)
 
-	// 时间戳：yyyyMMddHHmmss + 毫秒(3位) = 17位
-	now := time.Now()
-	timePart := now.Format("20060102150405") + fmt.Sprintf("%03d", now.Nanosecond()/1e6)
+	siteCode, _ := middleware.GetSiteCodeFromContext(ctx)
+	// 14位时间戳
+	timeStr := time.Now().Format("20060102150405")
 
-	// 随机数：1~999999，固定 6 位
-	randomPart := randIntString(1, 999999, 6)
+	// 纳秒后6位（避免同秒冲突）
+	nanoPart := time.Now().UnixNano() % 1000000
 
-	tradeNo := prefix + timePart + randomPart
-	return strings.ToUpper(tradeNo)
+	// 4位随机字母
+	randomLetters := make([]rune, 4)
+	for i := 0; i < 4; i++ {
+		randomLetters[i] = letters[r.Intn(len(letters))]
+	}
+
+	orderNo := fmt.Sprintf("%s%s%06d%s%s",
+		prefix,
+		timeStr,
+		nanoPart,
+		string(randomLetters),
+		siteCode,
+	)
+
+	return strings.ToUpper(orderNo)
 }
 
 func getTradePrefix(tradeType int) string {

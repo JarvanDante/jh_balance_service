@@ -1549,7 +1549,7 @@ func (s *sBalance) CreateDepositOrder(ctx context.Context, req *v1.CreateDeposit
 	}
 
 	// 6. 生成交易流水号
-	tradeNo := s.generateTradeNo("ZF")
+	tradeNo := util.GenerateTradeNo(ctx, balanceConsts.LOG_TYPE_PAYMENT)
 
 	g.Log().Infof(ctx, "生成交易流水号: %s", tradeNo)
 
