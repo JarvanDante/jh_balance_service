@@ -1724,7 +1724,7 @@ func (m *MGPayment) CreateOrder(ctx context.Context, params *PaymentOrderParams)
 		SysTradeNo:    fmt.Sprintf("sys_%s", uuid.New().String()),
 		ChannelCardNo: "09678682672",
 		ChannelName:   "KBZ",
-		ImageUrl:      "https://img.okszckoo.com/upload/images/202502/c18cd50f-1025-48dd-af55-c5d49a819cc5.jpg",
+		ImageUrl:      "http://localhost:19000/uploads/jh/2026/02/2026-02-01 01.40.28_1769881256.jpg",
 		Result:        "ok",
 	}, nil
 }
