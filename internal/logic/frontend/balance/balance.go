@@ -181,8 +181,8 @@ func (s *sBalance) RefreshBalance(ctx context.Context, req *v1.RefreshBalanceReq
 	if balanceUser == nil {
 		g.Log().Infof(ctx, "用户余额记录不存在: site_id=%d, user_id=%d", siteId, userId)
 		return &v1.RefreshBalanceRes{
-			Balance:       "0.00",
-			BalanceFrozen: "0.00",
+			Balance:       "0.0000",
+			BalanceFrozen: "0.0000",
 			Points:        0,
 		}, nil
 	}
@@ -234,7 +234,7 @@ func (s *sBalance) RefreshBalance(ctx context.Context, req *v1.RefreshBalanceReq
 				// 不影响主流程，继续返回本地余额
 			} else if gameBalanceRes != nil && gameBalanceRes.Success {
 				gameBalance = float64(gameBalanceRes.Balance)
-				g.Log().Infof(ctx, "查询三方游戏余额成功: game_id=%d, balance=%.2f", lastGameRes.GameId, gameBalance)
+				g.Log().Infof(ctx, "查询三方游戏余额成功: game_id=%d, balance=%.4f", lastGameRes.GameId, gameBalance)
 			} else {
 				g.Log().Warningf(ctx, "查询三方游戏余额失败: %s", gameBalanceRes.Message)
 			}
@@ -246,16 +246,20 @@ func (s *sBalance) RefreshBalance(ctx context.Context, req *v1.RefreshBalanceReq
 	// 总余额 = 本地余额 + 三方游戏余额
 	totalBalance = localBalance + gameBalance
 
-	// 格式化余额（保留2位小数）
-	balance := fmt.Sprintf("%.2f", totalBalance)
-	balanceFrozen := fmt.Sprintf("%.2f", balanceUser.BalanceFrozen)
+	g.Log().Infof(ctx, "刷新用户余额成功: user_id=%d, local_balance=%.4f, game_balance=%.4f, total_balance=%.4f, balance_frozen=%.4f, points=%d",
+		userId, localBalance, gameBalance, totalBalance, balanceUser.BalanceFrozen, balanceUser.Points)
 
-	g.Log().Infof(ctx, "刷新用户余额成功: user_id=%d, local_balance=%.2f, game_balance=%.2f, total_balance=%s, balance_frozen=%s, points=%d",
-		userId, localBalance, gameBalance, balance, balanceFrozen, balanceUser.Points)
+	// 格式化余额为字符串，保留数据库原始精度（4位小数）
+	// 使用向下取整避免四舍五入，先乘以10000转为整数，再格式化
+	balanceInt := int64(totalBalance * 10000)
+	balanceStr := fmt.Sprintf("%d.%04d", balanceInt/10000, balanceInt%10000)
+
+	balanceFrozenInt := int64(balanceUser.BalanceFrozen * 10000)
+	balanceFrozenStr := fmt.Sprintf("%d.%04d", balanceFrozenInt/10000, balanceFrozenInt%10000)
 
 	res = &v1.RefreshBalanceRes{
-		Balance:       balance,
-		BalanceFrozen: balanceFrozen,
+		Balance:       balanceStr,
+		BalanceFrozen: balanceFrozenStr,
 		Points:        int64(balanceUser.Points),
 	}
 
