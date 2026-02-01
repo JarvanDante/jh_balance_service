@@ -633,6 +633,16 @@ func (s *sBalance) DealWithWithdraw(ctx context.Context, req *v1.DealWithWithdra
 			return fmt.Errorf("无效的处理类型")
 		}
 
+		//用户余额
+		var balanceUser entity.BalanceUser
+		err = dao.BalanceUser.Ctx(ctx).
+			Where("site_id = ?", withdraw.SiteId).
+			Where("user_id = ?", withdraw.UserId).
+			Scan(&balanceUser)
+		if err != nil {
+			return fmt.Errorf("查找用户余额记录失败")
+		}
+
 		// 更新提现记录
 		_, err := dao.BalanceLogWithdraw.Ctx(ctx).TX(tx).
 			Where("id = ?", req.Id).
@@ -659,19 +669,71 @@ func (s *sBalance) DealWithWithdraw(ctx context.Context, req *v1.DealWithWithdra
 			return fmt.Errorf("更新日志记录败: %v", err)
 		}
 
-		// 更新账变记录
-		_, err = dao.BalanceChange.Ctx(ctx).TX(tx).
-			Where("trade_no = ?", withdraw.TradeNo).
-			Update(g.Map{
-				"status":     newStatus,
-				"remark":     message,
-				"updated_at": time.Now(),
-			})
-		if err != nil {
-			return fmt.Errorf("更新日志记录败: %v", err)
-		}
+		// 更新用户余额：成功时减少冻结金额，失败时从冻结金额加回到可用余额
+		if newStatus == balanceConsts.StatusSuccess {
 
-		//TODO 查询BalanceUser用户余额 成功：balance_frozen - withdraw.Money 失败：从冻结金额加回余额里
+			//账变使用：
+			newBalance := balanceUser.Balance
+			newBalanceFrozen := balanceUser.BalanceFrozen - withdraw.Money
+
+			// 更新账变记录
+			_, err = dao.BalanceChange.Ctx(ctx).TX(tx).
+				Where("trade_no = ?", withdraw.TradeNo).
+				Update(g.Map{
+					"trade_type":     balanceConsts.TradeTypeWithdrawSuccess, // 提现成功
+					"status":         newStatus,
+					"remark":         message,
+					"updated_at":     time.Now(),
+					"balance_new":    newBalance,
+					"balance_frozen": newBalanceFrozen,
+				})
+			if err != nil {
+				return fmt.Errorf("更新账变记录败: %v", err)
+			}
+
+			// 提现成功：减少冻结金额
+			_, err = dao.BalanceUser.Ctx(ctx).TX(tx).
+				Where("site_id = ?", withdraw.SiteId).
+				Where("user_id = ?", withdraw.UserId).
+				Update(g.Map{
+					"balance_frozen": newBalanceFrozen,
+				})
+			if err != nil {
+				return fmt.Errorf("减少冻结金额失败: %v", err)
+			}
+			g.Log().Infof(ctx, "提现成功，减少用户冻结金额: user_id=%d, amount=%.2f", withdraw.UserId, withdraw.Money)
+		} else if newStatus == balanceConsts.StatusFail {
+			//账变使用：
+			newBalance := balanceUser.Balance + withdraw.Money
+			newBalanceFrozen := balanceUser.BalanceFrozen - withdraw.Money
+			// 更新账变记录
+			_, err = dao.BalanceChange.Ctx(ctx).TX(tx).
+				Where("trade_no = ?", withdraw.TradeNo).
+				Update(g.Map{
+					"trade_type":     balanceConsts.TradeTypeWithdrawRefuse, // 提现返回
+					"status":         newStatus,
+					"remark":         message,
+					"updated_at":     time.Now(),
+					"balance_new":    newBalance,
+					"balance_frozen": newBalanceFrozen,
+				})
+			if err != nil {
+				return fmt.Errorf("更新账变记录败: %v", err)
+			}
+
+			// 提现失败：从冻结金额转回可用余额
+			_, err = dao.BalanceUser.Ctx(ctx).TX(tx).
+				Where("site_id = ?", withdraw.SiteId).
+				Where("user_id = ?", withdraw.UserId).
+				Update(g.Map{
+					"balance":        newBalance,
+					"balance_frozen": newBalanceFrozen,
+				})
+			if err != nil {
+				return fmt.Errorf("解冻余额失败: %v", err)
+			}
+			g.Log().Infof(ctx, "提现失败，解冻用户余额: user_id=%d, amount=%.2f", withdraw.UserId, withdraw.Money)
+		}
 
 		return nil
 	})

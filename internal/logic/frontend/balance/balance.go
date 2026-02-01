@@ -2355,6 +2355,20 @@ func (s *sBalance) Withdraw(ctx context.Context, req *v1.WithdrawReq) (*v1.Withd
 		}, nil
 	}
 
+	if req.Money > siteWithdraw.EachMax {
+		return &v1.WithdrawRes{
+			Success: false,
+			Message: "提现最高金额：" + gconv.String(siteWithdraw.EachMax),
+		}, nil
+	}
+
+	if req.Money < siteWithdraw.EachMin {
+		return &v1.WithdrawRes{
+			Success: false,
+			Message: "提现最低金额：" + gconv.String(siteWithdraw.EachMin),
+		}, nil
+	}
+
 	if siteWithdraw == nil {
 		return &v1.WithdrawRes{
 			Success: false,
