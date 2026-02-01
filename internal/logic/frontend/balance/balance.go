@@ -323,7 +323,7 @@ func (s *sBalance) transferToGame(ctx context.Context, req *v1.AdjustBalanceReq)
 	tradeNo := util.GenerateTradeNo(ctx, tradeType)
 
 	// 事务一：扣除余额、创建pending=1状态的记录
-	err := dao.BalanceUser.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+	err := dao.BalanceUser.Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
 		// 查询用户余额（加锁）
 		var balanceUser *entity.BalanceUser
 		err := dao.BalanceUser.Ctx(ctx).
@@ -342,13 +342,19 @@ func (s *sBalance) transferToGame(ctx context.Context, req *v1.AdjustBalanceReq)
 
 		username = balanceUser.Username
 
-		// 检查余额是否足够
-		if balanceUser.Balance < amount {
+		// 检查余额是否足够（四舍五入到2位小数后比较，避免浮点数精度问题）
+		balanceRounded := float64(int(balanceUser.Balance*100+0.5)) / 100
+		amountRounded := float64(int(amount*100+0.5)) / 100
+
+		if balanceRounded < amountRounded {
 			return fmt.Errorf("余额不足，当前余额: %.2f, 需要: %.2f", balanceUser.Balance, amount)
 		}
 
 		// 计算新余额：扣除余额，增加冻结金额
 		newBalance = balanceUser.Balance - amount
+		if newBalance < 0 {
+			newBalance = 0 // 避免出现负数
+		}
 		newBalanceFrozen = balanceUser.BalanceFrozen + amount
 
 		// 更新余额
@@ -450,7 +456,7 @@ func (s *sBalance) transferToGame(ctx context.Context, req *v1.AdjustBalanceReq)
 func (s *sBalance) UpdateTransferStatus(ctx context.Context, req *v1.UpdateTransferStatusReq) (*v1.UpdateTransferStatusRes, error) {
 	orderNo := req.OrderNo
 
-	err := dao.BalanceUser.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+	err := dao.BalanceUser.Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
 
 		//幂等判断
 		var balanceLog *entity.BalanceLog
@@ -497,12 +503,19 @@ func (s *sBalance) UpdateTransferStatus(ctx context.Context, req *v1.UpdateTrans
 			// Type=0: 转出到游戏（扣款）- 减少冻结金额
 			g.Log().Infof(ctx, "处理转出成功: 减少冻结金额 %.2f", amount)
 
-			if balanceUser.BalanceFrozen < amount {
+			// 检查冻结金额是否足够（四舍五入到2位小数后比较，避免浮点数精度问题）
+			frozenRounded := float64(int(balanceUser.BalanceFrozen*100+0.5)) / 100
+			amountRounded := float64(int(amount*100+0.5)) / 100
+
+			if frozenRounded < amountRounded {
 				return fmt.Errorf("用户冻结金额不足")
 			}
 
 			newBalance = balanceUser.Balance
 			newBalanceFrozen = balanceUser.BalanceFrozen - amount
+			if newBalanceFrozen < 0 {
+				newBalanceFrozen = 0 // 避免出现负数
+			}
 			remark = "（已确认）成功"
 
 		} else if tradeType == balanceConsts.LOG_TYPE_TRANSFER_IN {
@@ -593,7 +606,7 @@ func (s *sBalance) CompensateBalance(ctx context.Context, req *v1.CompensateBala
 	orderNo := req.OrderNo
 	amount := float64(req.Amount)
 
-	err := dao.BalanceUser.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+	err := dao.BalanceUser.Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
 
 		//幂等判断
 		var balanceLog *entity.BalanceLog
@@ -623,6 +636,11 @@ func (s *sBalance) CompensateBalance(ctx context.Context, req *v1.CompensateBala
 		if amount == 0 {
 			amount = realAmount
 		}
+
+		// 四舍五入到2位小数，避免浮点数精度问题
+		amount = float64(int(amount*100+0.5)) / 100
+		realAmount = float64(int(realAmount*100+0.5)) / 100
+
 		// 如果传入的siteId为0，使用订单中的siteId
 		if siteId == 0 {
 			siteId = int32(realSiteId)
@@ -659,10 +677,18 @@ func (s *sBalance) CompensateBalance(ctx context.Context, req *v1.CompensateBala
 			// 补偿余额（加回去）
 			newBalance = balanceUser.Balance + amount
 
-			if balanceUser.BalanceFrozen < amount {
+			// 检查冻结金额是否足够（四舍五入到2位小数后比较，避免浮点数精度问题）
+			frozenRounded := float64(int(balanceUser.BalanceFrozen*100+0.5)) / 100
+			amountRounded := float64(int(amount*100+0.5)) / 100
+
+			if frozenRounded < amountRounded {
 				return fmt.Errorf("用户冻结金额不足")
 			}
+
 			newBalanceFrozen = balanceUser.BalanceFrozen - amount
+			if newBalanceFrozen < 0 {
+				newBalanceFrozen = 0 // 避免出现负数
+			}
 			remark = "（已确认）金额补偿"
 
 		} else if tradeType == balanceConsts.LOG_TYPE_TRANSFER_IN {
@@ -826,7 +852,7 @@ func (s *sBalance) transferFromGame(ctx context.Context, req *v1.AdjustBalanceRe
 	tradeNo := util.GenerateTradeNo(ctx, tradeType)
 
 	// 开启事务：只创建pending订单，不修改用户余额
-	err := dao.BalanceUser.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+	err := dao.BalanceUser.Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
 		// 查询用户余额（加锁）
 		var balanceUser *entity.BalanceUser
 		err := dao.BalanceUser.Ctx(ctx).
