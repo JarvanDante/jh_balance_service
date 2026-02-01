@@ -31,6 +31,7 @@ type BalanceLogGameColumns struct {
 	Status            string // 状态. 1=待确认，2=成功，3=失败
 	Remark            string // 备注
 	ThirdPartyTradeNo string // 第三方订单号
+	Key               string // 第三方游戏key
 	CreatedAt         string //
 	UpdatedAt         string //
 }
@@ -47,6 +48,7 @@ var balanceLogGameColumns = BalanceLogGameColumns{
 	Status:            "status",
 	Remark:            "remark",
 	ThirdPartyTradeNo: "third_party_trade_no",
+	Key:               "key",
 	CreatedAt:         "created_at",
 	UpdatedAt:         "updated_at",
 }

@@ -20,6 +20,7 @@ type BalanceLogGame struct {
 	Status            int         `json:"status"            orm:"status"               description:"状态. 1=待确认，2=成功，3=失败"`
 	Remark            string      `json:"remark"            orm:"remark"               description:"备注"`
 	ThirdPartyTradeNo string      `json:"thirdPartyTradeNo" orm:"third_party_trade_no" description:"第三方订单号"`
+	Key               string      `json:"key"               orm:"key"                  description:"第三方游戏key"`
 	CreatedAt         *gtime.Time `json:"createdAt"         orm:"created_at"           description:""`
 	UpdatedAt         *gtime.Time `json:"updatedAt"         orm:"updated_at"           description:""`
 }

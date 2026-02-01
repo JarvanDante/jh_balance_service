@@ -22,6 +22,7 @@ type BalanceLogGame struct {
 	Status            any         // 状态. 1=待确认，2=成功，3=失败
 	Remark            any         // 备注
 	ThirdPartyTradeNo any         // 第三方订单号
+	Key               any         // 第三方游戏key
 	CreatedAt         *gtime.Time //
 	UpdatedAt         *gtime.Time //
 }
