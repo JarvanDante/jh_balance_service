@@ -1989,3 +1989,222 @@ func (s *sBalance) getChangeType(tradeType int) int32 {
 		return 0
 	}
 }
+
+// recordCallbackFailure 记录回调失败日志（同步）
+func (s *sBalance) recordCallbackFailure(ctx context.Context, siteId int, callbackType int, stage string, reason string, req *v1.DepositCallbackReq, err error) {
+	// 准备请求数据JSON
+	requestData := gconv.String(g.Map{
+		"trade_status":  req.TradeStatus,
+		"order_sn":      req.OrderSn,
+		"actual_amount": req.ActualAmount,
+		"sign":          req.Sign,
+	})
+
+	// 准备错误信息
+	errorMessage := reason
+	if err != nil {
+		errorMessage = fmt.Sprintf("%s: %v", reason, err)
+	}
+
+	// 插入失败日志
+	_, insertErr := dao.BalanceCallbackLog.Ctx(ctx).Insert(g.Map{
+		"site_id":        siteId,
+		"callback_type":  callbackType,
+		"order_sn":       req.OrderSn,
+		"trade_status":   req.TradeStatus,
+		"actual_amount":  req.ActualAmount,
+		"failure_reason": reason,
+		"failure_stage":  stage,
+		"request_data":   requestData,
+		"error_message":  errorMessage,
+		"retry_count":    0,
+		"is_resolved":    0,
+		"created_at":     gtime.Now(),
+		"updated_at":     gtime.Now(),
+	})
+
+	if insertErr != nil {
+		g.Log().Errorf(ctx, "记录回调失败日志失败: %v", insertErr)
+	} else {
+		g.Log().Infof(ctx, "回调失败日志已记录: order_sn=%s, stage=%s, reason=%s", req.OrderSn, stage, reason)
+	}
+}
+
+// DepositCallback 充值异步回调
+func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackReq) (*v1.DepositCallbackRes, error) {
+	startTime := time.Now()
+
+	g.Log().Infof(ctx, "充值异步回调开始: order_sn=%s, trade_status=%s, actual_amount=%.2f",
+		req.OrderSn, req.TradeStatus, req.ActualAmount)
+
+	// 1. 检查交易状态
+	if req.TradeStatus != "success" {
+		g.Log().Warningf(ctx, "充值失败，通知状态：%s, order_sn=%s", req.TradeStatus, req.OrderSn)
+		// 记录失败日志
+		s.recordCallbackFailure(ctx, 0, 1, "check_status", "支付状态非成功: "+req.TradeStatus, req, nil)
+		return &v1.DepositCallbackRes{
+			Success: false,
+			Message: "支付失败，通知状态：" + req.TradeStatus,
+		}, nil
+	}
+
+	// 2. 查找订单
+	var paymentLog *entity.BalanceLog
+	err := dao.BalanceLog.Ctx(ctx).Where("trade_no", req.OrderSn).Scan(&paymentLog)
+	if err != nil {
+		g.Log().Errorf(ctx, "查询充值订单失败: order_sn=%s, err=%v", req.OrderSn, err)
+		s.recordCallbackFailure(ctx, 0, 1, "find_order", "查询订单失败", req, err)
+		return &v1.DepositCallbackRes{
+			Success: false,
+			Message: "查询订单失败",
+		}, nil
+	}
+
+	if paymentLog == nil {
+		g.Log().Warningf(ctx, "充值订单不存在: order_sn=%s", req.OrderSn)
+		s.recordCallbackFailure(ctx, 0, 1, "find_order", "订单不存在", req, nil)
+		return &v1.DepositCallbackRes{
+			Success: false,
+			Message: "订单不存在",
+		}, nil
+	}
+
+	duration1 := time.Since(startTime)
+	g.Log().Infof(ctx, "第1阶段-查找订单，总耗时: %.2fms", float64(duration1.Milliseconds()))
+
+	// 3. 检查订单状态
+	if paymentLog.Status == 2 { // STATUS_SUCCESS
+		g.Log().Warningf(ctx, "充值订单已完成: order_sn=%s, 当前状态为:存款成功", req.OrderSn)
+		return &v1.DepositCallbackRes{
+			Success: true,
+			Message: "订单已完成",
+		}, nil
+	}
+
+	if paymentLog.Status == 3 { // STATUS_FAIL
+		g.Log().Warningf(ctx, "充值订单已失败: order_sn=%s", req.OrderSn)
+		return &v1.DepositCallbackRes{
+			Success: false,
+			Message: "订单已失败",
+		}, nil
+	}
+
+	time2 := time.Now()
+
+	// 4. 实际支付金额
+	actualAmount := req.ActualAmount
+	if actualAmount <= 0 {
+		actualAmount = 0
+	}
+
+	duration2 := time.Since(time2)
+	g.Log().Infof(ctx, "第2阶段-准备金额，总耗时: %.2fms", float64(duration2.Milliseconds()))
+
+	time3 := time.Now()
+
+	// 6. 开始事务处理 - 使用 Ctx(ctx) 保持动态数据库路由
+	err = dao.BalanceLog.Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		// 6.0 更新在线支付充值记录状态
+		_, err := dao.BalanceLogPayment.Ctx(ctx).TX(tx).
+			Where("trade_no", req.OrderSn).
+			Data(g.Map{
+				"status":       balanceConsts.StatusSuccess, // STATUS_SUCCESS
+				"actual_money": actualAmount,
+			}).Update()
+
+		if err != nil {
+			g.Log().Errorf(ctx, "更新在线支付充值记录失败: order_sn=%s, err=%v", req.OrderSn, err)
+			return err
+		}
+
+		// 6.1 更新充值记录状态
+		_, err = dao.BalanceLog.Ctx(ctx).TX(tx).
+			Where("trade_no", req.OrderSn).
+			Data(g.Map{
+				"status":       balanceConsts.StatusSuccess, // STATUS_SUCCESS
+				"actual_money": actualAmount,
+				"remark":       "异步确认在线支付",
+				"updated_at":   gtime.Now(),
+			}).Update()
+
+		if err != nil {
+			g.Log().Errorf(ctx, "更新充值记录失败: order_sn=%s, err=%v", req.OrderSn, err)
+			return err
+		}
+
+		duration31 := time.Since(time3)
+		g.Log().Infof(ctx, "第3.1阶段-更新充值记录，总耗时: %.2fms", float64(duration31.Milliseconds()))
+
+		time32 := time.Now()
+
+		// 6.2 获取用户余额（加锁）
+		var balanceUser *entity.BalanceUser
+		err = dao.BalanceUser.Ctx(ctx).TX(tx).
+			Where("site_id", paymentLog.SiteId).
+			Where("user_id", paymentLog.UserId).
+			LockUpdate().
+			Scan(&balanceUser)
+
+		if err != nil || balanceUser == nil {
+			g.Log().Errorf(ctx, "获取用户余额失败: user_id=%d, err=%v", paymentLog.UserId, err)
+			return gerror.New("获取用户余额失败")
+		}
+
+		duration32 := time.Since(time32)
+		g.Log().Infof(ctx, "第3.2阶段-获取用户余额，总耗时: %.2fms", float64(duration32.Milliseconds()))
+
+		time33 := time.Now()
+
+		// 6.3 计算新余额
+		oldBalance := balanceUser.Balance
+		newBalance := oldBalance + actualAmount
+
+		// 更新用户余额
+		_, err = dao.BalanceUser.Ctx(ctx).TX(tx).
+			Where("site_id", paymentLog.SiteId).
+			Where("user_id", paymentLog.UserId).
+			Data(g.Map{
+				"balance":    newBalance,
+				"updated_at": gtime.Now(),
+			}).Update()
+
+		if err != nil {
+			g.Log().Errorf(ctx, "更新用户余额失败: user_id=%d, err=%v", paymentLog.UserId, err)
+			return err
+		}
+
+		duration33 := time.Since(time33)
+		g.Log().Infof(ctx, "第3.3阶段-更新用户余额，总耗时: %.2fms", float64(duration33.Milliseconds()))
+
+		time34 := time.Now()
+
+		duration34 := time.Since(time34)
+		g.Log().Infof(ctx, "第3.4阶段-写入账变记录，总耗时: %.2fms", float64(duration34.Milliseconds()))
+
+		return nil
+	})
+
+	if err != nil {
+		g.Log().Errorf(ctx, "充值回调事务处理失败: order_sn=%s, err=%v", req.OrderSn, err)
+		s.recordCallbackFailure(ctx, paymentLog.SiteId, 1, "transaction", "数据库事务失败", req, err)
+		return &v1.DepositCallbackRes{
+			Success: false,
+			Message: "支付资金处理失败: " + err.Error(),
+		}, nil
+	}
+
+	duration3 := time.Since(time3)
+	g.Log().Infof(ctx, "第3阶段-事务处理，总耗时: %.2fms", float64(duration3.Milliseconds()))
+
+	// 注意：由于User表不在balance服务中，充值次数更新需要通过MQ或其他方式通知app_service
+	// 这里暂时注释掉，后续可以通过消息队列实现
+
+	totalDuration := time.Since(startTime)
+	g.Log().Infof(ctx, "充值异步回调成功: order_sn=%s, amount=%.2f, 总耗时: %.2fms",
+		req.OrderSn, actualAmount, float64(totalDuration.Milliseconds()))
+
+	return &v1.DepositCallbackRes{
+		Success: true,
+		Message: "支付成功",
+	}, nil
+}

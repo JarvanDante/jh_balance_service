@@ -98,3 +98,9 @@ func (c *Controller) CreateDepositOrder(ctx context.Context, req *v1.CreateDepos
 func (c *Controller) GetBalanceLog(ctx context.Context, req *v1.GetBalanceLogReq) (res *v1.GetBalanceLogRes, err error) {
 	return frontend.Balance().GetBalanceLog(ctx, req)
 }
+
+// DepositCallback 充值异步回调
+func (c *Controller) DepositCallback(ctx context.Context, req *v1.DepositCallbackReq) (res *v1.DepositCallbackRes, err error) {
+	g.Log().Infof(ctx, "Frontend Balance Controller收到DepositCallback请求")
+	return frontend.Balance().DepositCallback(ctx, req)
+}

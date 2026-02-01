@@ -37,6 +37,8 @@ service Balance {
     rpc CreateDepositOrder(CreateDepositOrderReq) returns (CreateDepositOrderRes) {}
     // 获取账户明细
     rpc GetBalanceLog(GetBalanceLogReq) returns (GetBalanceLogRes) {}
+    // 充值异步回调
+    rpc DepositCallback(DepositCallbackReq) returns (DepositCallbackRes) {}
 }
 
 // 初始化用户余额请求
@@ -303,4 +305,18 @@ message GetBalanceLogRes {
     double total_rebate = 4;    // 返水总计
     repeated BalanceLogItem list = 5;  // 明细列表
     int32 count = 6;            // 总数
+}
+
+// 充值异步回调请求
+message DepositCallbackReq {
+    string trade_status = 1;    // 交易状态 wait：处理中; success：成功; failed：失败;cancel：取消;
+    string order_sn = 2;        // 订单号
+    double actual_amount = 3;   // 实际支付金额
+    string sign = 4;            // 签名（可选，用于验证）
+}
+
+// 充值异步回调响应
+message DepositCallbackRes {
+    bool success = 1;           // 是否成功
+    string message = 2;         // 消息
 }
