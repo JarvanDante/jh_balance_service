@@ -1521,23 +1521,34 @@ func (s *sBalance) CreateDepositOrder(ctx context.Context, req *v1.CreateDeposit
 
 	username := middleware.GetUsernameFromContext(ctx)
 
+	//==========防重放先注释====================
+	// 2. 验证 nonce（防重放）
+	redisKey := fmt.Sprintf("deposit:nonce:%d:%d", siteId, userId)
+	storedNonce, err := g.Redis().Get(ctx, redisKey)
+	if err != nil {
+		g.Log().Errorf(ctx, "获取 nonce 失败: %v", err)
+		return nil, gerror.New("nonce 无效或已过期，请刷新页面重试")
+	}
+
+	if storedNonce.IsNil() || storedNonce.String() != req.Nonce {
+		g.Log().Errorf(ctx, "nonce 验证失败: stored=%s, provided=%s", storedNonce.String(), req.Nonce)
+		return nil, gerror.New("nonce 验证失败，请刷新页面重试")
+	}
+
+	// 删除 nonce（单次使用，防止重复提交）
+	delCount, err := g.Redis().Del(ctx, redisKey)
+	if err != nil {
+		g.Log().Warningf(ctx, "删除 nonce 失败: %v", err)
+	}
+	if delCount == 0 {
+		// nonce 已被删除（可能是并发请求）
+		g.Log().Warningf(ctx, "nonce 已被使用: user_id=%d", userId)
+		return nil, gerror.New("请勿重复提交")
+	}
+	//==========防重放先注释====================
+
 	g.Log().Infof(ctx, "CreateDepositOrder 开始: siteId=%d, userId=%d, username=%s, paymentId=%d, money=%.2f",
 		siteId, userId, username, req.PaymentId, req.Money)
-
-	//==========防重放先注释====================
-	//// 2. 验证 nonce（防重放）
-	//redisKey := fmt.Sprintf("deposit:nonce:%d:%d", siteId, userId)
-	//storedNonce, err := g.Redis().Get(ctx, redisKey)
-	//if err != nil || storedNonce.String() != req.Nonce {
-	//	g.Log().Errorf(ctx, "nonce 验证失败: stored=%s, provided=%s", storedNonce.String(), req.Nonce)
-	//	return nil, gerror.New("nonce 无效或已过期，请刷新页面重试")
-	//}
-	//// 删除 nonce（单次使用）
-	//_, err = g.Redis().Del(ctx, redisKey)
-	//if err != nil {
-	//	g.Log().Warningf(ctx, "删除 nonce 失败: %v", err)
-	//}
-	//==========防重放先注释====================
 
 	// 3. 验证参数
 	if req.Money < 0.01 {
@@ -1548,7 +1559,6 @@ func (s *sBalance) CreateDepositOrder(ctx context.Context, req *v1.CreateDeposit
 		req.OrderType = "deposit"
 	}
 
-	var err error
 	// 4. 查询支付渠道配置
 	var sitePayment *entity.SitePayment
 	err = dao.SitePayment.Ctx(ctx).
@@ -2298,6 +2308,56 @@ func (s *sBalance) Withdraw(ctx context.Context, req *v1.WithdrawReq) (*v1.Withd
 
 	username := middleware.GetUsernameFromContext(ctx)
 
+	//==========防重放先注释====================
+	// 2. 验证 nonce（防重放）
+	redisKey := fmt.Sprintf("withdraw:nonce:%d:%d", siteId, userId)
+	g.Log().Infof(ctx, "开始验证 nonce: key=%s, provided_nonce=%s", redisKey, req.Nonce)
+
+	storedNonce, err := g.Redis().Get(ctx, redisKey)
+	if err != nil {
+		g.Log().Errorf(ctx, "获取 nonce 失败: %v, key=%s", err, redisKey)
+		return &v1.WithdrawRes{
+			Success: false,
+			Message: "nonce 无效或已过期，请刷新页面重试",
+		}, nil
+	}
+
+	if storedNonce.IsNil() {
+		g.Log().Errorf(ctx, "nonce 不存在或已过期: key=%s", redisKey)
+		return &v1.WithdrawRes{
+			Success: false,
+			Message: "nonce 已过期，请刷新页面重试",
+		}, nil
+	}
+
+	storedNonceStr := storedNonce.String()
+	g.Log().Infof(ctx, "nonce 对比: stored=[%s], provided=[%s], equal=%v", storedNonceStr, req.Nonce, storedNonceStr == req.Nonce)
+
+	if storedNonceStr != req.Nonce {
+		g.Log().Errorf(ctx, "nonce 验证失败: stored=%s, provided=%s", storedNonceStr, req.Nonce)
+		return &v1.WithdrawRes{
+			Success: false,
+			Message: "nonce 验证失败，请刷新页面重试",
+		}, nil
+	}
+
+	// 删除 nonce（单次使用，防止重复提交）
+	delCount, err := g.Redis().Del(ctx, redisKey)
+	if err != nil {
+		g.Log().Warningf(ctx, "删除 nonce 失败: %v", err)
+	}
+	if delCount == 0 {
+		// nonce 已被删除（可能是并发请求）
+		g.Log().Warningf(ctx, "nonce 已被使用: user_id=%d", userId)
+		return &v1.WithdrawRes{
+			Success: false,
+			Message: "请勿重复提交",
+		}, nil
+	}
+
+	g.Log().Infof(ctx, "nonce 验证成功并已删除")
+	//==========防重放先注释====================
+
 	g.Log().Infof(ctx, "申请提现: site_id=%d, user_id=%d, money=%.2f, withdraw_id=%d",
 		siteId, userId, req.Money, req.WithdrawId)
 
@@ -2318,7 +2378,7 @@ func (s *sBalance) Withdraw(ctx context.Context, req *v1.WithdrawReq) (*v1.Withd
 
 	// 3. 查询用户是否绑定银行卡（is_default=1）
 	var userBank *entity.UserBank
-	err := dao.UserBank.Ctx(ctx).
+	err = dao.UserBank.Ctx(ctx).
 		Where("site_id", siteId).
 		Where("user_id", userId).
 		Where("is_default", 1).

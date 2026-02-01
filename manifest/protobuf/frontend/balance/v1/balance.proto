@@ -328,6 +328,7 @@ message DepositCallbackRes {
 message WithdrawReq {
     double money = 1;           // 提现金额
     int32 withdraw_id = 2;      // 提现渠道ID
+    string nonce = 3;           // 防重放随机数
 }
 
 // 申请提现响应
