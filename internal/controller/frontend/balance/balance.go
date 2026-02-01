@@ -104,3 +104,9 @@ func (c *Controller) DepositCallback(ctx context.Context, req *v1.DepositCallbac
 	g.Log().Infof(ctx, "Frontend Balance Controller收到DepositCallback请求")
 	return frontend.Balance().DepositCallback(ctx, req)
 }
+
+// Withdraw 申请提现
+func (c *Controller) Withdraw(ctx context.Context, req *v1.WithdrawReq) (res *v1.WithdrawRes, err error) {
+	g.Log().Infof(ctx, "Frontend Balance Controller收到Withdraw请求")
+	return frontend.Balance().Withdraw(ctx, req)
+}

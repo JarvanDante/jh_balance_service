@@ -24,6 +24,7 @@ type IBalance interface {
 	CreateDepositOrder(ctx context.Context, req *v1.CreateDepositOrderReq) (res *v1.CreateDepositOrderRes, err error)
 	GetBalanceLog(ctx context.Context, req *v1.GetBalanceLogReq) (res *v1.GetBalanceLogRes, err error)
 	DepositCallback(ctx context.Context, req *v1.DepositCallbackReq) (res *v1.DepositCallbackRes, err error)
+	Withdraw(ctx context.Context, req *v1.WithdrawReq) (res *v1.WithdrawRes, err error)
 }
 
 var localBalance IBalance
