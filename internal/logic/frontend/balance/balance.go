@@ -2121,10 +2121,11 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 		_, err = dao.BalanceLog.Ctx(ctx).TX(tx).
 			Where("trade_no", req.OrderSn).
 			Data(g.Map{
-				"status":     balanceConsts.StatusSuccess, // STATUS_SUCCESS
-				"money":      actualAmount,                // 更新实际金额
-				"remark":     "异步确认在线支付",
-				"updated_at": gtime.Now(),
+				"status":       balanceConsts.StatusSuccess, // STATUS_SUCCESS
+				"money":        actualAmount,                // 更新金额
+				"actual_money": actualAmount,                // 更新实际金额
+				"remark":       "异步确认在线支付",
+				"updated_at":   gtime.Now(),
 			}).Update()
 
 		if err != nil {
@@ -2136,10 +2137,11 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 		_, err = dao.BalanceLogPayment.Ctx(ctx).TX(tx).
 			Where("trade_no", req.OrderSn).
 			Data(g.Map{
-				"status":     balanceConsts.StatusSuccess, // STATUS_SUCCESS
-				"money":      actualAmount,                // 更新实际金额
-				"remark":     "异步确认在线支付",
-				"updated_at": gtime.Now(),
+				"status":       balanceConsts.StatusSuccess, // STATUS_SUCCESS
+				"money":        actualAmount,                // 更新金额
+				"actual_money": actualAmount,                // 更新实际金额
+				"remark":       "异步确认在线支付",
+				"updated_at":   gtime.Now(),
 			}).Update()
 
 		if err != nil {
@@ -2192,6 +2194,28 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 		g.Log().Infof(ctx, "第3.3阶段-更新用户余额，总耗时: %.2fms", float64(duration33.Milliseconds()))
 
 		time34 := time.Now()
+
+		// 6.4 写入账变记录
+		_, err = dao.BalanceChange.Ctx(ctx).TX(tx).Insert(g.Map{
+			"site_id":        paymentLog.SiteId,
+			"trade_type":     balanceConsts.TradeTypeRecharge, // 2=充值
+			"user_id":        paymentLog.UserId,
+			"username":       balanceUser.Username,
+			"trade_no":       req.OrderSn,
+			"balance_old":    oldBalance,
+			"money":          actualAmount,
+			"balance_new":    newBalance,
+			"balance_frozen": balanceUser.BalanceFrozen,
+			"status":         balanceConsts.StatusSuccess, // 2=成功
+			"remark":         "异步确认在线支付",
+			"created_at":     gtime.Now(),
+			"updated_at":     gtime.Now(),
+		})
+
+		if err != nil {
+			g.Log().Errorf(ctx, "写入账变记录失败: order_sn=%s, err=%v", req.OrderSn, err)
+			return err
+		}
 
 		duration34 := time.Since(time34)
 		g.Log().Infof(ctx, "第3.4阶段-写入账变记录，总耗时: %.2fms", float64(duration34.Milliseconds()))
