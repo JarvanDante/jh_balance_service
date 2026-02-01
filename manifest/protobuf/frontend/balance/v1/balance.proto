@@ -74,6 +74,7 @@ message AdjustBalanceReq {
     int32 type = 4;             // 类型：0=转出(从中心账户转账到游戏账户) 1=转入(从游戏账户转账到中心账户)
     string game_name = 5;       // 游戏名称
     string game_id = 6;         // 游戏ID
+    string game_key = 7;        // 游戏key（进入游戏时的key）
 }
 
 // 调整用户余额响应

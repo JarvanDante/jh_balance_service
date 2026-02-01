@@ -251,6 +251,7 @@ type AdjustBalanceReq struct {
 	Type          int32                  `protobuf:"varint,4,opt,name=type,proto3" json:"type" dc:"类型：0=转出(从中心账户转账到游戏账户) 1=转入(从游戏账户转账到中心账户)"` // 类型：0=转出(从中心账户转账到游戏账户) 1=转入(从游戏账户转账到中心账户)
 	GameName      string                 `protobuf:"bytes,5,opt,name=game_name,json=gameName,proto3" json:"game_name" dc:"游戏名称"`              // 游戏名称
 	GameId        string                 `protobuf:"bytes,6,opt,name=game_id,json=gameId,proto3" json:"game_id" dc:"游戏ID"`                    // 游戏ID
+	GameKey       string                 `protobuf:"bytes,7,opt,name=game_key,json=gameKey,proto3" json:"game_key" dc:"游戏key（进入游戏时的key）"`     // 游戏key（进入游戏时的key）
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -323,6 +324,13 @@ func (x *AdjustBalanceReq) GetGameName() string {
 func (x *AdjustBalanceReq) GetGameId() string {
 	if x != nil {
 		return x.GameId
+	}
+	return ""
+}
+
+func (x *AdjustBalanceReq) GetGameKey() string {
+	if x != nil {
+		return x.GameKey
 	}
 	return ""
 }
@@ -2469,14 +2477,15 @@ const file_frontend_balance_v1_balance_proto_rawDesc = "" +
 	"\x11RefreshBalanceRes\x12\x18\n" +
 	"\abalance\x18\x01 \x01(\tR\abalance\x12%\n" +
 	"\x0ebalance_frozen\x18\x02 \x01(\tR\rbalanceFrozen\x12\x16\n" +
-	"\x06points\x18\x03 \x01(\x03R\x06points\"\xa6\x01\n" +
+	"\x06points\x18\x03 \x01(\x03R\x06points\"\xc1\x01\n" +
 	"\x10AdjustBalanceReq\x12\x17\n" +
 	"\asite_id\x18\x01 \x01(\x05R\x06siteId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x05R\x06userId\x12\x16\n" +
 	"\x06amount\x18\x03 \x01(\x02R\x06amount\x12\x12\n" +
 	"\x04type\x18\x04 \x01(\x05R\x04type\x12\x1b\n" +
 	"\tgame_name\x18\x05 \x01(\tR\bgameName\x12\x17\n" +
-	"\agame_id\x18\x06 \x01(\tR\x06gameId\"{\n" +
+	"\agame_id\x18\x06 \x01(\tR\x06gameId\x12\x19\n" +
+	"\bgame_key\x18\a \x01(\tR\agameKey\"{\n" +
 	"\x10AdjustBalanceRes\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x18\n" +

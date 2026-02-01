@@ -380,6 +380,7 @@ func (s *sBalance) transferToGame(ctx context.Context, req *v1.AdjustBalanceReq)
 			TradeNo:   tradeNo,
 			Money:     amount,
 			Status:    balanceConsts.StatusPending, // 1=待确认
+			Key:       req.GameKey,                 // 保存游戏key
 			Remark:    "中心账户 -> " + req.GameName,
 			CreatedAt: gtime.Now(),
 			UpdatedAt: gtime.Now(),
