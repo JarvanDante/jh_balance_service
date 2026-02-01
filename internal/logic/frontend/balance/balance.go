@@ -233,7 +233,7 @@ func (s *sBalance) RefreshBalance(ctx context.Context, req *v1.RefreshBalanceReq
 				g.Log().Errorf(ctx, "查询三方游戏余额失败: %v", err)
 				// 不影响主流程，继续返回本地余额
 			} else if gameBalanceRes != nil && gameBalanceRes.Success {
-				gameBalance = float64(gameBalanceRes.Balance)
+				gameBalance = gameBalanceRes.Balance
 				g.Log().Infof(ctx, "查询三方游戏余额成功: game_id=%d, balance=%.4f", lastGameRes.GameId, gameBalance)
 			} else {
 				g.Log().Warningf(ctx, "查询三方游戏余额失败: %s", gameBalanceRes.Message)
