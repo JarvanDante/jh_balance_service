@@ -23,6 +23,7 @@ type BalanceLogPayment struct {
 	BankValue          any         // 银行代码
 	TradeNo            any         // 流水号
 	Money              any         // 充值金额
+	ActualMoney        any         // 实际充值金额
 	Fee                any         // 手续费
 	Status             any         // 状态。1=未付；2=成功；3=失败
 	AdminId            any         // 后台管理员ID。默认为0

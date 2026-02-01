@@ -2117,18 +2117,33 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 			return err
 		}
 
-		// 6.1 更新充值记录状态
+		// 6.1 更新充值记录状态（balance_log表）
 		_, err = dao.BalanceLog.Ctx(ctx).TX(tx).
 			Where("trade_no", req.OrderSn).
 			Data(g.Map{
-				"status":       balanceConsts.StatusSuccess, // STATUS_SUCCESS
-				"actual_money": actualAmount,
-				"remark":       "异步确认在线支付",
-				"updated_at":   gtime.Now(),
+				"status":     balanceConsts.StatusSuccess, // STATUS_SUCCESS
+				"money":      actualAmount,                // 更新实际金额
+				"remark":     "异步确认在线支付",
+				"updated_at": gtime.Now(),
 			}).Update()
 
 		if err != nil {
 			g.Log().Errorf(ctx, "更新充值记录失败: order_sn=%s, err=%v", req.OrderSn, err)
+			return err
+		}
+
+		// 6.1.2 同时更新balance_log_payment表
+		_, err = dao.BalanceLogPayment.Ctx(ctx).TX(tx).
+			Where("trade_no", req.OrderSn).
+			Data(g.Map{
+				"status":     balanceConsts.StatusSuccess, // STATUS_SUCCESS
+				"money":      actualAmount,                // 更新实际金额
+				"remark":     "异步确认在线支付",
+				"updated_at": gtime.Now(),
+			}).Update()
+
+		if err != nil {
+			g.Log().Errorf(ctx, "更新充值支付记录失败: order_sn=%s, err=%v", req.OrderSn, err)
 			return err
 		}
 

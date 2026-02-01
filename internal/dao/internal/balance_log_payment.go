@@ -32,6 +32,7 @@ type BalanceLogPaymentColumns struct {
 	BankValue          string // 银行代码
 	TradeNo            string // 流水号
 	Money              string // 充值金额
+	ActualMoney        string // 实际充值金额
 	Fee                string // 手续费
 	Status             string // 状态。1=未付；2=成功；3=失败
 	AdminId            string // 后台管理员ID。默认为0
@@ -53,6 +54,7 @@ var balanceLogPaymentColumns = BalanceLogPaymentColumns{
 	BankValue:          "bank_value",
 	TradeNo:            "trade_no",
 	Money:              "money",
+	ActualMoney:        "actual_money",
 	Fee:                "fee",
 	Status:             "status",
 	AdminId:            "admin_id",

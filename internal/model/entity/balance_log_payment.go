@@ -21,6 +21,7 @@ type BalanceLogPayment struct {
 	BankValue          string      `json:"bankValue"          orm:"bank_value"           description:"银行代码"`
 	TradeNo            string      `json:"tradeNo"            orm:"trade_no"             description:"流水号"`
 	Money              float64     `json:"money"              orm:"money"                description:"充值金额"`
+	ActualMoney        float64     `json:"actualMoney"        orm:"actual_money"         description:"实际充值金额"`
 	Fee                float64     `json:"fee"                orm:"fee"                  description:"手续费"`
 	Status             int         `json:"status"             orm:"status"               description:"状态。1=未付；2=成功；3=失败"`
 	AdminId            int         `json:"adminId"            orm:"admin_id"             description:"后台管理员ID。默认为0"`

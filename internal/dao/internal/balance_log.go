@@ -21,40 +21,42 @@ type BalanceLogDao struct {
 
 // BalanceLogColumns defines and stores column names for the table balance_log.
 type BalanceLogColumns struct {
-	Id        string //
-	SiteId    string // 站点ID
-	UserId    string // 会员ID
-	TradeType string // 交易类型
-	Gateway   string // 支付相关：支付类型
-	BankType  string // 转账相关：银行类型
-	GameId    string // 游戏相关：游戏ID
-	TradeNo   string // 交易流水号
-	Money     string // 金额
-	Fee       string // 手续费
-	Status    string // 状态。0=待处理，1=处理中；2=成功；3=失败
-	AdminId   string // 后台员工ID
-	Remark    string // 备注
-	CreatedAt string //
-	UpdatedAt string //
+	Id          string //
+	SiteId      string // 站点ID
+	UserId      string // 会员ID
+	TradeType   string // 交易类型
+	Gateway     string // 支付相关：支付类型
+	BankType    string // 转账相关：银行类型
+	GameId      string // 游戏相关：游戏ID
+	TradeNo     string // 交易流水号
+	Money       string // 金额
+	ActualMoney string // 实际充值金额
+	Fee         string // 手续费
+	Status      string // 状态。0=待处理，1=处理中；2=成功；3=失败
+	AdminId     string // 后台员工ID
+	Remark      string // 备注
+	CreatedAt   string //
+	UpdatedAt   string //
 }
 
 // balanceLogColumns holds the columns for the table balance_log.
 var balanceLogColumns = BalanceLogColumns{
-	Id:        "id",
-	SiteId:    "site_id",
-	UserId:    "user_id",
-	TradeType: "trade_type",
-	Gateway:   "gateway",
-	BankType:  "bank_type",
-	GameId:    "game_id",
-	TradeNo:   "trade_no",
-	Money:     "money",
-	Fee:       "fee",
-	Status:    "status",
-	AdminId:   "admin_id",
-	Remark:    "remark",
-	CreatedAt: "created_at",
-	UpdatedAt: "updated_at",
+	Id:          "id",
+	SiteId:      "site_id",
+	UserId:      "user_id",
+	TradeType:   "trade_type",
+	Gateway:     "gateway",
+	BankType:    "bank_type",
+	GameId:      "game_id",
+	TradeNo:     "trade_no",
+	Money:       "money",
+	ActualMoney: "actual_money",
+	Fee:         "fee",
+	Status:      "status",
+	AdminId:     "admin_id",
+	Remark:      "remark",
+	CreatedAt:   "created_at",
+	UpdatedAt:   "updated_at",
 }
 
 // NewBalanceLogDao creates and returns a new DAO object for table data access.
