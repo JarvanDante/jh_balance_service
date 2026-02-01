@@ -639,12 +639,39 @@ func (s *sBalance) DealWithWithdraw(ctx context.Context, req *v1.DealWithWithdra
 			Update(g.Map{
 				"status":     newStatus,
 				"fee":        req.Fee,
-				"remark":     req.Remark,
+				"remark":     message,
 				"updated_at": time.Now(),
 			})
 		if err != nil {
 			return fmt.Errorf("更新提现记录失败: %v", err)
 		}
+
+		// 更新日志记录
+		_, err = dao.BalanceLog.Ctx(ctx).TX(tx).
+			Where("trade_no = ?", withdraw.TradeNo).
+			Update(g.Map{
+				"status":     newStatus,
+				"fee":        withdraw.Fee,
+				"remark":     message,
+				"updated_at": time.Now(),
+			})
+		if err != nil {
+			return fmt.Errorf("更新日志记录败: %v", err)
+		}
+
+		// 更新账变记录
+		_, err = dao.BalanceChange.Ctx(ctx).TX(tx).
+			Where("trade_no = ?", withdraw.TradeNo).
+			Update(g.Map{
+				"status":     newStatus,
+				"remark":     message,
+				"updated_at": time.Now(),
+			})
+		if err != nil {
+			return fmt.Errorf("更新日志记录败: %v", err)
+		}
+
+		//TODO 查询BalanceUser用户余额 成功：balance_frozen - withdraw.Money 失败：从冻结金额加回余额里
 
 		return nil
 	})
