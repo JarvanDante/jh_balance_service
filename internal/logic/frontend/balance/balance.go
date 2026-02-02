@@ -111,7 +111,7 @@ func (s *sBalance) InitBalanceUser(ctx context.Context, req *v1.InitBalanceUserR
 		BalanceFrozen: 0.00,
 		BalanceDebt:   0.00,
 		Points:        0,
-		BalanceStatus: 1, // 1=正常
+		BalanceStatus: balanceConsts.BalanceStatusNormal, // 正常
 		Currency:      req.Currency,
 		CreatedAt:     gtime.Now(),
 		UpdatedAt:     gtime.Now(),
@@ -970,11 +970,11 @@ func (s *sBalance) GetPaymentList(ctx context.Context, req *v1.GetPaymentListReq
 
 	g.Log().Infof(ctx, "查询支付渠道列表: site_id=%d", siteId)
 
-	// 查询status=1的支付渠道，按sort从大到小排序
+	// 查询启用状态的支付渠道，按sort从大到小排序
 	var payments []*entity.SitePayment
 	err := dao.SitePayment.Ctx(ctx).
 		Where("site_id", siteId).
-		Where("status", 1).
+		Where("status", balanceConsts.ChannelStatusEnabled).
 		OrderDesc("sort").
 		Scan(&payments)
 
@@ -1028,11 +1028,11 @@ func (s *sBalance) GetWithdrawList(ctx context.Context, req *v1.GetWithdrawListR
 
 	g.Log().Infof(ctx, "查询提现渠道列表: site_id=%d", siteId)
 
-	// 查询status=1的提现渠道，按sort从大到小排序
+	// 查询启用状态的提现渠道，按sort从大到小排序
 	var withdraws []*entity.SiteWithdraw
 	err := dao.SiteWithdraw.Ctx(ctx).
 		Where("site_id", siteId).
-		Where("status", 1).
+		Where("status", balanceConsts.ChannelStatusEnabled).
 		OrderDesc("sort").
 		Scan(&withdraws)
 
@@ -1988,7 +1988,7 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 	g.Log().Infof(ctx, "第1阶段-查找订单，总耗时: %.2fms", float64(duration1.Milliseconds()))
 
 	// 3. 检查订单状态
-	if paymentLog.Status == 2 { // STATUS_SUCCESS
+	if paymentLog.Status == balanceConsts.StatusSuccess {
 		g.Log().Warningf(ctx, "充值订单已完成: order_sn=%s, 当前状态为:存款成功", req.OrderSn)
 		return &v1.DepositCallbackRes{
 			Success: true,
@@ -1996,7 +1996,7 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 		}, nil
 	}
 
-	if paymentLog.Status == 3 { // STATUS_FAIL
+	if paymentLog.Status == balanceConsts.StatusFail {
 		g.Log().Warningf(ctx, "充值订单已失败: order_sn=%s", req.OrderSn)
 		return &v1.DepositCallbackRes{
 			Success: false,

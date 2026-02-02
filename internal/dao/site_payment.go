@@ -7,6 +7,7 @@ package dao
 import (
 	"context"
 	"github.com/gogf/gf/v2/database/gdb"
+	balanceConsts "jh_balance_service/internal/consts/backend/balance"
 	"jh_balance_service/internal/dao/internal"
 	"jh_balance_service/internal/model/entity"
 )
@@ -37,7 +38,7 @@ func (d sitePaymentDao) GetByPaymentId(ctx context.Context, siteId, paymentId in
 	err := d.Ctx(ctx).
 		Where("payment_id", paymentId).
 		Where("site_id", siteId).
-		Where("status", 1).
+		Where("status", balanceConsts.ChannelStatusEnabled).
 		Scan(&sitePayment)
 	return sitePayment, err
 }

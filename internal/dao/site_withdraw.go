@@ -6,6 +6,7 @@ package dao
 
 import (
 	"context"
+	balanceConsts "jh_balance_service/internal/consts/backend/balance"
 	"jh_balance_service/internal/dao/internal"
 	"jh_balance_service/internal/model/entity"
 
@@ -38,7 +39,7 @@ func (d siteWithdrawDao) GetByWithdrawId(ctx context.Context, siteId, withdrawId
 	err := d.Ctx(ctx).
 		Where("withdraw_id", withdrawId).
 		Where("site_id", siteId).
-		Where("status", 1).
+		Where("status", balanceConsts.ChannelStatusEnabled).
 		Scan(&siteWithdraw)
 	return siteWithdraw, err
 }

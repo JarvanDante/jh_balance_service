@@ -6,6 +6,7 @@ package dao
 
 import (
 	"context"
+	balanceConsts "jh_balance_service/internal/consts/backend/balance"
 	"jh_balance_service/internal/dao/internal"
 	"jh_balance_service/internal/model/entity"
 
@@ -53,7 +54,7 @@ func (d balanceLogPaymentDao) CreateDepositOrder(ctx context.Context, params *Cr
 		TradeNo:          params.TradeNo,
 		Money:            params.Money,
 		PaymentAccountId: int(params.PaymentAccountId),
-		Status:           0, // 待支付
+		Status:           balanceConsts.PaymentStatusUnpaid, // 未支付
 		CreatedAt:        gtime.Now(),
 		UpdatedAt:        gtime.Now(),
 	})

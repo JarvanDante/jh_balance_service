@@ -28,6 +28,24 @@ const (
 	StatusFail       = 4 // 失败
 )
 
+// 充值订单状态
+const (
+	PaymentStatusUnpaid = 0 // 未支付
+)
+
+// 渠道状态（支付渠道、提现渠道）
+const (
+	ChannelStatusDisabled = 0 // 禁用
+	ChannelStatusEnabled  = 1 // 启用
+)
+
+// 用户余额状态
+const (
+	BalanceStatusNormal  = 1 // 正常
+	BalanceStatusFrozen  = 2 // 冻结
+	BalanceStatusDisable = 3 // 禁用
+)
+
 // 交易类型名称映射
 var TradeTypeNames = map[int]string{
 	TradeTypeTransferIn:      "转入",
