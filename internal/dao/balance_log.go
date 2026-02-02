@@ -62,3 +62,29 @@ func (d balanceLogDao) CreateWithdrawLog(ctx context.Context, params *CreateWith
 	})
 	return err
 }
+
+// CreateDepositLogParams 创建充值日志参数
+type CreateDepositLogParams struct {
+	SiteId    int64
+	UserId    int64
+	TradeNo   string
+	Money     float64
+	Gateway   int64
+	TradeType int
+}
+
+// CreateDepositLog 创建充值日志
+func (d balanceLogDao) CreateDepositLog(ctx context.Context, params *CreateDepositLogParams) error {
+	_, err := d.Ctx(ctx).Insert(g.Map{
+		"site_id":    params.SiteId,
+		"user_id":    params.UserId,
+		"trade_type": params.TradeType,
+		"gateway":    params.Gateway,
+		"trade_no":   params.TradeNo,
+		"money":      params.Money,
+		"status":     balanceConsts.StatusPending, // 待支付
+		"created_at": gtime.Now(),
+		"updated_at": gtime.Now(),
+	})
+	return err
+}

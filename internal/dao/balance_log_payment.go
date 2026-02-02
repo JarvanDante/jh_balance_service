@@ -7,8 +7,11 @@ package dao
 import (
 	"context"
 	"jh_balance_service/internal/dao/internal"
+	"jh_balance_service/internal/model/entity"
 
 	"github.com/gogf/gf/v2/database/gdb"
+	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/os/gtime"
 )
 
 // balanceLogPaymentDao is the data access object for the table balance_log_payment.
@@ -30,3 +33,43 @@ func (d balanceLogPaymentDao) Ctx(ctx context.Context) *gdb.Model {
 }
 
 // Add your custom methods and functionality below.
+
+// CreateDepositOrderParams 创建充值订单参数
+type CreateDepositOrderParams struct {
+	SiteId           int64
+	UserId           int64
+	Username         string
+	TradeNo          string
+	Money            float64
+	PaymentAccountId int64
+}
+
+// CreateDepositOrder 创建充值订单记录
+func (d balanceLogPaymentDao) CreateDepositOrder(ctx context.Context, params *CreateDepositOrderParams) error {
+	_, err := d.Ctx(ctx).Insert(&entity.BalanceLogPayment{
+		SiteId:           int(params.SiteId),
+		UserId:           int(params.UserId),
+		Username:         params.Username,
+		TradeNo:          params.TradeNo,
+		Money:            params.Money,
+		PaymentAccountId: int(params.PaymentAccountId),
+		Status:           0, // 待支付
+		CreatedAt:        gtime.Now(),
+		UpdatedAt:        gtime.Now(),
+	})
+	return err
+}
+
+// UpdateDepositOrderInfo 更新充值订单信息
+func (d balanceLogPaymentDao) UpdateDepositOrderInfo(ctx context.Context, tradeNo, sysTradeNo, channelCardNo, channelName, imageUrl string) error {
+	_, err := d.Ctx(ctx).
+		Where("trade_no", tradeNo).
+		Update(g.Map{
+			"sys_trade_no":    sysTradeNo,
+			"channel_card_no": channelCardNo,
+			"channel_name":    channelName,
+			"image_url":       imageUrl,
+			"updated_at":      gtime.Now(),
+		})
+	return err
+}

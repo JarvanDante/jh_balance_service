@@ -19,6 +19,7 @@ import (
 	balanceConsts "jh_balance_service/internal/consts/backend/balance"
 	"jh_balance_service/internal/dao"
 	"jh_balance_service/internal/domain/common"
+	"jh_balance_service/internal/domain/deposit"
 	"jh_balance_service/internal/domain/withdraw"
 	"jh_balance_service/internal/grpc_client"
 	"jh_balance_service/internal/middleware"
@@ -1493,83 +1494,30 @@ func (s *sBalance) CreateDepositOrder(ctx context.Context, req *v1.CreateDeposit
 	g.Log().Infof(ctx, "CreateDepositOrder 开始: siteId=%d, userId=%d, username=%s, paymentId=%d, money=%.2f",
 		siteId, userId, username, req.PaymentId, req.Money)
 
-	// 3. 设置默认订单类型
-	if req.OrderType == "" {
-		req.OrderType = "deposit"
-	}
-
-	// 4. 查询支付渠道配置
-	var sitePayment *entity.SitePayment
-	err = dao.SitePayment.Ctx(ctx).
-		Where("payment_id", req.PaymentId).
-		Where("site_id", siteId).
-		Where("status", 1).
-		Scan(&sitePayment)
-
-	if err != nil {
-		g.Log().Errorf(ctx, "查询支付渠道失败: %v", err)
-		return nil, gerror.New("查询支付渠道失败")
-	}
-
-	if sitePayment == nil {
-		g.Log().Errorf(ctx, "支付渠道不存在: paymentId=%d", req.PaymentId)
-		return nil, gerror.New("支付渠道不存在或已关闭")
-	}
-
-	// 5. 验证金额限制
-	if sitePayment.EachMin > 0 && req.Money < sitePayment.EachMin {
-		return nil, gerror.Newf("最低充值金额为%.2f", sitePayment.EachMin)
-	}
-	if sitePayment.EachMax > 0 && req.Money > sitePayment.EachMax {
-		return nil, gerror.Newf("最高充值金额为%.2f", sitePayment.EachMax)
-	}
-
-	// 6. 生成交易流水号
-	tradeNo := util.GenerateTradeNo(ctx, balanceConsts.LOG_TYPE_PAYMENT)
-
-	g.Log().Infof(ctx, "生成交易流水号: %s", tradeNo)
-
-	// 7. 创建支付订单记录
-	_, err = dao.BalanceLogPayment.Ctx(ctx).Insert(&entity.BalanceLogPayment{
-		SiteId:           int(siteId),
-		UserId:           int(userId),
-		Username:         username,
-		TradeNo:          tradeNo,
-		Money:            req.Money,
-		PaymentAccountId: int(req.PaymentId),
-		Status:           0, // 待支付
-		CreatedAt:        gtime.Now(),
-		UpdatedAt:        gtime.Now(),
+	// 3. 调用 Domain 层创建充值订单
+	depositDomain := &deposit.DepositDomain{}
+	domainResult, err := depositDomain.CreateDepositOrder(ctx, &deposit.CreateDepositOrderRequest{
+		SiteId:       int64(siteId),
+		UserId:       int64(userId),
+		Username:     username,
+		PaymentId:    int64(req.PaymentId),
+		Money:        req.Money,
+		OrderType:    req.OrderType,
+		BankCode:     req.BankCode,
+		Mobile:       int64(req.Mobile),
+		UserCardNo:   req.UserCardNo,
+		UserCardName: req.UserCardName,
 	})
 
 	if err != nil {
-		g.Log().Errorf(ctx, "创建订单失败: %v", err)
-		return nil, gerror.New("创建订单失败")
+		g.Log().Errorf(ctx, "创建充值订单失败: %v", err)
+		return nil, err
 	}
 
-	// 7.1 创建支付日志订单记录
-	_, err = dao.BalanceLog.Ctx(ctx).Insert(&entity.BalanceLog{
-		SiteId:    int(siteId),
-		UserId:    int(userId),
-		TradeType: balanceConsts.LOG_TYPE_PAYMENT,
-		Gateway:   sitePayment.Gateway,
-		TradeNo:   tradeNo,
-		Money:     req.Money,
-		Status:    balanceConsts.StatusPending, // 待支付
-		CreatedAt: gtime.Now(),
-		UpdatedAt: gtime.Now(),
-	})
-
-	if err != nil {
-		g.Log().Errorf(ctx, "创建日志订单失败: %v", err)
-		return nil, gerror.New("创建日志订单失败")
-	}
-
-	// 9. 调用支付平台
-	// 导入支付工厂
-	payment := s.getPaymentPlatform(ctx, sitePayment.Code)
+	// 4. 调用支付平台
+	payment := s.getPaymentPlatform(ctx, domainResult.SitePayment.Code)
 	if payment == nil {
-		return nil, gerror.Newf("不支持的支付平台: %s", sitePayment.Code)
+		return nil, gerror.Newf("不支持的支付平台: %s", domainResult.SitePayment.Code)
 	}
 
 	// 构建订单参数
@@ -1578,16 +1526,16 @@ func (s *sBalance) CreateDepositOrder(ctx context.Context, req *v1.CreateDeposit
 		UserId:       int(userId),
 		Username:     username,
 		PaymentId:    int(req.PaymentId),
-		MerchantNo:   sitePayment.MerchantNo,
-		Md5Key:       sitePayment.Md5Key,
-		TradeNo:      tradeNo,
+		MerchantNo:   domainResult.SitePayment.MerchantNo,
+		Md5Key:       domainResult.SitePayment.Md5Key,
+		TradeNo:      domainResult.TradeNo,
 		Money:        req.Money,
 		OrderType:    req.OrderType,
 		BankCode:     req.BankCode,
 		Mobile:       int(req.Mobile),
 		UserCardNo:   req.UserCardNo,
 		UserCardName: req.UserCardName,
-		Gateway:      sitePayment.Gateway,
+		Gateway:      domainResult.SitePayment.Gateway,
 	}
 
 	result, err := s.createPaymentOrder(ctx, payment, orderParams)
@@ -1596,24 +1544,15 @@ func (s *sBalance) CreateDepositOrder(ctx context.Context, req *v1.CreateDeposit
 		return nil, err
 	}
 
-	// 10. 更新订单信息
-	_, err = dao.BalanceLogPayment.Ctx(ctx).
-		Where("trade_no", tradeNo).
-		Update(g.Map{
-			"sys_trade_no":    result.SysTradeNo,
-			"channel_card_no": result.ChannelCardNo,
-			"channel_name":    result.ChannelName,
-			"image_url":       result.ImageUrl,
-			"updated_at":      gtime.Now(),
-		})
-
+	// 5. 更新订单信息
+	err = depositDomain.UpdateDepositOrderInfo(ctx, domainResult.TradeNo, result.SysTradeNo, result.ChannelCardNo, result.ChannelName, result.ImageUrl)
 	if err != nil {
 		g.Log().Warningf(ctx, "更新订单信息失败: %v", err)
 	}
 
-	g.Log().Infof(ctx, "CreateDepositOrder 成功: tradeNo=%s, sysTradeNo=%s", tradeNo, result.SysTradeNo)
+	g.Log().Infof(ctx, "CreateDepositOrder 成功: tradeNo=%s, sysTradeNo=%s", domainResult.TradeNo, result.SysTradeNo)
 
-	// 11. 返回结果
+	// 6. 返回结果
 	return &v1.CreateDepositOrderRes{
 		OrderSn:       result.OrderSn,
 		SysTradeNo:    result.SysTradeNo,

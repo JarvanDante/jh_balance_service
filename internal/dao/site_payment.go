@@ -8,6 +8,7 @@ import (
 	"context"
 	"github.com/gogf/gf/v2/database/gdb"
 	"jh_balance_service/internal/dao/internal"
+	"jh_balance_service/internal/model/entity"
 )
 
 // sitePaymentDao is the data access object for the table site_payment.
@@ -29,3 +30,14 @@ func (d sitePaymentDao) Ctx(ctx context.Context) *gdb.Model {
 }
 
 // Add your custom methods and functionality below.
+
+// GetByPaymentId 根据支付渠道ID查询支付渠道配置
+func (d sitePaymentDao) GetByPaymentId(ctx context.Context, siteId, paymentId int64) (*entity.SitePayment, error) {
+	var sitePayment *entity.SitePayment
+	err := d.Ctx(ctx).
+		Where("payment_id", paymentId).
+		Where("site_id", siteId).
+		Where("status", 1).
+		Scan(&sitePayment)
+	return sitePayment, err
+}
