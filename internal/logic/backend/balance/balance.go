@@ -614,6 +614,30 @@ func (s *sBalance) DealWithWithdraw(ctx context.Context, req *v1.DealWithWithdra
 	var message string
 	// 开启事务处理 - 使用 Ctx(ctx) 保持动态数据库路由
 	err = dao.BalanceLogWithdraw.Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		// 先将订单状态改为 Processing（处理中），防止定时任务抢占处理权
+		// 使用 WHERE status = Pending 条件，确保只有待处理的订单才能被更新
+		result, txErr := dao.BalanceLogWithdraw.Ctx(ctx).TX(tx).
+			Where("id = ?", req.Id).
+			Where("status = ?", balanceConsts.StatusPending). // 再次确认状态为待处理
+			Update(g.Map{
+				"status":     balanceConsts.StatusProcessing,
+				"updated_at": time.Now(),
+			})
+		if txErr != nil {
+			return fmt.Errorf("更新订单为处理中状态失败: %v", txErr)
+		}
+
+		// 检查影响行数，如果为 0 说明订单已被其他请求处理
+		rowsAffected, txErr := result.RowsAffected()
+		if txErr != nil {
+			return fmt.Errorf("获取影响行数失败: %v", txErr)
+		}
+		if rowsAffected == 0 {
+			return fmt.Errorf("订单已被其他请求处理，请勿重复操作")
+		}
+
+		g.Log().Infof(ctx, "提现订单开始处理: id=%d, trade_no=%s, status=Processing", req.Id, withdraw.TradeNo)
+
 		var newStatus int
 
 		switch req.Type {
@@ -635,16 +659,16 @@ func (s *sBalance) DealWithWithdraw(ctx context.Context, req *v1.DealWithWithdra
 
 		//用户余额
 		var balanceUser entity.BalanceUser
-		err = dao.BalanceUser.Ctx(ctx).
+		txErr = dao.BalanceUser.Ctx(ctx).
 			Where("site_id = ?", withdraw.SiteId).
 			Where("user_id = ?", withdraw.UserId).
 			Scan(&balanceUser)
-		if err != nil {
+		if txErr != nil {
 			return fmt.Errorf("查找用户余额记录失败")
 		}
 
 		// 更新提现记录
-		_, err := dao.BalanceLogWithdraw.Ctx(ctx).TX(tx).
+		_, txErr = dao.BalanceLogWithdraw.Ctx(ctx).TX(tx).
 			Where("id = ?", req.Id).
 			Update(g.Map{
 				"status":     newStatus,
@@ -652,12 +676,12 @@ func (s *sBalance) DealWithWithdraw(ctx context.Context, req *v1.DealWithWithdra
 				"remark":     message,
 				"updated_at": time.Now(),
 			})
-		if err != nil {
-			return fmt.Errorf("更新提现记录失败: %v", err)
+		if txErr != nil {
+			return fmt.Errorf("更新提现记录失败: %v", txErr)
 		}
 
 		// 更新日志记录
-		_, err = dao.BalanceLog.Ctx(ctx).TX(tx).
+		_, txErr = dao.BalanceLog.Ctx(ctx).TX(tx).
 			Where("trade_no = ?", withdraw.TradeNo).
 			Update(g.Map{
 				"status":     newStatus,
@@ -665,8 +689,8 @@ func (s *sBalance) DealWithWithdraw(ctx context.Context, req *v1.DealWithWithdra
 				"remark":     message,
 				"updated_at": time.Now(),
 			})
-		if err != nil {
-			return fmt.Errorf("更新日志记录败: %v", err)
+		if txErr != nil {
+			return fmt.Errorf("更新日志记录败: %v", txErr)
 		}
 
 		// 更新用户余额：成功时减少冻结金额，失败时从冻结金额加回到可用余额
@@ -677,7 +701,7 @@ func (s *sBalance) DealWithWithdraw(ctx context.Context, req *v1.DealWithWithdra
 			newBalanceFrozen := balanceUser.BalanceFrozen - withdraw.Money
 
 			// 更新账变记录
-			_, err = dao.BalanceChange.Ctx(ctx).TX(tx).
+			_, txErr = dao.BalanceChange.Ctx(ctx).TX(tx).
 				Where("trade_no = ?", withdraw.TradeNo).
 				Update(g.Map{
 					"trade_type":     balanceConsts.TradeTypeWithdrawSuccess, // 提现成功
@@ -687,19 +711,19 @@ func (s *sBalance) DealWithWithdraw(ctx context.Context, req *v1.DealWithWithdra
 					"balance_new":    newBalance,
 					"balance_frozen": newBalanceFrozen,
 				})
-			if err != nil {
-				return fmt.Errorf("更新账变记录败: %v", err)
+			if txErr != nil {
+				return fmt.Errorf("更新账变记录败: %v", txErr)
 			}
 
 			// 提现成功：减少冻结金额
-			_, err = dao.BalanceUser.Ctx(ctx).TX(tx).
+			_, txErr = dao.BalanceUser.Ctx(ctx).TX(tx).
 				Where("site_id = ?", withdraw.SiteId).
 				Where("user_id = ?", withdraw.UserId).
 				Update(g.Map{
 					"balance_frozen": newBalanceFrozen,
 				})
-			if err != nil {
-				return fmt.Errorf("减少冻结金额失败: %v", err)
+			if txErr != nil {
+				return fmt.Errorf("减少冻结金额失败: %v", txErr)
 			}
 			g.Log().Infof(ctx, "提现成功，减少用户冻结金额: user_id=%d, amount=%.2f", withdraw.UserId, withdraw.Money)
 		} else if newStatus == balanceConsts.StatusFail {
@@ -707,7 +731,7 @@ func (s *sBalance) DealWithWithdraw(ctx context.Context, req *v1.DealWithWithdra
 			newBalance := balanceUser.Balance + withdraw.Money
 			newBalanceFrozen := balanceUser.BalanceFrozen - withdraw.Money
 			// 更新账变记录
-			_, err = dao.BalanceChange.Ctx(ctx).TX(tx).
+			_, txErr = dao.BalanceChange.Ctx(ctx).TX(tx).
 				Where("trade_no = ?", withdraw.TradeNo).
 				Update(g.Map{
 					"trade_type":     balanceConsts.TradeTypeWithdrawRefuse, // 提现返回
@@ -717,20 +741,20 @@ func (s *sBalance) DealWithWithdraw(ctx context.Context, req *v1.DealWithWithdra
 					"balance_new":    newBalance,
 					"balance_frozen": newBalanceFrozen,
 				})
-			if err != nil {
-				return fmt.Errorf("更新账变记录败: %v", err)
+			if txErr != nil {
+				return fmt.Errorf("更新账变记录败: %v", txErr)
 			}
 
 			// 提现失败：从冻结金额转回可用余额
-			_, err = dao.BalanceUser.Ctx(ctx).TX(tx).
+			_, txErr = dao.BalanceUser.Ctx(ctx).TX(tx).
 				Where("site_id = ?", withdraw.SiteId).
 				Where("user_id = ?", withdraw.UserId).
 				Update(g.Map{
 					"balance":        newBalance,
 					"balance_frozen": newBalanceFrozen,
 				})
-			if err != nil {
-				return fmt.Errorf("解冻余额失败: %v", err)
+			if txErr != nil {
+				return fmt.Errorf("解冻余额失败: %v", txErr)
 			}
 			g.Log().Infof(ctx, "提现失败，解冻用户余额: user_id=%d, amount=%.2f", withdraw.UserId, withdraw.Money)
 		}
