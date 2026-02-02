@@ -22,7 +22,7 @@ type BalanceLogWithdraw struct {
 	CardAccount string      `json:"cardAccount" orm:"card_account"  description:"银行户名"`
 	CardNo      string      `json:"cardNo"      orm:"card_no"       description:"卡号"`
 	DepositBank string      `json:"depositBank" orm:"deposit_bank"  description:"开户行"`
-	Status      int         `json:"status"      orm:"status"        description:"状态. 1=待审核；2=成功；3=失败"`
+	Status      int         `json:"status"      orm:"status"        description:"状态0=初始化，1=待处理；2=处理中；3=成功；4=失败"`
 	AdminId     int         `json:"adminId"     orm:"admin_id"      description:"后台用户ID"`
 	Remark      string      `json:"remark"      orm:"remark"        description:"备注"`
 	CreatedAt   *gtime.Time `json:"createdAt"   orm:"created_at"    description:""`

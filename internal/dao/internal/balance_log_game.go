@@ -28,7 +28,7 @@ type BalanceLogGameColumns struct {
 	InOrOut           string // 转入还是转出；0=转出；1=转入
 	TradeNo           string //
 	Money             string // 操作金额
-	Status            string // 状态. 1=待确认，2=成功，3=失败
+	Status            string // 状态0=初始化，1=待处理；2=处理中；3=成功；4=失败
 	Remark            string // 备注
 	ThirdPartyTradeNo string // 第三方订单号
 	Key               string // 第三方游戏key

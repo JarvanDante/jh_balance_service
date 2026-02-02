@@ -32,7 +32,7 @@ type BalanceLogTransferColumns struct {
 	ThirdTradeNo       string // 第三方订单号
 	Money              string // 充值金额
 	Fee                string // 手续费
-	Status             string // 状态. 1=待审核；2=成功；3=失败
+	Status             string // 状态0=初始化，1=待处理；2=处理中；3=成功；4=失败
 	TransferAccount    string // 汇款账户名
 	Code               string // 随机码。其实就是会员用户名
 	AdminId            string // 操作人id

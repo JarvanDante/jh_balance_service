@@ -20,7 +20,7 @@ type BalanceChange struct {
 	Money         float64     `json:"money"         orm:"money"          description:"变动金额"`
 	BalanceNew    float64     `json:"balanceNew"    orm:"balance_new"    description:"新的可用余额"`
 	BalanceFrozen float64     `json:"balanceFrozen" orm:"balance_frozen" description:"新的冻结余额"`
-	Status        int         `json:"status"        orm:"status"         description:"账变状态。1=待审核；2=成功；3=失败"`
+	Status        int         `json:"status"        orm:"status"         description:"账变状态0=初始化，1=待处理；2=处理中；3=成功；4=失败"`
 	Remark        string      `json:"remark"        orm:"remark"         description:""`
 	CreatedAt     *gtime.Time `json:"createdAt"     orm:"created_at"     description:""`
 	UpdatedAt     *gtime.Time `json:"updatedAt"     orm:"updated_at"     description:""`

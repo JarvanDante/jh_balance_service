@@ -19,7 +19,7 @@ type BalanceLogRebate struct {
 	ValidBetAmount float64     `json:"validBetAmount" orm:"valid_bet_amount" description:"有效投注总金额"`
 	Money          float64     `json:"money"          orm:"money"            description:"返水金额"`
 	Fee            float64     `json:"fee"            orm:"fee"              description:"手续费"`
-	Status         int         `json:"status"         orm:"status"           description:"状态。0=未确认；1=已确认"`
+	Status         int         `json:"status"         orm:"status"           description:"状态0=初始化，1=待处理；2=处理中；3=成功；4=失败"`
 	AdminId        int         `json:"adminId"        orm:"admin_id"         description:"后台管理员ID"`
 	CreatedAt      *gtime.Time `json:"createdAt"      orm:"created_at"       description:""`
 	UpdatedAt      *gtime.Time `json:"updatedAt"      orm:"updated_at"       description:""`

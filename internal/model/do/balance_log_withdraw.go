@@ -24,7 +24,7 @@ type BalanceLogWithdraw struct {
 	CardAccount any         // 银行户名
 	CardNo      any         // 卡号
 	DepositBank any         // 开户行
-	Status      any         // 状态. 1=待审核；2=成功；3=失败
+	Status      any         // 状态0=初始化，1=待处理；2=处理中；3=成功；4=失败
 	AdminId     any         // 后台用户ID
 	Remark      any         // 备注
 	CreatedAt   *gtime.Time //

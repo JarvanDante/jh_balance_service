@@ -31,7 +31,7 @@ type BalanceChangeColumns struct {
 	Money         string // 变动金额
 	BalanceNew    string // 新的可用余额
 	BalanceFrozen string // 新的冻结余额
-	Status        string // 账变状态。1=待审核；2=成功；3=失败
+	Status        string // 账变状态0=初始化，1=待处理；2=处理中；3=成功；4=失败
 	Remark        string //
 	CreatedAt     string //
 	UpdatedAt     string //

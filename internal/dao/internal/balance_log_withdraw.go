@@ -33,7 +33,7 @@ type BalanceLogWithdrawColumns struct {
 	CardAccount string // 银行户名
 	CardNo      string // 卡号
 	DepositBank string // 开户行
-	Status      string // 状态. 1=待审核；2=成功；3=失败
+	Status      string // 状态0=初始化，1=待处理；2=处理中；3=成功；4=失败
 	AdminId     string // 后台用户ID
 	Remark      string // 备注
 	CreatedAt   string //

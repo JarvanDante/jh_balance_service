@@ -19,7 +19,7 @@ type BalanceLogGame struct {
 	InOrOut           any         // 转入还是转出；0=转出；1=转入
 	TradeNo           any         //
 	Money             any         // 操作金额
-	Status            any         // 状态. 1=待确认，2=成功，3=失败
+	Status            any         // 状态0=初始化，1=待处理；2=处理中；3=成功；4=失败
 	Remark            any         // 备注
 	ThirdPartyTradeNo any         // 第三方订单号
 	Key               any         // 第三方游戏key

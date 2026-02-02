@@ -31,7 +31,7 @@ type BalanceLogManualColumns struct {
 	Money      string // 金额
 	Fee        string // 手续费
 	WaterTimes string // 流水倍数
-	Status     string // 状态. 1=待审核；2=成功；3=失败
+	Status     string // 状态0=初始化，1=待处理；2=处理中；3=成功；4=失败
 	AdminId    string // 后台管理员ID
 	Remark     string // 备注
 	CreatedAt  string //

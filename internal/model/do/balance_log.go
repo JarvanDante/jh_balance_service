@@ -23,7 +23,7 @@ type BalanceLog struct {
 	Money       any         // 金额
 	ActualMoney any         // 实际充值金额
 	Fee         any         // 手续费
-	Status      any         // 状态。0=待处理，1=处理中；2=成功；3=失败
+	Status      any         // 状态0=初始化，1=待处理；2=处理中；3=成功；4=失败
 	AdminId     any         // 后台员工ID
 	Remark      any         // 备注
 	CreatedAt   *gtime.Time //

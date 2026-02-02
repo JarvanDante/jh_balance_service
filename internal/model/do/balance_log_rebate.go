@@ -21,7 +21,7 @@ type BalanceLogRebate struct {
 	ValidBetAmount any         // 有效投注总金额
 	Money          any         // 返水金额
 	Fee            any         // 手续费
-	Status         any         // 状态。0=未确认；1=已确认
+	Status         any         // 状态0=初始化，1=待处理；2=处理中；3=成功；4=失败
 	AdminId        any         // 后台管理员ID
 	CreatedAt      *gtime.Time //
 	UpdatedAt      *gtime.Time //

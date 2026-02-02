@@ -22,7 +22,7 @@ type BalanceLogManual struct {
 	Money      any         // 金额
 	Fee        any         // 手续费
 	WaterTimes any         // 流水倍数
-	Status     any         // 状态. 1=待审核；2=成功；3=失败
+	Status     any         // 状态0=初始化，1=待处理；2=处理中；3=成功；4=失败
 	AdminId    any         // 后台管理员ID
 	Remark     any         // 备注
 	CreatedAt  *gtime.Time //

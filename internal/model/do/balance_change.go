@@ -22,7 +22,7 @@ type BalanceChange struct {
 	Money         any         // 变动金额
 	BalanceNew    any         // 新的可用余额
 	BalanceFrozen any         // 新的冻结余额
-	Status        any         // 账变状态。1=待审核；2=成功；3=失败
+	Status        any         // 账变状态0=初始化，1=待处理；2=处理中；3=成功；4=失败
 	Remark        any         //
 	CreatedAt     *gtime.Time //
 	UpdatedAt     *gtime.Time //

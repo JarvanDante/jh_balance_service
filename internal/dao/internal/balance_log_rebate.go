@@ -30,7 +30,7 @@ type BalanceLogRebateColumns struct {
 	ValidBetAmount string // 有效投注总金额
 	Money          string // 返水金额
 	Fee            string // 手续费
-	Status         string // 状态。0=未确认；1=已确认
+	Status         string // 状态0=初始化，1=待处理；2=处理中；3=成功；4=失败
 	AdminId        string // 后台管理员ID
 	CreatedAt      string //
 	UpdatedAt      string //

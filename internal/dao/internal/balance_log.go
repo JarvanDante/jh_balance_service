@@ -32,7 +32,7 @@ type BalanceLogColumns struct {
 	Money       string // 金额
 	ActualMoney string // 实际充值金额
 	Fee         string // 手续费
-	Status      string // 状态。0=待处理，1=处理中；2=成功；3=失败
+	Status      string // 状态0=初始化，1=待处理；2=处理中；3=成功；4=失败
 	AdminId     string // 后台员工ID
 	Remark      string // 备注
 	CreatedAt   string //

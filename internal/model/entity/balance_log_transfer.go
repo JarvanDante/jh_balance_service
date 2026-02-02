@@ -21,7 +21,7 @@ type BalanceLogTransfer struct {
 	ThirdTradeNo       string      `json:"thirdTradeNo"       orm:"third_trade_no"       description:"第三方订单号"`
 	Money              float64     `json:"money"              orm:"money"                description:"充值金额"`
 	Fee                float64     `json:"fee"                orm:"fee"                  description:"手续费"`
-	Status             int         `json:"status"             orm:"status"               description:"状态. 1=待审核；2=成功；3=失败"`
+	Status             int         `json:"status"             orm:"status"               description:"状态0=初始化，1=待处理；2=处理中；3=成功；4=失败"`
 	TransferAccount    string      `json:"transferAccount"    orm:"transfer_account"     description:"汇款账户名"`
 	Code               string      `json:"code"               orm:"code"                 description:"随机码。其实就是会员用户名"`
 	AdminId            int         `json:"adminId"            orm:"admin_id"             description:"操作人id"`

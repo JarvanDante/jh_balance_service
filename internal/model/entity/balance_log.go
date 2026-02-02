@@ -21,7 +21,7 @@ type BalanceLog struct {
 	Money       float64     `json:"money"       orm:"money"        description:"金额"`
 	ActualMoney float64     `json:"actualMoney" orm:"actual_money" description:"实际充值金额"`
 	Fee         float64     `json:"fee"         orm:"fee"          description:"手续费"`
-	Status      int         `json:"status"      orm:"status"       description:"状态。0=待处理，1=处理中；2=成功；3=失败"`
+	Status      int         `json:"status"      orm:"status"       description:"状态0=初始化，1=待处理；2=处理中；3=成功；4=失败"`
 	AdminId     int         `json:"adminId"     orm:"admin_id"     description:"后台员工ID"`
 	Remark      string      `json:"remark"      orm:"remark"       description:"备注"`
 	CreatedAt   *gtime.Time `json:"createdAt"   orm:"created_at"   description:""`

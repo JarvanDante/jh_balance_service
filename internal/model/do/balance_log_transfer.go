@@ -23,7 +23,7 @@ type BalanceLogTransfer struct {
 	ThirdTradeNo       any         // 第三方订单号
 	Money              any         // 充值金额
 	Fee                any         // 手续费
-	Status             any         // 状态. 1=待审核；2=成功；3=失败
+	Status             any         // 状态0=初始化，1=待处理；2=处理中；3=成功；4=失败
 	TransferAccount    any         // 汇款账户名
 	Code               any         // 随机码。其实就是会员用户名
 	AdminId            any         // 操作人id
