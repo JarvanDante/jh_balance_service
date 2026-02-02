@@ -2098,7 +2098,6 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 			Where("trade_no", req.OrderSn).
 			Data(g.Map{
 				"status":       balanceConsts.StatusSuccess, // STATUS_SUCCESS
-				"money":        actualAmount,                // 更新金额
 				"actual_money": actualAmount,                // 更新实际金额
 				"remark":       "异步确认在线支付",
 				"updated_at":   gtime.Now(),
@@ -2114,7 +2113,6 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 			Where("trade_no", req.OrderSn).
 			Data(g.Map{
 				"status":       balanceConsts.StatusSuccess, // STATUS_SUCCESS
-				"money":        actualAmount,                // 更新金额
 				"actual_money": actualAmount,                // 更新实际金额
 				"remark":       "异步确认在线支付",
 				"updated_at":   gtime.Now(),
