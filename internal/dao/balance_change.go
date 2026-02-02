@@ -65,3 +65,18 @@ func (d balanceChangeDao) CreateWithdrawChange(ctx context.Context, params *Crea
 	})
 	return err
 }
+
+// UpdateByTradeNoWithTx 根据交易号更新账变记录（支持事务）
+func (d balanceChangeDao) UpdateByTradeNoWithTx(ctx context.Context, tx gdb.TX, tradeNo string, tradeType, status int, remark string, balanceNew, balanceFrozen float64) error {
+	_, err := d.Ctx(ctx).TX(tx).
+		Where("trade_no = ?", tradeNo).
+		Update(g.Map{
+			"trade_type":     tradeType,
+			"status":         status,
+			"remark":         remark,
+			"balance_new":    balanceNew,
+			"balance_frozen": balanceFrozen,
+			"updated_at":     gtime.Now(),
+		})
+	return err
+}

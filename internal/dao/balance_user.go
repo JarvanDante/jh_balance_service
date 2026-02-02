@@ -46,6 +46,19 @@ func (d balanceUserDao) GetByUserIdWithLock(ctx context.Context, siteId, userId 
 	return balanceUser, err
 }
 
+// GetByUserIdWithTx 根据用户ID查询余额（支持事务）
+func (d balanceUserDao) GetByUserIdWithTx(ctx context.Context, tx gdb.TX, siteId, userId int64) (*entity.BalanceUser, error) {
+	var balanceUser entity.BalanceUser
+	err := d.Ctx(ctx).TX(tx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Scan(&balanceUser)
+	if err != nil {
+		return nil, err
+	}
+	return &balanceUser, nil
+}
+
 // FreezeBalance 冻结余额（从 balance 转到 balance_frozen）
 func (d balanceUserDao) FreezeBalance(ctx context.Context, siteId, userId int64, amount float64) error {
 	_, err := d.Ctx(ctx).
@@ -89,4 +102,29 @@ func (d balanceUserDao) Transaction(ctx context.Context, fn func(ctx context.Con
 	return d.Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
 		return fn(ctx)
 	})
+}
+
+// UpdateBalanceWithTx 更新用户余额（支持事务）
+func (d balanceUserDao) UpdateBalanceWithTx(ctx context.Context, tx gdb.TX, siteId, userId int64, balance, balanceFrozen float64) error {
+	_, err := d.Ctx(ctx).TX(tx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Update(g.Map{
+			"balance":        balance,
+			"balance_frozen": balanceFrozen,
+			"updated_at":     gtime.Now(),
+		})
+	return err
+}
+
+// UpdateFrozenBalanceWithTx 更新冻结余额（支持事务）
+func (d balanceUserDao) UpdateFrozenBalanceWithTx(ctx context.Context, tx gdb.TX, siteId, userId int64, balanceFrozen float64) error {
+	_, err := d.Ctx(ctx).TX(tx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Update(g.Map{
+			"balance_frozen": balanceFrozen,
+			"updated_at":     gtime.Now(),
+		})
+	return err
 }

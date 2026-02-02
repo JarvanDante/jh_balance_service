@@ -53,6 +53,38 @@ func (*Controller) GetWithdrawReview(ctx context.Context, req *v1.GetWithdrawRev
 
 // DealWithWithdraw 处理提现
 func (*Controller) DealWithWithdraw(ctx context.Context, req *v1.DealWithWithdrawReq) (res *v1.DealWithWithdrawRes, err error) {
+	// 参数验证
+	if req == nil {
+		return &v1.DealWithWithdrawRes{
+			Success: false,
+			Message: "请求参数不能为空",
+		}, nil
+	}
+
+	// 验证提现ID
+	if req.Id <= 0 {
+		return &v1.DealWithWithdrawRes{
+			Success: false,
+			Message: "提现ID无效",
+		}, nil
+	}
+
+	// 验证审核类型（0=拒绝, 1=通过, 2=补单）
+	if req.Type < 0 || req.Type > 2 {
+		return &v1.DealWithWithdrawRes{
+			Success: false,
+			Message: "审核类型无效",
+		}, nil
+	}
+
+	// 验证手续费
+	if req.Fee < 0 {
+		return &v1.DealWithWithdrawRes{
+			Success: false,
+			Message: "手续费不能为负数",
+		}, nil
+	}
+
 	return backend.Balance().DealWithWithdraw(ctx, req)
 }
 

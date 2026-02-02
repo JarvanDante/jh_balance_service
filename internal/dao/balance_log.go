@@ -88,3 +88,16 @@ func (d balanceLogDao) CreateDepositLog(ctx context.Context, params *CreateDepos
 	})
 	return err
 }
+
+// UpdateByTradeNoWithTx 根据交易号更新日志记录（支持事务）
+func (d balanceLogDao) UpdateByTradeNoWithTx(ctx context.Context, tx gdb.TX, tradeNo string, status int, fee float64, remark string) error {
+	_, err := d.Ctx(ctx).TX(tx).
+		Where("trade_no = ?", tradeNo).
+		Update(g.Map{
+			"status":     status,
+			"fee":        fee,
+			"remark":     remark,
+			"updated_at": gtime.Now(),
+		})
+	return err
+}

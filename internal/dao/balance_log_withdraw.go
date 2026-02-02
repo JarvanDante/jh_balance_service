@@ -80,3 +80,16 @@ func (d balanceLogWithdrawDao) HasPendingOrder(ctx context.Context, siteId, user
 	}
 	return count > 0, nil
 }
+
+// UpdateStatusWithTx 更新提现记录状态（支持事务）
+func (d balanceLogWithdrawDao) UpdateStatusWithTx(ctx context.Context, tx gdb.TX, withdrawId int64, status int, fee float64, remark string) error {
+	_, err := d.Ctx(ctx).TX(tx).
+		Where("id = ?", withdrawId).
+		Update(g.Map{
+			"status":     status,
+			"fee":        fee,
+			"remark":     remark,
+			"updated_at": gtime.Now(),
+		})
+	return err
+}
