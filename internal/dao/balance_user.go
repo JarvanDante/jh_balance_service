@@ -6,9 +6,13 @@ package dao
 
 import (
 	"context"
+	"fmt"
 	"jh_balance_service/internal/dao/internal"
+	"jh_balance_service/internal/model/entity"
 
 	"github.com/gogf/gf/v2/database/gdb"
+	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/os/gtime"
 )
 
 // balanceUserDao is the data access object for the table balance_user.
@@ -30,3 +34,59 @@ func (d balanceUserDao) Ctx(ctx context.Context) *gdb.Model {
 }
 
 // Add your custom methods and functionality below.
+
+// GetByUserIdWithLock 根据用户ID查询余额（加锁）
+func (d balanceUserDao) GetByUserIdWithLock(ctx context.Context, siteId, userId int64) (*entity.BalanceUser, error) {
+	var balanceUser *entity.BalanceUser
+	err := d.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		LockUpdate().
+		Scan(&balanceUser)
+	return balanceUser, err
+}
+
+// FreezeBalance 冻结余额（从 balance 转到 balance_frozen）
+func (d balanceUserDao) FreezeBalance(ctx context.Context, siteId, userId int64, amount float64) error {
+	_, err := d.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Update(g.Map{
+			"balance":        gdb.Raw(fmt.Sprintf("balance - %.4f", amount)),
+			"balance_frozen": gdb.Raw(fmt.Sprintf("balance_frozen + %.4f", amount)),
+			"updated_at":     gtime.Now(),
+		})
+	return err
+}
+
+// UnfreezeBalance 解冻余额（从 balance_frozen 转回 balance）
+func (d balanceUserDao) UnfreezeBalance(ctx context.Context, siteId, userId int64, amount float64) error {
+	_, err := d.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Update(g.Map{
+			"balance":        gdb.Raw(fmt.Sprintf("balance + %.4f", amount)),
+			"balance_frozen": gdb.Raw(fmt.Sprintf("balance_frozen - %.4f", amount)),
+			"updated_at":     gtime.Now(),
+		})
+	return err
+}
+
+// DeductFrozen 扣除冻结金额（提现成功时）
+func (d balanceUserDao) DeductFrozen(ctx context.Context, siteId, userId int64, amount float64) error {
+	_, err := d.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Update(g.Map{
+			"balance_frozen": gdb.Raw(fmt.Sprintf("balance_frozen - %.4f", amount)),
+			"updated_at":     gtime.Now(),
+		})
+	return err
+}
+
+// Transaction 事务包装器
+func (d balanceUserDao) Transaction(ctx context.Context, fn func(ctx context.Context) error) error {
+	return d.Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		return fn(ctx)
+	})
+}

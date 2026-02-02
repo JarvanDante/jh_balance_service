@@ -7,6 +7,7 @@ package dao
 import (
 	"context"
 	"jh_balance_service/internal/dao/internal"
+	"jh_balance_service/internal/model/entity"
 
 	"github.com/gogf/gf/v2/database/gdb"
 )
@@ -30,3 +31,14 @@ func (d userBankDao) Ctx(ctx context.Context) *gdb.Model {
 }
 
 // Add your custom methods and functionality below.
+
+// GetDefaultBankCard 获取用户默认银行卡
+func (d userBankDao) GetDefaultBankCard(ctx context.Context, siteId, userId int64) (*entity.UserBank, error) {
+	var userBank *entity.UserBank
+	err := d.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Where("is_default", 1).
+		Scan(&userBank)
+	return userBank, err
+}

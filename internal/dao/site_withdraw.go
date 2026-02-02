@@ -7,6 +7,7 @@ package dao
 import (
 	"context"
 	"jh_balance_service/internal/dao/internal"
+	"jh_balance_service/internal/model/entity"
 
 	"github.com/gogf/gf/v2/database/gdb"
 )
@@ -30,3 +31,14 @@ func (d siteWithdrawDao) Ctx(ctx context.Context) *gdb.Model {
 }
 
 // Add your custom methods and functionality below.
+
+// GetByWithdrawId 根据提现渠道ID查询
+func (d siteWithdrawDao) GetByWithdrawId(ctx context.Context, siteId, withdrawId int64) (*entity.SiteWithdraw, error) {
+	var siteWithdraw *entity.SiteWithdraw
+	err := d.Ctx(ctx).
+		Where("withdraw_id", withdrawId).
+		Where("site_id", siteId).
+		Where("status", 1).
+		Scan(&siteWithdraw)
+	return siteWithdraw, err
+}

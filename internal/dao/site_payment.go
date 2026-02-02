@@ -6,9 +6,8 @@ package dao
 
 import (
 	"context"
-	"jh_balance_service/internal/dao/internal"
-
 	"github.com/gogf/gf/v2/database/gdb"
+	"jh_balance_service/internal/dao/internal"
 )
 
 // sitePaymentDao is the data access object for the table site_payment.

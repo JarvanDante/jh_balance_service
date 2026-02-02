@@ -9,6 +9,9 @@ import (
 	"jh_balance_service/internal/dao/internal"
 
 	"github.com/gogf/gf/v2/database/gdb"
+	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/os/gtime"
+	balanceConsts "jh_balance_service/internal/consts/backend/balance"
 )
 
 // balanceLogDao is the data access object for the table balance_log.
@@ -34,4 +37,28 @@ func (d balanceLogDao) Ctx(ctx context.Context) *gdb.Model {
 func (d balanceLogDao) Test(ctx context.Context, i int) int {
 	d.Ctx(ctx)
 	return i + 1
+}
+
+// CreateWithdrawLogParams 创建提现日志参数
+type CreateWithdrawLogParams struct {
+	SiteId  int64
+	UserId  int64
+	TradeNo string
+	Money   float64
+}
+
+// CreateWithdrawLog 创建提现日志
+func (d balanceLogDao) CreateWithdrawLog(ctx context.Context, params *CreateWithdrawLogParams) error {
+	_, err := d.Ctx(ctx).Insert(g.Map{
+		"site_id":    params.SiteId,
+		"user_id":    params.UserId,
+		"trade_type": balanceConsts.LOG_TYPE_WITHDRAW,
+		"trade_no":   params.TradeNo,
+		"money":      params.Money,
+		"status":     balanceConsts.StatusPending,
+		"remark":     "提现审核中",
+		"created_at": gtime.Now(),
+		"updated_at": gtime.Now(),
+	})
+	return err
 }

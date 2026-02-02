@@ -18,6 +18,7 @@ import (
 	gamev1 "jh_balance_service/api/grpc/game/v1"
 	balanceConsts "jh_balance_service/internal/consts/backend/balance"
 	"jh_balance_service/internal/dao"
+	"jh_balance_service/internal/domain/withdraw"
 	"jh_balance_service/internal/grpc_client"
 	"jh_balance_service/internal/middleware"
 	"jh_balance_service/internal/model/entity"
@@ -2362,17 +2363,7 @@ func (s *sBalance) Withdraw(ctx context.Context, req *v1.WithdrawReq) (*v1.Withd
 	g.Log().Infof(ctx, "nonce 验证成功并已删除")
 	//==========防重放先注释====================
 
-	g.Log().Infof(ctx, "申请提现: site_id=%d, user_id=%d, money=%.2f, withdraw_id=%d",
-		siteId, userId, req.Money, req.WithdrawId)
-
-	// 2. 参数验证
-	if req.Money <= 0 {
-		return &v1.WithdrawRes{
-			Success: false,
-			Message: "提现金额必须大于0",
-		}, nil
-	}
-
+	// 3. 参数验证
 	if req.WithdrawId <= 0 {
 		return &v1.WithdrawRes{
 			Success: false,
@@ -2380,222 +2371,28 @@ func (s *sBalance) Withdraw(ctx context.Context, req *v1.WithdrawReq) (*v1.Withd
 		}, nil
 	}
 
-	// 3. 查询用户是否绑定银行卡（is_default=1）
-	var userBank *entity.UserBank
-	err = dao.UserBank.Ctx(ctx).
-		Where("site_id", siteId).
-		Where("user_id", userId).
-		Where("is_default", 1).
-		Scan(&userBank)
-
-	if err != nil {
-		g.Log().Errorf(ctx, "查询银行卡失败: %v", err)
-		return &v1.WithdrawRes{
-			Success: false,
-			Message: "查询银行卡失败",
-		}, nil
-	}
-
-	if userBank == nil {
-		return &v1.WithdrawRes{
-			Success: false,
-			Message: "请先绑定银行卡",
-		}, nil
-	}
-
-	// 4. 查询提现渠道是否存在
-	var siteWithdraw *entity.SiteWithdraw
-	err = dao.SiteWithdraw.Ctx(ctx).
-		Where("withdraw_id", req.WithdrawId).
-		Where("site_id", siteId).
-		Where("status", 1).
-		Scan(&siteWithdraw)
-
-	if err != nil {
-		g.Log().Errorf(ctx, "查询提现渠道失败: %v", err)
-		return &v1.WithdrawRes{
-			Success: false,
-			Message: "查询提现渠道失败",
-		}, nil
-	}
-
-	if req.Money > siteWithdraw.EachMax {
-		return &v1.WithdrawRes{
-			Success: false,
-			Message: "提现最高金额：" + gconv.String(siteWithdraw.EachMax),
-		}, nil
-	}
-
-	if req.Money < siteWithdraw.EachMin {
-		return &v1.WithdrawRes{
-			Success: false,
-			Message: "提现最低金额：" + gconv.String(siteWithdraw.EachMin),
-		}, nil
-	}
-
-	if siteWithdraw == nil {
-		return &v1.WithdrawRes{
-			Success: false,
-			Message: "提现渠道不存在或已关闭",
-		}, nil
-	}
-
-	// 6. TODO: 判断所需流水（暂时注释，预留后续实现）
-	// 需要查询：
-	// - 上次提现时间
-	// - 所需流水金额
-	// - 有效投注金额
-	// if validBetAmount < needWaterAmount {
-	//     return error("没有达到流水条件")
-	// }
-
-	// 7. 判断是否有申请中的提现订单
-	var pendingCount int
-	pendingCount, err = dao.BalanceLogWithdraw.Ctx(ctx).
-		Where("site_id", siteId).
-		Where("user_id", userId).
-		Where("status", balanceConsts.StatusPending).
-		Count()
-
-	if err != nil {
-		g.Log().Errorf(ctx, "查询待审核订单失败: %v", err)
-		return &v1.WithdrawRes{
-			Success: false,
-			Message: "系统错误",
-		}, nil
-	}
-
-	if pendingCount > 0 {
-		return &v1.WithdrawRes{
-			Success: false,
-			Message: "提现申请还在处理中，处理完成即可再次提现",
-		}, nil
-	}
-
-	// 8. 生成交易流水号
-	tradeNo := util.GenerateTradeNo(ctx, balanceConsts.LOG_TYPE_WITHDRAW)
-
-	// 9. 开启事务处理提现
-	err = dao.BalanceUser.Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
-		// 9.1 查询用户余额（加锁）
-		var balanceUser *entity.BalanceUser
-		err := dao.BalanceUser.Ctx(ctx).TX(tx).
-			Where("site_id", siteId).
-			Where("user_id", userId).
-			LockUpdate().
-			Scan(&balanceUser)
-
-		if err != nil || balanceUser == nil {
-			return fmt.Errorf("查询用户余额失败")
-		}
-
-		// 9.2 检查余额是否足够（四舍五入到2位小数后比较）
-		balanceRounded := float64(int(balanceUser.Balance*100+0.5)) / 100
-		moneyRounded := float64(int(req.Money*100+0.5)) / 100
-
-		g.Log().Infof(ctx, "余额检查: 当前余额=%.2f, 需要=%.2f", balanceUser.Balance, req.Money)
-
-		if balanceRounded < moneyRounded {
-			return fmt.Errorf("余额不足，当前余额: %.2f, 需要: %.2f", balanceUser.Balance, req.Money)
-		}
-
-		// 9.3 计算新余额
-		newBalance := balanceUser.Balance - req.Money
-		if newBalance < 0 {
-			newBalance = 0
-		}
-		newBalanceFrozen := balanceUser.BalanceFrozen + req.Money
-
-		// 9.4 添加提现记录
-		_, err = dao.BalanceLogWithdraw.Ctx(ctx).TX(tx).Insert(g.Map{
-			"site_id":             siteId,
-			"user_id":             userId,
-			"username":            username,
-			"trade_no":            tradeNo,
-			"money":               req.Money,
-			"bank_name":           "",
-			"card_account":        userBank.CardAccount,
-			"card_no":             userBank.CardNo,
-			"deposit_bank":        "",
-			"channel":             siteWithdraw.Name,
-			"withdraw_account_id": req.WithdrawId,
-			"status":              balanceConsts.StatusPending,
-			"created_at":          gtime.Now(),
-			"updated_at":          gtime.Now(),
-		})
-
-		if err != nil {
-			return fmt.Errorf("添加提现记录失败: %v", err)
-		}
-
-		// 9.5 添加金额日志记录
-		_, err = dao.BalanceLog.Ctx(ctx).TX(tx).Insert(g.Map{
-			"site_id":    siteId,
-			"user_id":    userId,
-			"trade_type": balanceConsts.LOG_TYPE_WITHDRAW,
-			"trade_no":   tradeNo,
-			"money":      req.Money,
-			"status":     balanceConsts.StatusPending,
-			"remark":     "提现审核中",
-			"created_at": gtime.Now(),
-			"updated_at": gtime.Now(),
-		})
-
-		if err != nil {
-			return fmt.Errorf("添加金额日志失败: %v", err)
-		}
-
-		// 9.6 添加账变记录
-		_, err = dao.BalanceChange.Ctx(ctx).TX(tx).Insert(g.Map{
-			"site_id":        siteId,
-			"user_id":        userId,
-			"username":       username,
-			"trade_type":     balanceConsts.TradeTypeWithdrawFrozen, // 提现冻结
-			"trade_no":       tradeNo,
-			"balance_old":    balanceUser.Balance,
-			"money":          req.Money,
-			"balance_new":    newBalance,
-			"balance_frozen": newBalanceFrozen,
-			"status":         balanceConsts.StatusPending,
-			"remark":         "提现审核中",
-			"created_at":     gtime.Now(),
-			"updated_at":     gtime.Now(),
-		})
-
-		if err != nil {
-			return fmt.Errorf("添加账变记录失败: %v", err)
-		}
-
-		// 9.7 修改用户余额
-		_, err = dao.BalanceUser.Ctx(ctx).TX(tx).
-			Where("site_id", siteId).
-			Where("user_id", userId).
-			Update(g.Map{
-				"balance":        newBalance,
-				"balance_frozen": newBalanceFrozen,
-				"updated_at":     gtime.Now(),
-			})
-
-		if err != nil {
-			return fmt.Errorf("修改用户余额失败: %v", err)
-		}
-
-		return nil
+	// 4. 调用 Domain 层处理提现业务逻辑
+	withdrawDomain := &withdraw.WithdrawDomain{}
+	result, err := withdrawDomain.ApplyWithdraw(ctx, &withdraw.ApplyWithdrawRequest{
+		SiteId:     int64(siteId),
+		UserId:     int64(userId),
+		Username:   username,
+		Money:      req.Money,
+		WithdrawId: int64(req.WithdrawId),
+		BankCardId: 0, // 暂时不使用，由 Domain 层查询默认银行卡
 	})
 
 	if err != nil {
-		g.Log().Errorf(ctx, "提现事务失败: %v", err)
+		g.Log().Errorf(ctx, "提现申请失败: %v", err)
 		return &v1.WithdrawRes{
 			Success: false,
 			Message: err.Error(),
 		}, nil
 	}
 
-	g.Log().Infof(ctx, "申请提现成功: trade_no=%s, money=%.2f", tradeNo, req.Money)
-
 	return &v1.WithdrawRes{
 		Success: true,
-		Message: "申请提现成功",
-		TradeNo: tradeNo,
+		Message: result.Message,
+		TradeNo: result.TradeNo,
 	}, nil
 }

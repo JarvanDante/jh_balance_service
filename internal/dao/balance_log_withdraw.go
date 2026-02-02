@@ -9,6 +9,9 @@ import (
 	"jh_balance_service/internal/dao/internal"
 
 	"github.com/gogf/gf/v2/database/gdb"
+	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/os/gtime"
+	balanceConsts "jh_balance_service/internal/consts/backend/balance"
 )
 
 // balanceLogWithdrawDao is the data access object for the table balance_log_withdraw.
@@ -30,3 +33,50 @@ func (d balanceLogWithdrawDao) Ctx(ctx context.Context) *gdb.Model {
 }
 
 // Add your custom methods and functionality below.
+
+// CreateWithdrawOrderParams 创建提现订单参数
+type CreateWithdrawOrderParams struct {
+	SiteId            int64
+	UserId            int64
+	Username          string
+	TradeNo           string
+	Money             float64
+	CardAccount       string
+	CardNo            string
+	Channel           string
+	WithdrawAccountId int64
+}
+
+// CreateWithdrawOrder 创建提现订单
+func (d balanceLogWithdrawDao) CreateWithdrawOrder(ctx context.Context, params *CreateWithdrawOrderParams) error {
+	_, err := d.Ctx(ctx).Insert(g.Map{
+		"site_id":             params.SiteId,
+		"user_id":             params.UserId,
+		"username":            params.Username,
+		"trade_no":            params.TradeNo,
+		"money":               params.Money,
+		"bank_name":           "",
+		"card_account":        params.CardAccount,
+		"card_no":             params.CardNo,
+		"deposit_bank":        "",
+		"channel":             params.Channel,
+		"withdraw_account_id": params.WithdrawAccountId,
+		"status":              balanceConsts.StatusPending,
+		"created_at":          gtime.Now(),
+		"updated_at":          gtime.Now(),
+	})
+	return err
+}
+
+// HasPendingOrder 检查是否有待审核订单
+func (d balanceLogWithdrawDao) HasPendingOrder(ctx context.Context, siteId, userId int64) (bool, error) {
+	count, err := d.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Where("status", balanceConsts.StatusPending).
+		Count()
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}

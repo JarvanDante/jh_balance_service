@@ -6,9 +6,8 @@ package dao
 
 import (
 	"context"
-	"jh_balance_service/internal/dao/internal"
-
 	"github.com/gogf/gf/v2/database/gdb"
+	"jh_balance_service/internal/dao/internal"
 )
 
 // balanceCallbackLogDao is the data access object for the table balance_callback_log.

@@ -6,6 +6,9 @@ package dao
 
 import (
 	"context"
+	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/os/gtime"
+	balanceConsts "jh_balance_service/internal/consts/backend/balance"
 	"jh_balance_service/internal/dao/internal"
 
 	"github.com/gogf/gf/v2/database/gdb"
@@ -30,3 +33,35 @@ func (d balanceChangeDao) Ctx(ctx context.Context) *gdb.Model {
 }
 
 // Add your custom methods and functionality below.
+
+// CreateWithdrawChangeParams 创建提现账变参数
+type CreateWithdrawChangeParams struct {
+	SiteId        int64
+	UserId        int64
+	Username      string
+	TradeNo       string
+	BalanceOld    float64
+	Money         float64
+	BalanceNew    float64
+	BalanceFrozen float64
+}
+
+// CreateWithdrawChange 创建提现账变记录
+func (d balanceChangeDao) CreateWithdrawChange(ctx context.Context, params *CreateWithdrawChangeParams) error {
+	_, err := d.Ctx(ctx).Insert(g.Map{
+		"site_id":        params.SiteId,
+		"user_id":        params.UserId,
+		"username":       params.Username,
+		"trade_type":     balanceConsts.TradeTypeWithdrawFrozen, // 提现冻结
+		"trade_no":       params.TradeNo,
+		"balance_old":    params.BalanceOld,
+		"money":          params.Money,
+		"balance_new":    params.BalanceNew,
+		"balance_frozen": params.BalanceFrozen,
+		"status":         balanceConsts.StatusPending,
+		"remark":         "提现审核中",
+		"created_at":     gtime.Now(),
+		"updated_at":     gtime.Now(),
+	})
+	return err
+}
