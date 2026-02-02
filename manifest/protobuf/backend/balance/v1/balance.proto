@@ -250,28 +250,41 @@ message GetWithdrawReviewReq {
 
 // 提现审核信息
 message WithdrawReviewInfo {
-    int64 id = 1;                       // ID
-    int32 user_id = 2;                  // 用户ID
-    string username = 3;                // 用户名
-    string trade_no = 4;                // 流水号
-    double money = 5;                   // 提现金额
-    double fee = 6;                     // 手续费
-    string bank_name = 7;               // 银行名称
-    string card_account = 8;            // 银行户名
-    string card_no = 9;                 // 卡号
-    string deposit_bank = 10;           // 开户行
-    int32 status = 11;                  // 状态
-    string remark = 12;                 // 备注
-    string created_at = 13;             // 创建时间
-    // 用户信息
-    string user_realname = 14;          // 用户真实姓名
-    string user_mobile = 15;            // 用户手机号
-    double user_balance = 16;           // 用户余额
-    double user_balance_frozen = 17;    // 用户冻结余额
-    // 统计信息
-    double total_recharge = 18;         // 总充值
-    double total_withdraw = 19;         // 总提现
-    int32 withdraw_count = 20;          // 提现次数
+    // ========== 第一块：提现核心信息 ==========
+    int32 user_id = 1;                  // 用户ID
+    string username = 2;                // 用户名
+    double withdraw_amount = 3;         // 本次提现金额
+    string bank_card_masked = 4;        // 银行卡（脱敏）
+    string apply_time = 5;              // 申请时间
+    double current_balance = 6;         // 当前余额
+    double frozen_balance = 7;          // 冻结余额
+    
+    // ========== 第二块：资金合规与流水 ==========
+    double total_recharge = 8;          // 总充值
+    double valid_bet = 9;               // 有效投注
+    // double required_flow = 10;       // 所需流水（待实现）
+    // double remaining_flow = 11;      // 还需流水（待实现）
+    double today_recharge = 12;         // 今日充值
+    double today_withdraw = 13;         // 今日提现
+    
+    // ========== 第三块：风险信息 ==========
+    string register_time = 14;          // 注册时间
+    string register_ip = 15;            // 注册IP
+    int32 vip_level = 16;               // VIP等级
+    int32 total_withdraw_count = 17;    // 总提现次数
+    double total_win_lose = 18;         // 总输赢
+    double total_bet_multiple = 19;     // 总打码倍数
+    
+    // ========== 其他信息（用于后续处理） ==========
+    int64 withdraw_id = 20;             // 提现记录ID
+    string trade_no = 21;               // 流水号
+    string bank_name = 22;              // 银行名称
+    string card_account = 23;           // 银行户名
+    string card_no = 24;                // 完整卡号（仅后台使用）
+    string deposit_bank = 25;           // 开户行
+    int32 status = 26;                  // 状态
+    double fee = 27;                    // 手续费
+    string remark = 28;                 // 备注
 }
 
 // 获取提现审核信息响应

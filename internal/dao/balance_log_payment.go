@@ -74,3 +74,32 @@ func (d balanceLogPaymentDao) UpdateDepositOrderInfo(ctx context.Context, tradeN
 		})
 	return err
 }
+
+// GetTotalRechargeByUserId 获取用户总充值金额（状态为成功的）
+func (d balanceLogPaymentDao) GetTotalRechargeByUserId(ctx context.Context, siteId, userId int64) (float64, error) {
+	result, err := d.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Where("status", balanceConsts.StatusSuccess).
+		Sum("money")
+	if err != nil {
+		return 0, err
+	}
+	return result, nil
+}
+
+// GetTodayRechargeByUserId 获取用户今日充值金额（状态为成功的）
+func (d balanceLogPaymentDao) GetTodayRechargeByUserId(ctx context.Context, siteId, userId int64) (float64, error) {
+	today := gtime.Now().Format("Y-m-d")
+	result, err := d.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Where("status", balanceConsts.StatusSuccess).
+		WhereGTE("created_at", today+" 00:00:00").
+		WhereLTE("created_at", today+" 23:59:59").
+		Sum("money")
+	if err != nil {
+		return 0, err
+	}
+	return result, nil
+}

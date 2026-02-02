@@ -93,3 +93,29 @@ func (d balanceLogWithdrawDao) UpdateStatusWithTx(ctx context.Context, tx gdb.TX
 		})
 	return err
 }
+
+// GetTotalWithdrawCountByUserId 获取用户总提现次数（状态为成功的）
+func (d balanceLogWithdrawDao) GetTotalWithdrawCountByUserId(ctx context.Context, siteId, userId int64) (int, error) {
+	count, err := d.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Where("status", balanceConsts.StatusSuccess).
+		Count()
+	return count, err
+}
+
+// GetTodayWithdrawByUserId 获取用户今日提现金额（状态为成功的）
+func (d balanceLogWithdrawDao) GetTodayWithdrawByUserId(ctx context.Context, siteId, userId int64) (float64, error) {
+	today := gtime.Now().Format("Y-m-d")
+	result, err := d.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Where("status", balanceConsts.StatusSuccess).
+		WhereGTE("created_at", today+" 00:00:00").
+		WhereLTE("created_at", today+" 23:59:59").
+		Sum("money")
+	if err != nil {
+		return 0, err
+	}
+	return result, nil
+}

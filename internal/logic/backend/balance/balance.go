@@ -536,7 +536,9 @@ func (s *sBalance) GetWithdrawReview(ctx context.Context, req *v1.GetWithdrawRev
 	))
 	defer span.End()
 
-	// 查找提现记录
+	siteId := int64(1)
+
+	// 1. 查找提现记录
 	var withdraw entity.BalanceLogWithdraw
 	err := dao.BalanceLogWithdraw.Ctx(ctx).Where("id = ?", req.Id).Scan(&withdraw)
 	if err != nil {
@@ -547,30 +549,84 @@ func (s *sBalance) GetWithdrawReview(ctx context.Context, req *v1.GetWithdrawRev
 		return nil, fmt.Errorf("提现记录不存在")
 	}
 
-	// TODO: 调用用户服务获取用户信息和余额
-	// 这里需要调用 jh_balance_service 的用户信息接口
+	// 2. 查询用户余额信息
+	var balanceUser entity.BalanceUser
+	err = dao.BalanceUser.Ctx(ctx).
+		Where("site_id = ?", siteId).
+		Where("user_id = ?", withdraw.UserId).
+		Scan(&balanceUser)
+	if err != nil {
+		return nil, fmt.Errorf("查询用户余额失败: %v", err)
+	}
 
+	// 3. 查询总充值金额
+	totalRecharge, err := dao.BalanceLogPayment.GetTotalRechargeByUserId(ctx, siteId, int64(withdraw.UserId))
+	if err != nil {
+		g.Log().Warningf(ctx, "查询总充值金额失败: %v", err)
+		totalRecharge = 0
+	}
+
+	// 4. 查询今日充值金额
+	todayRecharge, err := dao.BalanceLogPayment.GetTodayRechargeByUserId(ctx, siteId, int64(withdraw.UserId))
+	if err != nil {
+		g.Log().Warningf(ctx, "查询今日充值金额失败: %v", err)
+		todayRecharge = 0
+	}
+
+	// 5. 查询今日提现金额
+	todayWithdraw, err := dao.BalanceLogWithdraw.GetTodayWithdrawByUserId(ctx, siteId, int64(withdraw.UserId))
+	if err != nil {
+		g.Log().Warningf(ctx, "查询今日提现金额失败: %v", err)
+		todayWithdraw = 0
+	}
+
+	// 6. 查询总提现次数
+	totalWithdrawCount, err := dao.BalanceLogWithdraw.GetTotalWithdrawCountByUserId(ctx, siteId, int64(withdraw.UserId))
+	if err != nil {
+		g.Log().Warningf(ctx, "查询总提现次数失败: %v", err)
+		totalWithdrawCount = 0
+	}
+
+	// 7. 银行卡脱敏处理（保留前4位和后4位）
+	bankCardMasked := s.maskCardNo(withdraw.CardNo)
+
+	// 构建审核信息响应
 	reviewInfo := &v1.WithdrawReviewInfo{
-		Id:                int64(withdraw.Id),
-		UserId:            int32(withdraw.UserId),
-		Username:          withdraw.Username,
-		TradeNo:           withdraw.TradeNo,
-		Money:             withdraw.Money,
-		Fee:               withdraw.Fee,
-		BankName:          withdraw.BankName,
-		CardAccount:       withdraw.CardAccount,
-		CardNo:            withdraw.CardNo, // 审核时显示完整卡号
-		DepositBank:       withdraw.DepositBank,
-		Status:            int32(withdraw.Status),
-		Remark:            withdraw.Remark,
-		CreatedAt:         withdraw.CreatedAt.String(),
-		UserRealname:      "",
-		UserMobile:        "",
-		UserBalance:       0,
-		UserBalanceFrozen: 0,
-		TotalRecharge:     0,
-		TotalWithdraw:     0,
-		WithdrawCount:     0,
+		// ========== 第一块：提现核心信息 ==========
+		UserId:         int32(withdraw.UserId),
+		Username:       withdraw.Username,
+		WithdrawAmount: withdraw.Money,
+		BankCardMasked: bankCardMasked,
+		ApplyTime:      withdraw.CreatedAt.String(),
+		CurrentBalance: balanceUser.Balance,
+		FrozenBalance:  balanceUser.BalanceFrozen,
+
+		// ========== 第二块：资金合规与流水 ==========
+		TotalRecharge: totalRecharge,
+		ValidBet:      0, // TODO: 从 game 服务获取有效投注
+		// RequiredFlow:  0, // 待实现
+		// RemainingFlow: 0, // 待实现
+		TodayRecharge: todayRecharge,
+		TodayWithdraw: todayWithdraw,
+
+		// ========== 第三块：风险信息 ==========
+		RegisterTime:       "", // TODO: 从 user 服务获取注册时间
+		RegisterIp:         "", // TODO: 从 user 服务获取注册IP
+		VipLevel:           0,  // TODO: 从 user 服务获取VIP等级
+		TotalWithdrawCount: int32(totalWithdrawCount),
+		TotalWinLose:       0, // TODO: 从 game 服务获取总输赢
+		TotalBetMultiple:   0, // TODO: 从 game 服务获取总打码倍数
+
+		// ========== 其他信息（用于后续处理） ==========
+		WithdrawId:  int64(withdraw.Id),
+		TradeNo:     withdraw.TradeNo,
+		BankName:    withdraw.BankName,
+		CardAccount: withdraw.CardAccount,
+		CardNo:      withdraw.CardNo, // 审核时显示完整卡号
+		DepositBank: withdraw.DepositBank,
+		Status:      int32(withdraw.Status),
+		Fee:         withdraw.Fee,
+		Remark:      withdraw.Remark,
 	}
 
 	return &v1.GetWithdrawReviewRes{
