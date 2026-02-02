@@ -30,7 +30,7 @@ type BalanceLogBonusColumns struct {
 	ActivityRechargeId string // 充值活动ID
 	Money              string // 金额
 	Fee                string // 手续费
-	Status             string // 状态。1=待处理；2=成功；3=失败
+	Status             string // 状态0=初始化，1=待处理；2=处理中；3=成功；4=失败
 	AdminId            string // 后台管理员ID。默认为0
 	Remark             string // 备注
 	CreatedAt          string //

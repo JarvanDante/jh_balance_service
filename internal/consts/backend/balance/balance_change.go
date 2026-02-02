@@ -22,9 +22,10 @@ const (
 
 // 状态
 const (
-	StatusPending = 1 // 待处理
-	StatusSuccess = 2 // 成功
-	StatusFail    = 3 // 失败
+	StatusPending    = 1 // 待处理
+	StatusProcessing = 2 // 处理中
+	StatusSuccess    = 3 // 成功
+	StatusFail       = 4 // 失败
 )
 
 // 交易类型名称映射
@@ -49,9 +50,10 @@ var ChangeTypeNames = map[int]string{
 
 // 状态名称映射
 var StatusNames = map[int]string{
-	StatusPending: "待处理",
-	StatusSuccess: "成功",
-	StatusFail:    "失败",
+	StatusPending:    "待处理",
+	StatusProcessing: "处理中",
+	StatusSuccess:    "成功",
+	StatusFail:       "失败",
 }
 
 // 入款交易类型列表

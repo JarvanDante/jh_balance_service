@@ -556,7 +556,7 @@ func (s *sBalance) UpdateTransferStatus(ctx context.Context, req *v1.UpdateTrans
 		_, err = dao.BalanceLogGame.Ctx(ctx).
 			Where("trade_no", orderNo).
 			Update(g.Map{
-				"status":     balanceConsts.StatusSuccess, // 2=成功
+				"status":     balanceConsts.StatusSuccess, // 3=成功
 				"updated_at": gtime.Now(),
 			})
 		if err != nil {
@@ -567,7 +567,7 @@ func (s *sBalance) UpdateTransferStatus(ctx context.Context, req *v1.UpdateTrans
 		_, err = dao.BalanceLog.Ctx(ctx).
 			Where("trade_no", orderNo).
 			Update(g.Map{
-				"status":     balanceConsts.StatusSuccess, // 2=成功
+				"status":     balanceConsts.StatusSuccess, // 3=成功
 				"updated_at": gtime.Now(),
 			})
 		if err != nil {
@@ -581,7 +581,7 @@ func (s *sBalance) UpdateTransferStatus(ctx context.Context, req *v1.UpdateTrans
 				"balance_new":    newBalance,
 				"balance_frozen": newBalanceFrozen,
 				"remark":         remark,
-				"status":         balanceConsts.StatusSuccess, // 2=成功
+				"status":         balanceConsts.StatusSuccess, // 3=成功
 				"updated_at":     gtime.Now(),
 			})
 		if err != nil {
@@ -2121,7 +2121,7 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 			"money":          actualAmount,
 			"balance_new":    newBalance,
 			"balance_frozen": balanceUser.BalanceFrozen,
-			"status":         balanceConsts.StatusSuccess, // 2=成功
+			"status":         balanceConsts.StatusSuccess, // 3=成功
 			"remark":         "异步确认在线支付",
 			"created_at":     gtime.Now(),
 			"updated_at":     gtime.Now(),

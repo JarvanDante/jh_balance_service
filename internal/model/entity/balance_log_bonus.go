@@ -19,7 +19,7 @@ type BalanceLogBonus struct {
 	ActivityRechargeId int         `json:"activityRechargeId" orm:"activity_recharge_id" description:"充值活动ID"`
 	Money              float64     `json:"money"              orm:"money"                description:"金额"`
 	Fee                float64     `json:"fee"                orm:"fee"                  description:"手续费"`
-	Status             int         `json:"status"             orm:"status"               description:"状态。1=待处理；2=成功；3=失败"`
+	Status             int         `json:"status"             orm:"status"               description:"状态0=初始化，1=待处理；2=处理中；3=成功；4=失败"`
 	AdminId            int         `json:"adminId"            orm:"admin_id"             description:"后台管理员ID。默认为0"`
 	Remark             string      `json:"remark"             orm:"remark"               description:"备注"`
 	CreatedAt          *gtime.Time `json:"createdAt"          orm:"created_at"           description:""`

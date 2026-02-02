@@ -766,10 +766,10 @@ func (s *sBalance) getPaymentStatusName(status int) string {
 
 func (s *sBalance) getWithdrawStatusName(status int) string {
 	names := map[int]string{
-		balanceConsts.StatusPending: "待审核",
-		balanceConsts.StatusSuccess: "成功",
-		balanceConsts.StatusFail:    "失败",
-		4:                           "处理中",
+		balanceConsts.StatusPending:    "待审核",
+		balanceConsts.StatusProcessing: "处理中",
+		balanceConsts.StatusSuccess:    "成功",
+		balanceConsts.StatusFail:       "失败",
 	}
 	if name, ok := names[status]; ok {
 		return name
