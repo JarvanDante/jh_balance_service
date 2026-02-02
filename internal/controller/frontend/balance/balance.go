@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/gogf/gf/contrib/rpc/grpcx/v2"
+	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 
 	v1 "jh_balance_service/api/frontend/balance/v1"
@@ -91,6 +92,22 @@ func (c *Controller) GetWithdrawNonce(ctx context.Context, req *v1.GetWithdrawNo
 
 // CreateDepositOrder 创建充值订单
 func (c *Controller) CreateDepositOrder(ctx context.Context, req *v1.CreateDepositOrderReq) (res *v1.CreateDepositOrderRes, err error) {
+	// 参数验证
+	if req.PaymentId <= 0 {
+		g.Log().Warning(ctx, "支付渠道ID无效")
+		return nil, gerror.New("请选择支付渠道")
+	}
+
+	if req.Money < 0.01 {
+		g.Log().Warning(ctx, "充值金额无效")
+		return nil, gerror.New("充值金额最小为0.01")
+	}
+
+	if req.Nonce == "" {
+		g.Log().Warning(ctx, "nonce不能为空")
+		return nil, gerror.New("请求参数无效，请刷新页面重试")
+	}
+
 	return frontend.Balance().CreateDepositOrder(ctx, req)
 }
 
@@ -107,6 +124,30 @@ func (c *Controller) DepositCallback(ctx context.Context, req *v1.DepositCallbac
 
 // Withdraw 申请提现
 func (c *Controller) Withdraw(ctx context.Context, req *v1.WithdrawReq) (res *v1.WithdrawRes, err error) {
-	g.Log().Infof(ctx, "Frontend Balance Controller收到Withdraw请求")
+	// 参数验证
+	if req.WithdrawId <= 0 {
+		g.Log().Warning(ctx, "提现渠道ID无效")
+		return &v1.WithdrawRes{
+			Success: false,
+			Message: "请选择提现渠道",
+		}, nil
+	}
+
+	if req.Money <= 0 {
+		g.Log().Warning(ctx, "提现金额无效")
+		return &v1.WithdrawRes{
+			Success: false,
+			Message: "提现金额必须大于0",
+		}, nil
+	}
+
+	if req.Nonce == "" {
+		g.Log().Warning(ctx, "nonce不能为空")
+		return &v1.WithdrawRes{
+			Success: false,
+			Message: "请求参数无效，请刷新页面重试",
+		}, nil
+	}
+
 	return frontend.Balance().Withdraw(ctx, req)
 }

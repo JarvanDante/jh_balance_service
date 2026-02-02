@@ -18,6 +18,7 @@ import (
 	gamev1 "jh_balance_service/api/grpc/game/v1"
 	balanceConsts "jh_balance_service/internal/consts/backend/balance"
 	"jh_balance_service/internal/dao"
+	"jh_balance_service/internal/domain/common"
 	"jh_balance_service/internal/domain/withdraw"
 	"jh_balance_service/internal/grpc_client"
 	"jh_balance_service/internal/middleware"
@@ -1393,19 +1394,7 @@ func (s *sBalance) SetDefaultBankCard(ctx context.Context, req *v1.SetDefaultBan
 
 // GetDepositNonce 获取充值 nonce
 func (s *sBalance) GetDepositNonce(ctx context.Context, req *v1.GetDepositNonceReq) (*v1.GetDepositNonceRes, error) {
-	// 生成 UUID 作为 nonce
-	nonce := uuid.New().String()
-
-	// 获取当前时间戳
-	timestamp := time.Now().Unix()
-
-	// 设置过期时间（60秒）
-	expiresIn := int64(60)
-
-	g.Log().Infof(ctx, "生成 nonce: %s, timestamp: %d, expiresIn: %d", nonce, timestamp, expiresIn)
-
-	// 将 nonce 存储到 Redis，设置过期时间
-	// 使用 user_id 作为 key 的一部分，确保每个用户只能有一个有效的 nonce
+	// 1. 获取用户信息
 	userID, exists := middleware.GetUserIdFromContext(ctx)
 	if !exists {
 		g.Log().Error(ctx, "未获取用户ID")
@@ -1418,53 +1407,30 @@ func (s *sBalance) GetDepositNonce(ctx context.Context, req *v1.GetDepositNonceR
 		return nil, gerror.New("未获取站点ID")
 	}
 
-	redisKey := fmt.Sprintf("deposit:nonce:%d:%d", siteID, userID)
+	// 2. 生成 nonce
+	nonce := uuid.New().String()
+	timestamp := time.Now().Unix()
+	expiresIn := int64(60) // 60秒过期
 
-	g.Log().Infof(ctx, "存储 nonce 到 Redis: key=%s, value=%s, expiresIn=%d", redisKey, nonce, expiresIn)
+	g.Log().Infof(ctx, "生成充值 nonce: %s, timestamp: %d, expiresIn: %d", nonce, timestamp, expiresIn)
 
-	// 存储 nonce 到 Redis
-	err := g.Redis().SetEX(ctx, redisKey, nonce, expiresIn)
+	// 3. 使用 NonceService 存储 nonce
+	nonceService := &common.NonceService{}
+	err := nonceService.Generate(ctx, "deposit", int64(siteID), int64(userID), nonce, expiresIn)
 	if err != nil {
-		g.Log().Errorf(ctx, "存储充值 nonce 失败: %v, key=%s, value=%s, expiresIn=%d", err, redisKey, nonce, expiresIn)
-		return nil, gerror.Newf("生成 nonce 失败: %v", err)
+		return nil, err
 	}
 
-	g.Log().Infof(ctx, "Redis 存储成功")
-
-	// 验证是否真的存储成功
-	val, err := g.Redis().Get(ctx, redisKey)
-	if err != nil {
-		g.Log().Errorf(ctx, "验证 Redis 存储失败: %v", err)
-	} else {
-		g.Log().Infof(ctx, "验证 Redis 存储成功: key=%s, value=%s", redisKey, val.String())
-	}
-
-	result := &v1.GetDepositNonceRes{
+	return &v1.GetDepositNonceRes{
 		Nonce:     nonce,
 		Timestamp: timestamp,
 		ExpiresIn: expiresIn,
-	}
-
-	g.Log().Infof(ctx, "返回结果: nonce=%s, timestamp=%d, expiresIn=%d", result.Nonce, result.Timestamp, result.ExpiresIn)
-
-	return result, nil
+	}, nil
 }
 
 // GetWithdrawNonce 获取提现 nonce
 func (s *sBalance) GetWithdrawNonce(ctx context.Context, req *v1.GetWithdrawNonceReq) (*v1.GetWithdrawNonceRes, error) {
-	// 生成 UUID 作为 nonce
-	nonce := uuid.New().String()
-
-	// 获取当前时间戳
-	timestamp := time.Now().Unix()
-
-	// 设置过期时间（60秒）
-	expiresIn := int64(60)
-
-	g.Log().Infof(ctx, "生成 nonce: %s, timestamp: %d, expiresIn: %d", nonce, timestamp, expiresIn)
-
-	// 将 nonce 存储到 Redis，设置过期时间
-	// 使用 user_id 作为 key 的一部分，确保每个用户只能有一个有效的 nonce
+	// 1. 获取用户信息
 	userID, exists := middleware.GetUserIdFromContext(ctx)
 	if !exists {
 		g.Log().Error(ctx, "未获取用户ID")
@@ -1477,36 +1443,25 @@ func (s *sBalance) GetWithdrawNonce(ctx context.Context, req *v1.GetWithdrawNonc
 		return nil, gerror.New("未获取站点ID")
 	}
 
-	redisKey := fmt.Sprintf("withdraw:nonce:%d:%d", siteID, userID)
+	// 2. 生成 nonce
+	nonce := uuid.New().String()
+	timestamp := time.Now().Unix()
+	expiresIn := int64(60) // 60秒过期
 
-	g.Log().Infof(ctx, "存储 nonce 到 Redis: key=%s, value=%s, expiresIn=%d", redisKey, nonce, expiresIn)
+	g.Log().Infof(ctx, "生成提现 nonce: %s, timestamp: %d, expiresIn: %d", nonce, timestamp, expiresIn)
 
-	// 存储 nonce 到 Redis
-	err := g.Redis().SetEX(ctx, redisKey, nonce, expiresIn)
+	// 3. 使用 NonceService 存储 nonce
+	nonceService := &common.NonceService{}
+	err := nonceService.Generate(ctx, "withdraw", int64(siteID), int64(userID), nonce, expiresIn)
 	if err != nil {
-		g.Log().Errorf(ctx, "存储提现 nonce 失败: %v, key=%s, value=%s, expiresIn=%d", err, redisKey, nonce, expiresIn)
-		return nil, gerror.Newf("生成 nonce 失败: %v", err)
+		return nil, err
 	}
 
-	g.Log().Infof(ctx, "Redis 存储成功")
-
-	// 验证是否真的存储成功
-	val, err := g.Redis().Get(ctx, redisKey)
-	if err != nil {
-		g.Log().Errorf(ctx, "验证 Redis 存储失败: %v", err)
-	} else {
-		g.Log().Infof(ctx, "验证 Redis 存储成功: key=%s, value=%s", redisKey, val.String())
-	}
-
-	result := &v1.GetWithdrawNonceRes{
+	return &v1.GetWithdrawNonceRes{
 		Nonce:     nonce,
 		Timestamp: timestamp,
 		ExpiresIn: expiresIn,
-	}
-
-	g.Log().Infof(ctx, "返回结果: nonce=%s, timestamp=%d, expiresIn=%d", result.Nonce, result.Timestamp, result.ExpiresIn)
-
-	return result, nil
+	}, nil
 }
 
 // CreateDepositOrder 创建充值订单
@@ -1526,40 +1481,19 @@ func (s *sBalance) CreateDepositOrder(ctx context.Context, req *v1.CreateDeposit
 
 	username := middleware.GetUsernameFromContext(ctx)
 
-	//==========防重放先注释====================
+	//==========防重放验证====================
 	// 2. 验证 nonce（防重放）
-	redisKey := fmt.Sprintf("deposit:nonce:%d:%d", siteId, userId)
-	storedNonce, err := g.Redis().Get(ctx, redisKey)
+	nonceService := &common.NonceService{}
+	err := nonceService.ValidateAndConsume(ctx, "deposit", int64(siteId), int64(userId), req.Nonce)
 	if err != nil {
-		g.Log().Errorf(ctx, "获取 nonce 失败: %v", err)
-		return nil, gerror.New("nonce 无效或已过期，请刷新页面重试")
+		return nil, err
 	}
-
-	if storedNonce.IsNil() || storedNonce.String() != req.Nonce {
-		g.Log().Errorf(ctx, "nonce 验证失败: stored=%s, provided=%s", storedNonce.String(), req.Nonce)
-		return nil, gerror.New("nonce 验证失败，请刷新页面重试")
-	}
-
-	// 删除 nonce（单次使用，防止重复提交）
-	delCount, err := g.Redis().Del(ctx, redisKey)
-	if err != nil {
-		g.Log().Warningf(ctx, "删除 nonce 失败: %v", err)
-	}
-	if delCount == 0 {
-		// nonce 已被删除（可能是并发请求）
-		g.Log().Warningf(ctx, "nonce 已被使用: user_id=%d", userId)
-		return nil, gerror.New("请勿重复提交")
-	}
-	//==========防重放先注释====================
+	//==========防重放验证====================
 
 	g.Log().Infof(ctx, "CreateDepositOrder 开始: siteId=%d, userId=%d, username=%s, paymentId=%d, money=%.2f",
 		siteId, userId, username, req.PaymentId, req.Money)
 
-	// 3. 验证参数
-	if req.Money < 0.01 {
-		return nil, gerror.New("充值金额最小为0.01")
-	}
-
+	// 3. 设置默认订单类型
 	if req.OrderType == "" {
 		req.OrderType = "deposit"
 	}
@@ -2313,65 +2247,19 @@ func (s *sBalance) Withdraw(ctx context.Context, req *v1.WithdrawReq) (*v1.Withd
 
 	username := middleware.GetUsernameFromContext(ctx)
 
-	//==========防重放先注释====================
+	//==========防重放验证====================
 	// 2. 验证 nonce（防重放）
-	redisKey := fmt.Sprintf("withdraw:nonce:%d:%d", siteId, userId)
-	g.Log().Infof(ctx, "开始验证 nonce: key=%s, provided_nonce=%s", redisKey, req.Nonce)
-
-	storedNonce, err := g.Redis().Get(ctx, redisKey)
+	nonceService := &common.NonceService{}
+	err := nonceService.ValidateAndConsume(ctx, "withdraw", int64(siteId), int64(userId), req.Nonce)
 	if err != nil {
-		g.Log().Errorf(ctx, "获取 nonce 失败: %v, key=%s", err, redisKey)
 		return &v1.WithdrawRes{
 			Success: false,
-			Message: "nonce 无效或已过期，请刷新页面重试",
+			Message: err.Error(),
 		}, nil
 	}
+	//==========防重放验证====================
 
-	if storedNonce.IsNil() {
-		g.Log().Errorf(ctx, "nonce 不存在或已过期: key=%s", redisKey)
-		return &v1.WithdrawRes{
-			Success: false,
-			Message: "nonce 已过期，请刷新页面重试",
-		}, nil
-	}
-
-	storedNonceStr := storedNonce.String()
-	g.Log().Infof(ctx, "nonce 对比: stored=[%s], provided=[%s], equal=%v", storedNonceStr, req.Nonce, storedNonceStr == req.Nonce)
-
-	if storedNonceStr != req.Nonce {
-		g.Log().Errorf(ctx, "nonce 验证失败: stored=%s, provided=%s", storedNonceStr, req.Nonce)
-		return &v1.WithdrawRes{
-			Success: false,
-			Message: "nonce 验证失败，请刷新页面重试",
-		}, nil
-	}
-
-	// 删除 nonce（单次使用，防止重复提交）
-	delCount, err := g.Redis().Del(ctx, redisKey)
-	if err != nil {
-		g.Log().Warningf(ctx, "删除 nonce 失败: %v", err)
-	}
-	if delCount == 0 {
-		// nonce 已被删除（可能是并发请求）
-		g.Log().Warningf(ctx, "nonce 已被使用: user_id=%d", userId)
-		return &v1.WithdrawRes{
-			Success: false,
-			Message: "请勿重复提交",
-		}, nil
-	}
-
-	g.Log().Infof(ctx, "nonce 验证成功并已删除")
-	//==========防重放先注释====================
-
-	// 3. 参数验证
-	if req.WithdrawId <= 0 {
-		return &v1.WithdrawRes{
-			Success: false,
-			Message: "请选择提现渠道",
-		}, nil
-	}
-
-	// 4. 调用 Domain 层处理提现业务逻辑
+	// 3. 调用 Domain 层处理提现业务逻辑
 	withdrawDomain := &withdraw.WithdrawDomain{}
 	result, err := withdrawDomain.ApplyWithdraw(ctx, &withdraw.ApplyWithdrawRequest{
 		SiteId:     int64(siteId),
