@@ -7,12 +7,11 @@
 package v1
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -24,9 +23,9 @@ const (
 
 type RedirectToGameReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	GameId        int32                  `protobuf:"varint,1,opt,name=game_id,json=gameId,proto3" json:"game_id" dc:"游戏ID"` // 游戏ID
-	Key           string                 `protobuf:"bytes,2,opt,name=key,proto3" json:"key" dc:"电子游戏专用"`                    // 电子游戏专用
-	Mobile        int32                  `protobuf:"varint,3,opt,name=mobile,proto3" json:"mobile" dc:"电子游戏专用"`             // 电子游戏专用
+	GameId        int32                  `protobuf:"varint,1,opt,name=game_id,json=gameId,proto3" json:"game_id"` // 游戏ID
+	Key           string                 `protobuf:"bytes,2,opt,name=key,proto3" json:"key"`                      // 电子游戏专用
+	Mobile        int32                  `protobuf:"varint,3,opt,name=mobile,proto3" json:"mobile"`               // 电子游戏专用
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -84,8 +83,8 @@ func (x *RedirectToGameReq) GetMobile() int32 {
 
 type RedirectToGameRes struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type" dc:"类型"`   // 类型
-	Url           string                 `protobuf:"bytes,2,opt,name=url,proto3" json:"url" dc:"游戏跳转链接"` // 游戏跳转链接
+	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type"` // 类型
+	Url           string                 `protobuf:"bytes,2,opt,name=url,proto3" json:"url"`   // 游戏跳转链接
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -136,7 +135,7 @@ func (x *RedirectToGameRes) GetUrl() string {
 
 type GetGameCategoriesReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Type          int32                  `protobuf:"varint,1,opt,name=type,proto3" json:"type" dc:"游戏类型（可选）"` // 游戏类型（可选）
+	Type          int32                  `protobuf:"varint,1,opt,name=type,proto3" json:"type"` // 游戏类型（可选）
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -180,7 +179,7 @@ func (x *GetGameCategoriesReq) GetType() int32 {
 
 type GetGameCategoriesRes struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Categories    []*GameCategory        `protobuf:"bytes,1,rep,name=categories,proto3" json:"categories" dc:"游戏种类列表"` // 游戏种类列表
+	Categories    []*GameCategory        `protobuf:"bytes,1,rep,name=categories,proto3" json:"categories"` // 游戏种类列表
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -224,14 +223,14 @@ func (x *GetGameCategoriesRes) GetCategories() []*GameCategory {
 
 type GameCategory struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	GameId        int32                  `protobuf:"varint,1,opt,name=game_id,json=gameId,proto3" json:"game_id" dc:"游戏ID"`         // 游戏ID
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name" dc:"游戏名称"`                            // 游戏名称
-	Platform      string                 `protobuf:"bytes,3,opt,name=platform,proto3" json:"platform" dc:"平台"`                      // 平台
-	Type          int32                  `protobuf:"varint,4,opt,name=type,proto3" json:"type" dc:"游戏类型"`                           // 游戏类型
-	ImageCode     string                 `protobuf:"bytes,5,opt,name=image_code,json=imageCode,proto3" json:"image_code" dc:"图片代码"` // 图片代码
-	DbName        string                 `protobuf:"bytes,6,opt,name=db_name,json=dbName,proto3" json:"db_name" dc:"数据库名称"`         // 数据库名称
-	Sort          int32                  `protobuf:"varint,7,opt,name=sort,proto3" json:"sort" dc:"排序"`                             // 排序
-	Status        int32                  `protobuf:"varint,8,opt,name=status,proto3" json:"status" dc:"状态"`                         // 状态
+	GameId        int32                  `protobuf:"varint,1,opt,name=game_id,json=gameId,proto3" json:"game_id"`         // 游戏ID
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name"`                            // 游戏名称
+	Platform      string                 `protobuf:"bytes,3,opt,name=platform,proto3" json:"platform"`                    // 平台
+	Type          int32                  `protobuf:"varint,4,opt,name=type,proto3" json:"type"`                           // 游戏类型
+	ImageCode     string                 `protobuf:"bytes,5,opt,name=image_code,json=imageCode,proto3" json:"image_code"` // 图片代码
+	DbName        string                 `protobuf:"bytes,6,opt,name=db_name,json=dbName,proto3" json:"db_name"`          // 数据库名称
+	Sort          int32                  `protobuf:"varint,7,opt,name=sort,proto3" json:"sort"`                           // 排序
+	Status        int32                  `protobuf:"varint,8,opt,name=status,proto3" json:"status"`                       // 状态
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -324,12 +323,12 @@ func (x *GameCategory) GetStatus() int32 {
 
 type GetGameListReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Platform      string                 `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform" dc:"平台（可选）ONE、IG_JILI"`              // 平台（可选）ONE、IG_JILI
-	Hot           int32                  `protobuf:"varint,2,opt,name=hot,proto3" json:"hot" dc:"是否热门（可选）-1=全部 0=否 1=是"`                   // 是否热门（可选）-1=全部 0=否 1=是
-	IsNew         int32                  `protobuf:"varint,3,opt,name=is_new,json=isNew,proto3" json:"is_new" dc:"是否新游戏（可选）-1=全部 0=否 1=是"` // 是否新游戏（可选）-1=全部 0=否 1=是
-	Recommend     int32                  `protobuf:"varint,4,opt,name=recommend,proto3" json:"recommend" dc:"是否推荐（可选）-1=全部 0=否 1=是"`       // 是否推荐（可选）-1=全部 0=否 1=是
-	Page          int32                  `protobuf:"varint,5,opt,name=page,proto3" json:"page" dc:"页码"`                                    // 页码
-	Size          int32                  `protobuf:"varint,6,opt,name=size,proto3" json:"size" dc:"每页数量"`                                  // 每页数量
+	Platform      string                 `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform"`         // 平台（可选）ONE、IG_JILI
+	Hot           int32                  `protobuf:"varint,2,opt,name=hot,proto3" json:"hot"`                  // 是否热门（可选）-1=全部 0=否 1=是
+	IsNew         int32                  `protobuf:"varint,3,opt,name=is_new,json=isNew,proto3" json:"is_new"` // 是否新游戏（可选）-1=全部 0=否 1=是
+	Recommend     int32                  `protobuf:"varint,4,opt,name=recommend,proto3" json:"recommend"`      // 是否推荐（可选）-1=全部 0=否 1=是
+	Page          int32                  `protobuf:"varint,5,opt,name=page,proto3" json:"page"`                // 页码
+	Size          int32                  `protobuf:"varint,6,opt,name=size,proto3" json:"size"`                // 每页数量
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -408,8 +407,8 @@ func (x *GetGameListReq) GetSize() int32 {
 
 type GetGameListRes struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	List          []*GameItem            `protobuf:"bytes,1,rep,name=list,proto3" json:"list" dc:"游戏列表"`  // 游戏列表
-	Total         int32                  `protobuf:"varint,2,opt,name=total,proto3" json:"total" dc:"总数"` // 总数
+	List          []*GameItem            `protobuf:"bytes,1,rep,name=list,proto3" json:"list"`    // 游戏列表
+	Total         int32                  `protobuf:"varint,2,opt,name=total,proto3" json:"total"` // 总数
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -460,21 +459,21 @@ func (x *GetGameListRes) GetTotal() int32 {
 
 type GameItem struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id" dc:"ID"`                                         // ID
-	SiteId        int32                  `protobuf:"varint,2,opt,name=site_id,json=siteId,proto3" json:"site_id" dc:"站点ID"`                 // 站点ID
-	Platform      string                 `protobuf:"bytes,3,opt,name=platform,proto3" json:"platform" dc:"平台"`                              // 平台
-	Vendor        string                 `protobuf:"bytes,4,opt,name=vendor,proto3" json:"vendor" dc:"运营商"`                                 // 运营商
-	Code          string                 `protobuf:"bytes,5,opt,name=code,proto3" json:"code" dc:"游戏代码"`                                    // 游戏代码
-	Name          string                 `protobuf:"bytes,6,opt,name=name,proto3" json:"name" dc:"游戏名称"`                                    // 游戏名称
-	Style         string                 `protobuf:"bytes,7,opt,name=style,proto3" json:"style" dc:"游戏类型"`                                  // 游戏类型
-	Img           string                 `protobuf:"bytes,8,opt,name=img,proto3" json:"img" dc:"图片"`                                        // 图片
-	Img1          string                 `protobuf:"bytes,9,opt,name=img1,proto3" json:"img1" dc:"图片1"`                                     // 图片1
-	Hot           int32                  `protobuf:"varint,10,opt,name=hot,proto3" json:"hot" dc:"是否热门"`                                    // 是否热门
-	Recommend     int32                  `protobuf:"varint,11,opt,name=recommend,proto3" json:"recommend" dc:"是否推荐"`                        // 是否推荐
-	IsNew         int32                  `protobuf:"varint,12,opt,name=is_new,json=isNew,proto3" json:"is_new" dc:"是否新游戏"`                  // 是否新游戏
-	Status        int32                  `protobuf:"varint,13,opt,name=status,proto3" json:"status" dc:"状态"`                                // 状态
-	Sort          int32                  `protobuf:"varint,14,opt,name=sort,proto3" json:"sort" dc:"排序"`                                    // 排序
-	GameId        int32                  `protobuf:"varint,15,opt,name=game_id,json=gameId,proto3" json:"game_id" dc:"游戏ID（从site_game表获取）"` // 游戏ID（从site_game表获取）
+	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id"`                        // ID
+	SiteId        int32                  `protobuf:"varint,2,opt,name=site_id,json=siteId,proto3" json:"site_id"`  // 站点ID
+	Platform      string                 `protobuf:"bytes,3,opt,name=platform,proto3" json:"platform"`             // 平台
+	Vendor        string                 `protobuf:"bytes,4,opt,name=vendor,proto3" json:"vendor"`                 // 运营商
+	Code          string                 `protobuf:"bytes,5,opt,name=code,proto3" json:"code"`                     // 游戏代码
+	Name          string                 `protobuf:"bytes,6,opt,name=name,proto3" json:"name"`                     // 游戏名称
+	Style         string                 `protobuf:"bytes,7,opt,name=style,proto3" json:"style"`                   // 游戏类型
+	Img           string                 `protobuf:"bytes,8,opt,name=img,proto3" json:"img"`                       // 图片
+	Img1          string                 `protobuf:"bytes,9,opt,name=img1,proto3" json:"img1"`                     // 图片1
+	Hot           int32                  `protobuf:"varint,10,opt,name=hot,proto3" json:"hot"`                     // 是否热门
+	Recommend     int32                  `protobuf:"varint,11,opt,name=recommend,proto3" json:"recommend"`         // 是否推荐
+	IsNew         int32                  `protobuf:"varint,12,opt,name=is_new,json=isNew,proto3" json:"is_new"`    // 是否新游戏
+	Status        int32                  `protobuf:"varint,13,opt,name=status,proto3" json:"status"`               // 状态
+	Sort          int32                  `protobuf:"varint,14,opt,name=sort,proto3" json:"sort"`                   // 排序
+	GameId        int32                  `protobuf:"varint,15,opt,name=game_id,json=gameId,proto3" json:"game_id"` // 游戏ID（从site_game表获取）
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -616,7 +615,7 @@ func (x *GameItem) GetGameId() int32 {
 
 type GetGameBalanceReq struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	GameId        int32                  `protobuf:"varint,1,opt,name=game_id,json=gameId,proto3" json:"game_id" dc:"游戏ID"` // 游戏ID
+	GameId        int32                  `protobuf:"varint,1,opt,name=game_id,json=gameId,proto3" json:"game_id"` // 游戏ID
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -660,9 +659,9 @@ func (x *GetGameBalanceReq) GetGameId() int32 {
 
 type GetGameBalanceRes struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Balance       float64                `protobuf:"fixed64,1,opt,name=balance,proto3" json:"balance" dc:"游戏余额（使用double保持精度）"` // 游戏余额（使用double保持精度）
-	Success       bool                   `protobuf:"varint,2,opt,name=success,proto3" json:"success" dc:"是否成功"`                // 是否成功
-	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message" dc:"消息"`                   // 消息
+	Balance       float64                `protobuf:"fixed64,1,opt,name=balance,proto3" json:"balance"` // 游戏余额（使用double保持精度）
+	Success       bool                   `protobuf:"varint,2,opt,name=success,proto3" json:"success"`  // 是否成功
+	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message"`   // 消息
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -756,11 +755,11 @@ func (*RecallGameBalanceReq) Descriptor() ([]byte, []int) {
 
 type RecallGameBalanceRes struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	Success        bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success" dc:"是否成功"`                                                     // 是否成功
-	Message        string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message" dc:"消息"`                                                        // 消息
-	RecalledAmount float64                `protobuf:"fixed64,3,opt,name=recalled_amount,json=recalledAmount,proto3" json:"recalled_amount" dc:"回收的金额（使用double保持精度）"` // 回收的金额（使用double保持精度）
-	GameId         int32                  `protobuf:"varint,4,opt,name=game_id,json=gameId,proto3" json:"game_id" dc:"回收的游戏ID"`                                      // 回收的游戏ID
-	GameName       string                 `protobuf:"bytes,5,opt,name=game_name,json=gameName,proto3" json:"game_name" dc:"回收的游戏名称"`                                 // 回收的游戏名称
+	Success        bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success"`                                      // 是否成功
+	Message        string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message"`                                       // 消息
+	RecalledAmount float64                `protobuf:"fixed64,3,opt,name=recalled_amount,json=recalledAmount,proto3" json:"recalled_amount"` // 回收的金额（使用double保持精度）
+	GameId         int32                  `protobuf:"varint,4,opt,name=game_id,json=gameId,proto3" json:"game_id"`                          // 回收的游戏ID
+	GameName       string                 `protobuf:"bytes,5,opt,name=game_name,json=gameName,proto3" json:"game_name"`                     // 回收的游戏名称
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }

@@ -4,16 +4,20 @@
 
 echo "=== 开始生成protobuf文件 ==="
 
-# 生成protobuf文件（仅 balance 相关）
+# 生成protobuf文件（balance 相关用 gf，保留 dc 标签）
+gf gen pb -p manifest/protobuf/frontend/balance/v1
+gf gen pb -p manifest/protobuf/backend/balance/v1
+gf gen pb -p manifest/protobuf/grpc/user/v1
+
+# 生成 game 相关 pb（仅客户端，不生成 controller）
 PROTO_DIR="manifest/protobuf"
 OUT_DIR="api"
-PROTO_FILES=(
-    "frontend/balance/v1/balance.proto"
-    "backend/balance/v1/balance.proto"
-    "grpc/user/v1/user.proto"
+GAME_PROTO_FILES=(
+    "grpc/game/backend/v1/game.proto"
+    "grpc/game/frontend/v1/game.proto"
 )
 
-for proto in "${PROTO_FILES[@]}"; do
+for proto in "${GAME_PROTO_FILES[@]}"; do
     /opt/homebrew/bin/protoc \
         --proto_path="${PROTO_DIR}" \
         --go_out=paths=source_relative:"${OUT_DIR}" \
@@ -231,6 +235,7 @@ echo "=== 清理不需要的文件 ==="
 DIRS_TO_DELETE=(
     "internal/controller/balance"
     "internal/controller/game"
+    "internal/controller/user"
     # 如果有其他需要删除的目录，在这里添加
     # "internal/controller/other_dir"
 )
