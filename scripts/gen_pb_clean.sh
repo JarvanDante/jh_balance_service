@@ -4,8 +4,22 @@
 
 echo "=== 开始生成protobuf文件 ==="
 
-# 生成protobuf文件
-gf gen pb
+# 生成protobuf文件（仅 balance 相关）
+PROTO_DIR="manifest/protobuf"
+OUT_DIR="api"
+PROTO_FILES=(
+    "frontend/balance/v1/balance.proto"
+    "backend/balance/v1/balance.proto"
+    "grpc/user/v1/user.proto"
+)
+
+for proto in "${PROTO_FILES[@]}"; do
+    /opt/homebrew/bin/protoc \
+        --proto_path="${PROTO_DIR}" \
+        --go_out=paths=source_relative:"${OUT_DIR}" \
+        --go-grpc_out=paths=source_relative:"${OUT_DIR}" \
+        "${PROTO_DIR}/${proto}"
+done
 
 echo "=== 开始清理omitempty标签和重复的dc标签 ==="
 
