@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.10
 // 	protoc        v6.33.1
-// source: grpc/game/v1/game.proto
+// source: grpc/game/frontend/v1/game.proto
 
 package v1
 
@@ -33,7 +33,7 @@ type RedirectToGameReq struct {
 
 func (x *RedirectToGameReq) Reset() {
 	*x = RedirectToGameReq{}
-	mi := &file_grpc_game_v1_game_proto_msgTypes[0]
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45,7 +45,7 @@ func (x *RedirectToGameReq) String() string {
 func (*RedirectToGameReq) ProtoMessage() {}
 
 func (x *RedirectToGameReq) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_game_v1_game_proto_msgTypes[0]
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -58,7 +58,7 @@ func (x *RedirectToGameReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RedirectToGameReq.ProtoReflect.Descriptor instead.
 func (*RedirectToGameReq) Descriptor() ([]byte, []int) {
-	return file_grpc_game_v1_game_proto_rawDescGZIP(), []int{0}
+	return file_grpc_game_frontend_v1_game_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *RedirectToGameReq) GetGameId() int32 {
@@ -92,7 +92,7 @@ type RedirectToGameRes struct {
 
 func (x *RedirectToGameRes) Reset() {
 	*x = RedirectToGameRes{}
-	mi := &file_grpc_game_v1_game_proto_msgTypes[1]
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -104,7 +104,7 @@ func (x *RedirectToGameRes) String() string {
 func (*RedirectToGameRes) ProtoMessage() {}
 
 func (x *RedirectToGameRes) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_game_v1_game_proto_msgTypes[1]
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -117,7 +117,7 @@ func (x *RedirectToGameRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RedirectToGameRes.ProtoReflect.Descriptor instead.
 func (*RedirectToGameRes) Descriptor() ([]byte, []int) {
-	return file_grpc_game_v1_game_proto_rawDescGZIP(), []int{1}
+	return file_grpc_game_frontend_v1_game_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *RedirectToGameRes) GetType() string {
@@ -143,7 +143,7 @@ type GetGameCategoriesReq struct {
 
 func (x *GetGameCategoriesReq) Reset() {
 	*x = GetGameCategoriesReq{}
-	mi := &file_grpc_game_v1_game_proto_msgTypes[2]
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -155,7 +155,7 @@ func (x *GetGameCategoriesReq) String() string {
 func (*GetGameCategoriesReq) ProtoMessage() {}
 
 func (x *GetGameCategoriesReq) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_game_v1_game_proto_msgTypes[2]
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -168,7 +168,7 @@ func (x *GetGameCategoriesReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGameCategoriesReq.ProtoReflect.Descriptor instead.
 func (*GetGameCategoriesReq) Descriptor() ([]byte, []int) {
-	return file_grpc_game_v1_game_proto_rawDescGZIP(), []int{2}
+	return file_grpc_game_frontend_v1_game_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *GetGameCategoriesReq) GetType() int32 {
@@ -187,7 +187,7 @@ type GetGameCategoriesRes struct {
 
 func (x *GetGameCategoriesRes) Reset() {
 	*x = GetGameCategoriesRes{}
-	mi := &file_grpc_game_v1_game_proto_msgTypes[3]
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -199,7 +199,7 @@ func (x *GetGameCategoriesRes) String() string {
 func (*GetGameCategoriesRes) ProtoMessage() {}
 
 func (x *GetGameCategoriesRes) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_game_v1_game_proto_msgTypes[3]
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -212,7 +212,7 @@ func (x *GetGameCategoriesRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGameCategoriesRes.ProtoReflect.Descriptor instead.
 func (*GetGameCategoriesRes) Descriptor() ([]byte, []int) {
-	return file_grpc_game_v1_game_proto_rawDescGZIP(), []int{3}
+	return file_grpc_game_frontend_v1_game_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetGameCategoriesRes) GetCategories() []*GameCategory {
@@ -238,7 +238,7 @@ type GameCategory struct {
 
 func (x *GameCategory) Reset() {
 	*x = GameCategory{}
-	mi := &file_grpc_game_v1_game_proto_msgTypes[4]
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -250,7 +250,7 @@ func (x *GameCategory) String() string {
 func (*GameCategory) ProtoMessage() {}
 
 func (x *GameCategory) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_game_v1_game_proto_msgTypes[4]
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -263,7 +263,7 @@ func (x *GameCategory) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GameCategory.ProtoReflect.Descriptor instead.
 func (*GameCategory) Descriptor() ([]byte, []int) {
-	return file_grpc_game_v1_game_proto_rawDescGZIP(), []int{4}
+	return file_grpc_game_frontend_v1_game_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GameCategory) GetGameId() int32 {
@@ -336,7 +336,7 @@ type GetGameListReq struct {
 
 func (x *GetGameListReq) Reset() {
 	*x = GetGameListReq{}
-	mi := &file_grpc_game_v1_game_proto_msgTypes[5]
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -348,7 +348,7 @@ func (x *GetGameListReq) String() string {
 func (*GetGameListReq) ProtoMessage() {}
 
 func (x *GetGameListReq) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_game_v1_game_proto_msgTypes[5]
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -361,7 +361,7 @@ func (x *GetGameListReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGameListReq.ProtoReflect.Descriptor instead.
 func (*GetGameListReq) Descriptor() ([]byte, []int) {
-	return file_grpc_game_v1_game_proto_rawDescGZIP(), []int{5}
+	return file_grpc_game_frontend_v1_game_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetGameListReq) GetPlatform() string {
@@ -416,7 +416,7 @@ type GetGameListRes struct {
 
 func (x *GetGameListRes) Reset() {
 	*x = GetGameListRes{}
-	mi := &file_grpc_game_v1_game_proto_msgTypes[6]
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -428,7 +428,7 @@ func (x *GetGameListRes) String() string {
 func (*GetGameListRes) ProtoMessage() {}
 
 func (x *GetGameListRes) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_game_v1_game_proto_msgTypes[6]
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -441,7 +441,7 @@ func (x *GetGameListRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGameListRes.ProtoReflect.Descriptor instead.
 func (*GetGameListRes) Descriptor() ([]byte, []int) {
-	return file_grpc_game_v1_game_proto_rawDescGZIP(), []int{6}
+	return file_grpc_game_frontend_v1_game_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetGameListRes) GetList() []*GameItem {
@@ -481,7 +481,7 @@ type GameItem struct {
 
 func (x *GameItem) Reset() {
 	*x = GameItem{}
-	mi := &file_grpc_game_v1_game_proto_msgTypes[7]
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -493,7 +493,7 @@ func (x *GameItem) String() string {
 func (*GameItem) ProtoMessage() {}
 
 func (x *GameItem) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_game_v1_game_proto_msgTypes[7]
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -506,7 +506,7 @@ func (x *GameItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GameItem.ProtoReflect.Descriptor instead.
 func (*GameItem) Descriptor() ([]byte, []int) {
-	return file_grpc_game_v1_game_proto_rawDescGZIP(), []int{7}
+	return file_grpc_game_frontend_v1_game_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GameItem) GetId() int32 {
@@ -623,7 +623,7 @@ type GetGameBalanceReq struct {
 
 func (x *GetGameBalanceReq) Reset() {
 	*x = GetGameBalanceReq{}
-	mi := &file_grpc_game_v1_game_proto_msgTypes[8]
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -635,7 +635,7 @@ func (x *GetGameBalanceReq) String() string {
 func (*GetGameBalanceReq) ProtoMessage() {}
 
 func (x *GetGameBalanceReq) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_game_v1_game_proto_msgTypes[8]
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -648,7 +648,7 @@ func (x *GetGameBalanceReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGameBalanceReq.ProtoReflect.Descriptor instead.
 func (*GetGameBalanceReq) Descriptor() ([]byte, []int) {
-	return file_grpc_game_v1_game_proto_rawDescGZIP(), []int{8}
+	return file_grpc_game_frontend_v1_game_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetGameBalanceReq) GetGameId() int32 {
@@ -669,7 +669,7 @@ type GetGameBalanceRes struct {
 
 func (x *GetGameBalanceRes) Reset() {
 	*x = GetGameBalanceRes{}
-	mi := &file_grpc_game_v1_game_proto_msgTypes[9]
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -681,7 +681,7 @@ func (x *GetGameBalanceRes) String() string {
 func (*GetGameBalanceRes) ProtoMessage() {}
 
 func (x *GetGameBalanceRes) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_game_v1_game_proto_msgTypes[9]
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -694,7 +694,7 @@ func (x *GetGameBalanceRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGameBalanceRes.ProtoReflect.Descriptor instead.
 func (*GetGameBalanceRes) Descriptor() ([]byte, []int) {
-	return file_grpc_game_v1_game_proto_rawDescGZIP(), []int{9}
+	return file_grpc_game_frontend_v1_game_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetGameBalanceRes) GetBalance() float64 {
@@ -726,7 +726,7 @@ type RecallGameBalanceReq struct {
 
 func (x *RecallGameBalanceReq) Reset() {
 	*x = RecallGameBalanceReq{}
-	mi := &file_grpc_game_v1_game_proto_msgTypes[10]
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -738,7 +738,7 @@ func (x *RecallGameBalanceReq) String() string {
 func (*RecallGameBalanceReq) ProtoMessage() {}
 
 func (x *RecallGameBalanceReq) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_game_v1_game_proto_msgTypes[10]
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -751,7 +751,7 @@ func (x *RecallGameBalanceReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecallGameBalanceReq.ProtoReflect.Descriptor instead.
 func (*RecallGameBalanceReq) Descriptor() ([]byte, []int) {
-	return file_grpc_game_v1_game_proto_rawDescGZIP(), []int{10}
+	return file_grpc_game_frontend_v1_game_proto_rawDescGZIP(), []int{10}
 }
 
 type RecallGameBalanceRes struct {
@@ -767,7 +767,7 @@ type RecallGameBalanceRes struct {
 
 func (x *RecallGameBalanceRes) Reset() {
 	*x = RecallGameBalanceRes{}
-	mi := &file_grpc_game_v1_game_proto_msgTypes[11]
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -779,7 +779,7 @@ func (x *RecallGameBalanceRes) String() string {
 func (*RecallGameBalanceRes) ProtoMessage() {}
 
 func (x *RecallGameBalanceRes) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_game_v1_game_proto_msgTypes[11]
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -792,7 +792,7 @@ func (x *RecallGameBalanceRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecallGameBalanceRes.ProtoReflect.Descriptor instead.
 func (*RecallGameBalanceRes) Descriptor() ([]byte, []int) {
-	return file_grpc_game_v1_game_proto_rawDescGZIP(), []int{11}
+	return file_grpc_game_frontend_v1_game_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *RecallGameBalanceRes) GetSuccess() bool {
@@ -830,11 +830,11 @@ func (x *RecallGameBalanceRes) GetGameName() string {
 	return ""
 }
 
-var File_grpc_game_v1_game_proto protoreflect.FileDescriptor
+var File_grpc_game_frontend_v1_game_proto protoreflect.FileDescriptor
 
-const file_grpc_game_v1_game_proto_rawDesc = "" +
+const file_grpc_game_frontend_v1_game_proto_rawDesc = "" +
 	"\n" +
-	"\x17grpc/game/v1/game.proto\x12\n" +
+	" grpc/game/frontend/v1/game.proto\x12\n" +
 	"front_game\"V\n" +
 	"\x11RedirectToGameReq\x12\x17\n" +
 	"\agame_id\x18\x01 \x01(\x05R\x06gameId\x12\x10\n" +
@@ -904,22 +904,22 @@ const file_grpc_game_v1_game_proto_rawDesc = "" +
 	"\x11GetGameCategories\x12 .front_game.GetGameCategoriesReq\x1a .front_game.GetGameCategoriesRes\"\x00\x12G\n" +
 	"\vGetGameList\x12\x1a.front_game.GetGameListReq\x1a\x1a.front_game.GetGameListRes\"\x00\x12P\n" +
 	"\x0eGetGameBalance\x12\x1d.front_game.GetGameBalanceReq\x1a\x1d.front_game.GetGameBalanceRes\"\x00\x12Y\n" +
-	"\x11RecallGameBalance\x12 .front_game.RecallGameBalanceReq\x1a .front_game.RecallGameBalanceRes\"\x00B&Z$jh_game_service/api/frontend/game/v1b\x06proto3"
+	"\x11RecallGameBalance\x12 .front_game.RecallGameBalanceReq\x1a .front_game.RecallGameBalanceRes\"\x00B.Z,jh_balance_service/api/grpc/game/frontend/v1b\x06proto3"
 
 var (
-	file_grpc_game_v1_game_proto_rawDescOnce sync.Once
-	file_grpc_game_v1_game_proto_rawDescData []byte
+	file_grpc_game_frontend_v1_game_proto_rawDescOnce sync.Once
+	file_grpc_game_frontend_v1_game_proto_rawDescData []byte
 )
 
-func file_grpc_game_v1_game_proto_rawDescGZIP() []byte {
-	file_grpc_game_v1_game_proto_rawDescOnce.Do(func() {
-		file_grpc_game_v1_game_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_grpc_game_v1_game_proto_rawDesc), len(file_grpc_game_v1_game_proto_rawDesc)))
+func file_grpc_game_frontend_v1_game_proto_rawDescGZIP() []byte {
+	file_grpc_game_frontend_v1_game_proto_rawDescOnce.Do(func() {
+		file_grpc_game_frontend_v1_game_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_grpc_game_frontend_v1_game_proto_rawDesc), len(file_grpc_game_frontend_v1_game_proto_rawDesc)))
 	})
-	return file_grpc_game_v1_game_proto_rawDescData
+	return file_grpc_game_frontend_v1_game_proto_rawDescData
 }
 
-var file_grpc_game_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
-var file_grpc_game_v1_game_proto_goTypes = []any{
+var file_grpc_game_frontend_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_grpc_game_frontend_v1_game_proto_goTypes = []any{
 	(*RedirectToGameReq)(nil),    // 0: front_game.RedirectToGameReq
 	(*RedirectToGameRes)(nil),    // 1: front_game.RedirectToGameRes
 	(*GetGameCategoriesReq)(nil), // 2: front_game.GetGameCategoriesReq
@@ -933,7 +933,7 @@ var file_grpc_game_v1_game_proto_goTypes = []any{
 	(*RecallGameBalanceReq)(nil), // 10: front_game.RecallGameBalanceReq
 	(*RecallGameBalanceRes)(nil), // 11: front_game.RecallGameBalanceRes
 }
-var file_grpc_game_v1_game_proto_depIdxs = []int32{
+var file_grpc_game_frontend_v1_game_proto_depIdxs = []int32{
 	4,  // 0: front_game.GetGameCategoriesRes.categories:type_name -> front_game.GameCategory
 	7,  // 1: front_game.GetGameListRes.list:type_name -> front_game.GameItem
 	0,  // 2: front_game.Game.RedirectToGame:input_type -> front_game.RedirectToGameReq
@@ -953,26 +953,26 @@ var file_grpc_game_v1_game_proto_depIdxs = []int32{
 	0,  // [0:2] is the sub-list for field type_name
 }
 
-func init() { file_grpc_game_v1_game_proto_init() }
-func file_grpc_game_v1_game_proto_init() {
-	if File_grpc_game_v1_game_proto != nil {
+func init() { file_grpc_game_frontend_v1_game_proto_init() }
+func file_grpc_game_frontend_v1_game_proto_init() {
+	if File_grpc_game_frontend_v1_game_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_grpc_game_v1_game_proto_rawDesc), len(file_grpc_game_v1_game_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_grpc_game_frontend_v1_game_proto_rawDesc), len(file_grpc_game_frontend_v1_game_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_grpc_game_v1_game_proto_goTypes,
-		DependencyIndexes: file_grpc_game_v1_game_proto_depIdxs,
-		MessageInfos:      file_grpc_game_v1_game_proto_msgTypes,
+		GoTypes:           file_grpc_game_frontend_v1_game_proto_goTypes,
+		DependencyIndexes: file_grpc_game_frontend_v1_game_proto_depIdxs,
+		MessageInfos:      file_grpc_game_frontend_v1_game_proto_msgTypes,
 	}.Build()
-	File_grpc_game_v1_game_proto = out.File
-	file_grpc_game_v1_game_proto_goTypes = nil
-	file_grpc_game_v1_game_proto_depIdxs = nil
+	File_grpc_game_frontend_v1_game_proto = out.File
+	file_grpc_game_frontend_v1_game_proto_goTypes = nil
+	file_grpc_game_frontend_v1_game_proto_depIdxs = nil
 }

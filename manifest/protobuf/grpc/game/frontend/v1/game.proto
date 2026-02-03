@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package front_game;
 
-option go_package = "jh_game_service/api/frontend/game/v1";
+option go_package = "jh_balance_service/api/grpc/game/frontend/v1";
 
 service Game {
     rpc RedirectToGame(RedirectToGameReq) returns (RedirectToGameRes) {}

@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	v1 "jh_balance_service/api/frontend/balance/v1"
-	gamev1 "jh_balance_service/api/grpc/game/v1"
+	gamev1 "jh_balance_service/api/grpc/game/frontend/v1"
 	balanceConsts "jh_balance_service/internal/consts/backend/balance"
 	"jh_balance_service/internal/dao"
 	"jh_balance_service/internal/domain/common"

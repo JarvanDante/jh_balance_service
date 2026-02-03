@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	gamev1 "jh_balance_service/api/grpc/game/v1"
+	gamev1 "jh_balance_service/api/grpc/game/frontend/v1"
 	"jh_balance_service/internal/registry"
 )
 

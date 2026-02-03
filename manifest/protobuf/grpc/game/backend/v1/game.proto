@@ -1,0 +1,340 @@
+syntax = "proto3";
+
+package game;
+
+option go_package = "jh_balance_service/api/grpc/game/backend/v1";
+
+service Game {
+    rpc GetGames(GetGamesReq) returns (GetGamesRes) {}
+    rpc UpdateGames(UpdateGamesReq) returns (UpdateGamesRes) {}
+    rpc GetGameRecords(GetGameRecordsReq) returns (GetGameRecordsRes) {}
+    rpc SupplementBetRecords(SupplementBetRecordsReq) returns (SupplementBetRecordsRes) {}
+    
+    // 游戏列表管理
+    rpc GetGameList(GetGameListReq) returns (GetGameListRes) {}
+    rpc UpdateGameListItem(UpdateGameListItemReq) returns (UpdateGameListItemRes) {}
+    
+    // 获取游戏平台列表
+    rpc GetGamePlatforms(GetGamePlatformsReq) returns (GetGamePlatformsRes) {}
+    
+    // 用户注单统计（ClickHouse）
+    rpc GetUserBetStats(GetUserBetStatsReq) returns (GetUserBetStatsRes) {}
+
+    // 用户时间范围注单汇总（有效投注/净输赢/打码倍数）
+    rpc GetUserBetSummary(GetUserBetSummaryReq) returns (GetUserBetSummaryRes) {}
+    
+    // 同步任务管理
+    rpc GetSyncTasks(GetSyncTasksReq) returns (GetSyncTasksRes) {}
+}
+
+// 用户时间范围注单汇总请求
+message GetUserBetSummaryReq {
+    string start_time = 1;                // 开始时间 格式: 2006-01-02 15:04:05
+    string end_time = 2;                  // 结束时间 格式: 2006-01-02 15:04:05
+    string platform = 3;                  // 平台（可选）ONE、IG_JILI
+}
+
+// 用户时间范围注单汇总响应
+message GetUserBetSummaryRes {
+    bool success = 1;                     // 是否成功
+    string message = 2;                   // 消息
+    UserBetSummary summary = 3;           // 汇总信息
+}
+
+// 汇总信息
+message UserBetSummary {
+    string start_time = 1;                // 开始时间
+    string end_time = 2;                  // 结束时间
+    string bet_count = 3;                 // 注单数
+    string bet_amount = 4;                // 投注金额
+    string win_amount = 5;                // 派彩金额
+    string valid_amount = 6;              // 有效投注金额
+    string net_amount = 7;                // 净输赢
+    string turnover_multiple = 8;         // 打码倍数（预留）
+}
+
+message GetGamesReq {
+    int32 site_id = 1;                      // 站点ID
+    bool search_balance = 2;                // 是否查询余额
+}
+
+message GetGamesRes {
+    map<int32, GameTypeList> data = 1;      // 按游戏类型分组的游戏列表
+    int32 count = 2;                        // 总数量
+}
+
+message GameTypeList {
+    repeated GameInfo games = 1;            // 游戏列表
+}
+
+message GameInfo {
+    int32 id = 1;                          // 游戏ID
+    string name = 2;                       // 游戏名称
+    int32 status = 3;                      // 状态 1=启用 0=禁用
+    int32 sort = 4;                        // 排序
+    int32 type = 5;                        // 游戏类型 1=体育 2=彩票 3=真人 4=电子游戏 5=棋牌
+    string platform = 6;                   // 平台标识
+    string code = 7;                       // 游戏标识
+    string image_code = 8;                 // 图片标识
+    string db_name = 9;                    // 数据表名称
+}
+
+message UpdateGamesReq {
+    int32 site_id = 1;                     // 站点ID
+    repeated GameUpdateInfo data = 2;       // 游戏更新数据
+}
+
+message GameUpdateInfo {
+    int32 id = 1;                          // 游戏ID
+    int32 status = 2;                      // 状态 1=启用 0=禁用
+    int32 sort = 3;                        // 排序
+}
+
+message UpdateGamesRes {
+    bool success = 1;                      // 是否成功
+    string message = 2;                    // 响应消息
+}
+
+// 游戏记录相关消息
+message GetGameRecordsReq {
+    int32 site_id = 1;                     // 站点ID
+    string platform = 2;                   // 游戏平台
+    string start_date = 3;                 // 开始时间 格式: Y-m-d H:i:s
+    string end_date = 4;                   // 结束时间 格式: Y-m-d H:i:s
+    int32 page = 5;                        // 页码
+    int32 size = 6;                        // 每页数量
+    string username = 7;                   // 用户名（可选）
+    int32 type = 8;                        // 记录类型 1=投注记录 2=中奖记录（可选）
+    string keywords = 9;                   // 关键词搜索（可选）
+}
+
+message GetGameRecordsRes {
+    repeated GameRecord data = 1;          // 游戏记录列表
+    int32 total = 2;                       // 总记录数
+    int32 current_page = 3;                // 当前页码
+    int32 per_page = 4;                    // 每页数量
+    int32 last_page = 5;                   // 最后一页
+    string total_amount = 6;               // 当前平台总金额
+    string all_game_total_amount = 7;      // 所有游戏总金额
+}
+
+message GameRecord {
+    uint64 id = 1;                         // 自增主键
+    int32 site_id = 2;                     // 站点ID
+    int64 user_id = 3;                     // 用户ID
+    string username = 4;                   // 用户名快照
+    string platform_code = 5;              // 游戏平台代码 egame/jili/pg
+    string game_code = 6;                  // 游戏代码
+    string game_name = 7;                  // 游戏名称
+    string game_type = 8;                  // 游戏类型
+    string order_id = 9;                   // 厂商注单号
+    string round_id = 10;                  // 局号
+    string bet_amount = 11;                // 投注金额
+    string win_amount = 12;                // 中奖金额
+    string currency = 13;                  // 币种
+    string bet_time = 14;                  // 投注时间
+    string settle_time = 15;               // 结算时间
+    int32 status = 16;                     // 状态 0=未结算 1=已结算 2=取消 3=回滚
+    string raw_data = 17;                  // 厂商原始注单数据
+    string remark = 18;                    // 备注
+    string created_at = 19;                // 创建时间
+    string updated_at = 20;                // 更新时间
+}
+
+// 补单请求
+message SupplementBetRecordsReq {
+    string platform = 1;                   // 游戏平台（ONE、IG_JILI等）
+    string start_time = 2;                 // 开始时间，格式: 2006-01-02 15:04:05
+    string end_time = 3;                   // 结束时间，格式: 2006-01-02 15:04:05
+    repeated string site_codes = 4;        // 站点代码列表（可选，为空则所有站点）
+}
+
+// 补单响应
+message SupplementBetRecordsRes {
+    bool success = 1;                      // 是否成功
+    string message = 2;                    // 消息
+    int32 total_records = 3;               // 总记录数
+}
+
+// ========== 游戏列表管理 ==========
+
+// 获取游戏列表请求
+message GetGameListReq {
+    int32 site_id = 1;                     // 站点ID
+    string platform = 2;                   // 平台（可选）ONE、IG_JILI
+    string vendor = 3;                     // 运营商（可选）PP、PGS、JL等
+    string name = 4;                       // 游戏名称（模糊搜索，可选）
+    string code = 5;                       // 游戏代码（可选）
+    string style = 6;                      // 游戏类型（可选）SLOTS、LIVE等
+    int32 hot = 7;                         // 是否热门（可选）-1=全部 0=否 1=是
+    int32 recommend = 8;                   // 是否推荐（可选）-1=全部 0=否 1=是
+    int32 is_new = 9;                      // 是否新游戏（可选）-1=全部 0=否 1=是
+    int32 status = 10;                     // 状态（可选）-1=全部 0=禁用 1=启用
+    int32 page = 11;                       // 页码
+    int32 size = 12;                       // 每页数量
+}
+
+// 获取游戏列表响应
+message GetGameListRes {
+    repeated GameListItem list = 1;        // 游戏列表
+    int32 total = 2;                       // 总记录数
+    int32 page = 3;                        // 当前页码
+    int32 size = 4;                        // 每页数量
+}
+
+// 游戏列表项
+message GameListItem {
+    int32 id = 1;                          // 自增ID
+    int32 site_id = 2;                     // 站点ID
+    string platform = 3;                   // 平台 ONE、IG_JILI
+    string code = 4;                       // 游戏代码
+    string name = 5;                       // 游戏名称
+    string alias_name = 6;                 // 别名（后台自定义）
+    string style = 7;                      // 游戏类型 SLOTS、LIVE等
+    string img = 8;                        // 游戏图片
+    string img1 = 9;                       // 游戏图片2
+    string language = 10;                  // 支持语言
+    string device = 11;                    // 支持设备
+    string currency = 12;                  // 支持货币
+    string vendor = 13;                    // 运营商
+    int32 hot = 14;                        // 是否热门 0=否 1=是
+    int32 recommend = 15;                  // 是否推荐 0=否 1=是
+    int32 is_new = 16;                     // 是否新游戏 0=否 1=是
+    int32 status = 17;                     // 状态 0=禁用 1=启用
+    int32 sort = 18;                       // 排序
+    int32 like_num = 19;                   // 点赞数
+    string created_at = 20;                // 创建时间
+    string updated_at = 21;                // 更新时间
+}
+
+// 更新游戏列表项请求
+message UpdateGameListItemReq {
+    int32 site_id = 1;                     // 站点ID
+    int32 id = 2;                          // 游戏ID
+    string alias_name = 3;                 // 别名（可选）
+    int32 hot = 4;                         // 是否热门（可选）-1=不修改 0=否 1=是
+    int32 recommend = 5;                   // 是否推荐（可选）-1=不修改 0=否 1=是
+    int32 is_new = 6;                      // 是否新游戏（可选）-1=不修改 0=否 1=是
+    int32 status = 7;                      // 状态（可选）-1=不修改 0=禁用 1=启用
+    int32 sort = 8;                        // 排序（可选）-1=不修改
+}
+
+// 更新游戏列表项响应
+message UpdateGameListItemRes {
+    bool success = 1;                      // 是否成功
+    string message = 2;                    // 消息
+}
+
+// ========== 获取游戏平台列表 ==========
+
+// 获取游戏平台列表请求
+message GetGamePlatformsReq {
+    int32 site_id = 1;                     // 站点ID（可选，0表示不过滤）
+    int32 type = 2;                        // 游戏类型（可选，0表示不过滤）
+}
+
+// 获取游戏平台列表响应
+message GetGamePlatformsRes {
+    repeated GamePlatform platforms = 1;   // 平台列表
+}
+
+// 游戏平台信息
+message GamePlatform {
+    int32 game_id = 1;                     // 游戏ID
+    string name = 2;                       // 游戏名称
+    string platform = 3;                   // 平台标识
+    int32 type = 4;                        // 游戏类型 1=体育 2=彩票 3=真人 4=电子游戏 5=棋牌
+    string image_code = 5;                 // 图片标识
+    string db_name = 6;                    // 数据表名称
+    int32 sort = 7;                        // 排序
+    int32 status = 8;                      // 状态 1=启用 0=禁用
+}
+
+// ========== 用户注单统计（ClickHouse）==========
+
+// 获取用户注单统计请求
+message GetUserBetStatsReq {
+    int32 site_id = 1;                     // 站点ID
+    string site_code = 2;                  // 站点代码
+    int64 user_id = 3;                     // 用户ID
+    string start_time = 4;                 // 开始时间 格式: 2006-01-02 15:04:05
+    string end_time = 5;                   // 结束时间 格式: 2006-01-02 15:04:05
+    string platform = 6;                   // 平台（可选，为空则统计所有平台）
+}
+
+// 获取用户注单统计响应
+message GetUserBetStatsRes {
+    bool success = 1;                      // 是否成功
+    string message = 2;                    // 消息
+    UserBetStats stats = 3;                // 统计数据
+}
+
+// 用户注单统计
+message UserBetStats {
+    int64 user_id = 1;                     // 用户ID
+    string username = 2;                   // 用户名
+    int64 bet_count = 3;                   // 投注笔数
+    string bet_amount = 4;                 // 投注金额总和
+    string win_amount = 5;                 // 赢取金额总和
+    string valid_amount = 6;               // 有效投注总和
+    string net_amount = 7;                 // 净输赢总和
+    string start_time = 8;                 // 统计开始时间
+    string end_time = 9;                   // 统计结束时间
+    repeated PlatformStats platform_stats = 10; // 按平台统计
+}
+
+// 平台统计
+message PlatformStats {
+    string platform = 1;                   // 平台
+    int64 bet_count = 2;                   // 投注笔数
+    string bet_amount = 3;                 // 投注金额
+    string win_amount = 4;                 // 赢取金额
+    string valid_amount = 5;               // 有效投注
+    string net_amount = 6;                 // 净输赢
+}
+
+
+// ========== 同步任务管理 ==========
+
+// 获取同步任务列表请求
+message GetSyncTasksReq {
+    int32 site_id = 1;                     // 站点ID（可选，0表示不过滤）
+    string site_code = 2;                  // 站点代码（可选）
+    string platform = 3;                   // 平台（可选）
+    int32 task_type = 4;                   // 任务类型（可选）1=定时拉单 2=手动补单 0=全部
+    int32 status = 5;                      // 状态（可选）1=进行中 2=已完成 3=失败 0=全部
+    int32 page = 6;                        // 页码
+    int32 size = 7;                        // 每页数量
+}
+
+// 获取同步任务列表响应
+message GetSyncTasksRes {
+    repeated SyncTask list = 1;            // 任务列表
+    int32 total = 2;                       // 总记录数
+    int32 page = 3;                        // 当前页码
+    int32 size = 4;                        // 每页数量
+}
+
+// 同步任务
+message SyncTask {
+    int64 id = 1;                          // 任务ID
+    int32 site_id = 2;                     // 站点ID
+    string site_code = 3;                  // 站点代码
+    string platform = 4;                   // 游戏平台
+    int32 task_type = 5;                   // 任务类型 1=定时拉单 2=手动补单
+    string start_time = 6;                 // 拉单开始时间
+    string end_time = 7;                   // 拉单结束时间
+    int32 mysql_total = 8;                 // MySQL总记录数
+    int32 mysql_inserted = 9;              // MySQL新插入数
+    int32 mysql_duplicated = 10;           // MySQL重复跳过数
+    int32 mq_sent = 11;                    // MQ发送成功数
+    int32 mq_failed = 12;                  // MQ发送失败数
+    int32 mq_skipped = 13;                 // MQ跳过数
+    int32 ch_synced = 14;                  // ClickHouse已同步数
+    int32 ch_failed = 15;                  // ClickHouse同步失败数
+    int32 status = 16;                     // 任务状态 1=进行中 2=已完成 3=失败
+    string error_msg = 17;                 // 错误信息
+    string created_at = 18;                // 创建时间
+    string updated_at = 19;                // 更新时间
+    string completed_at = 20;              // 完成时间
+}
