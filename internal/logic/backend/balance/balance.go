@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	v1 "jh_balance_service/api/backend/balance/v1"
+	gamev1 "jh_balance_service/api/grpc/game/backend/v1"
 	userv1 "jh_balance_service/api/grpc/user/v1"
 	balanceConsts "jh_balance_service/internal/consts/backend/balance"
 	"jh_balance_service/internal/dao"
 	withdrawReview "jh_balance_service/internal/domain/withdraw_review"
 	"jh_balance_service/internal/grpc_client"
+	"jh_balance_service/internal/middleware"
 	"jh_balance_service/internal/model/entity"
 	"jh_balance_service/internal/service/backend"
 	"jh_balance_service/internal/tracing"
@@ -619,6 +621,65 @@ func (s *sBalance) GetWithdrawReview(ctx context.Context, req *v1.GetWithdrawRev
 	// 8. 银行卡脱敏处理（保留前4位和后4位）
 	bankCardMasked := s.maskCardNo(withdraw.CardNo)
 
+	// 9. 从 game 服务获取有效投注/总输赢/打码倍数
+	validBet := 0.0
+	totalWinLose := 0.0
+	totalBetMultiple := 0.0
+
+	siteCode, _ := middleware.GetSiteCodeFromContext(ctx)
+
+	endTime := ""
+	if withdraw.CreatedAt != nil {
+		endTime = withdraw.CreatedAt.Format("Y-m-d H:i:s")
+	}
+	if endTime == "" {
+		endTime = time.Now().Format("2006-01-02 15:04:05")
+	}
+
+	lastWithdrawTime, err := dao.BalanceLogWithdraw.GetLastWithdrawTimeByUser(ctx, siteId, int64(withdraw.UserId), withdraw.CreatedAt)
+	if err != nil {
+		g.Log().Warningf(ctx, "获取上次提现时间失败: %v", err)
+	}
+
+	startTime := ""
+	if lastWithdrawTime != nil {
+		startTime = lastWithdrawTime.Format("Y-m-d H:i:s")
+	} else if registerTime != "" {
+		startTime = registerTime
+	} else {
+		startTime = endTime
+	}
+
+	if siteCode == "" {
+		g.Log().Warningf(ctx, "site_code 为空，跳过 GetUserBetSummary 调用")
+	} else {
+		gameClient, gameConn, err := grpc_client.GetGameBackendClient(ctx)
+		if err != nil {
+			g.Log().Warningf(ctx, "获取 Game 后台客户端失败: %v", err)
+		} else {
+			defer gameConn.Close()
+
+			md := metadata.New(map[string]string{
+				"site_id":   gconv.String(siteId),
+				"site_code": siteCode,
+				"user_id":   gconv.String(withdraw.UserId),
+			})
+			ctxWithMeta := metadata.NewOutgoingContext(ctx, md)
+
+			summaryRes, err := gameClient.GetUserBetSummary(ctxWithMeta, &gamev1.GetUserBetSummaryReq{
+				StartTime: startTime,
+				EndTime:   endTime,
+			})
+			if err != nil {
+				g.Log().Warningf(ctx, "调用 GetUserBetSummary 失败: %v", err)
+			} else if summaryRes != nil && summaryRes.Success && summaryRes.Summary != nil {
+				validBet = gconv.Float64(summaryRes.Summary.ValidAmount)
+				totalWinLose = gconv.Float64(summaryRes.Summary.NetAmount)
+				totalBetMultiple = gconv.Float64(summaryRes.Summary.TurnoverMultiple)
+			}
+		}
+	}
+
 	// 构建审核信息响应
 	reviewInfo := &v1.WithdrawReviewInfo{
 		// ========== 第一块：提现核心信息 ==========
@@ -632,7 +693,7 @@ func (s *sBalance) GetWithdrawReview(ctx context.Context, req *v1.GetWithdrawRev
 
 		// ========== 第二块：资金合规与流水 ==========
 		TotalRecharge: totalRecharge,
-		ValidBet:      0, // TODO: 从 game 服务获取有效投注
+		ValidBet:      validBet,
 		// RequiredFlow:  0, // 待实现
 		// RemainingFlow: 0, // 待实现
 		TodayRecharge: todayRecharge,
@@ -643,8 +704,8 @@ func (s *sBalance) GetWithdrawReview(ctx context.Context, req *v1.GetWithdrawRev
 		RegisterIp:         registerIp,
 		VipLevel:           vipLevel,
 		TotalWithdrawCount: int32(totalWithdrawCount),
-		TotalWinLose:       0, // TODO: 从 game 服务获取总输赢
-		TotalBetMultiple:   0, // TODO: 从 game 服务获取总打码倍数
+		TotalWinLose:       totalWinLose,
+		TotalBetMultiple:   totalBetMultiple,
 
 		// ========== 其他信息（用于后续处理） ==========
 		WithdrawId:  int64(withdraw.Id),

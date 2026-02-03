@@ -119,3 +119,25 @@ func (d balanceLogWithdrawDao) GetTodayWithdrawByUserId(ctx context.Context, sit
 	}
 	return result, nil
 }
+
+// GetLastWithdrawTimeByUser 获取用户上次成功提现时间（可选：在某个时间点之前）
+func (d balanceLogWithdrawDao) GetLastWithdrawTimeByUser(ctx context.Context, siteId, userId int64, before *gtime.Time) (*gtime.Time, error) {
+	query := d.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Where("status", balanceConsts.StatusSuccess)
+
+	if before != nil {
+		query = query.WhereLT("created_at", before)
+	}
+
+	var record struct {
+		CreatedAt *gtime.Time `json:"created_at"`
+	}
+	err := query.Fields("created_at").OrderDesc("created_at").Limit(1).Scan(&record)
+	if err != nil {
+		return nil, err
+	}
+
+	return record.CreatedAt, nil
+}
