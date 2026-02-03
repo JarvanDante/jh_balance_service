@@ -20,6 +20,7 @@ import (
 	"jh_balance_service/internal/dao"
 	"jh_balance_service/internal/domain/common"
 	"jh_balance_service/internal/domain/deposit"
+	flow "jh_balance_service/internal/domain/flow"
 	"jh_balance_service/internal/domain/withdraw"
 	"jh_balance_service/internal/grpc_client"
 	"jh_balance_service/internal/middleware"
@@ -2134,6 +2135,22 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 
 		duration34 := time.Since(time34)
 		g.Log().Infof(ctx, "第3.4阶段-写入账变记录，总耗时: %.2fms", float64(duration34.Milliseconds()))
+
+		// 6.5 记录流水要求（充值成功）
+		if _, _, err := flow.RecordFlowRequirement(ctx, &flow.RecordFlowRequirementRequest{
+			SiteId:      int(paymentLog.SiteId),
+			UserId:      int64(paymentLog.UserId),
+			Username:    balanceUser.Username,
+			SourceType:  balanceConsts.SourceTypeRecharge,
+			SourceId:    gconv.Int64(req.OrderSn),
+			TradeNo:     req.OrderSn,
+			Amount:      actualAmount,
+			BonusAmount: 0,
+			Remark:      "充值流水要求",
+		}); err != nil {
+			g.Log().Errorf(ctx, "记录流水要求失败: order_sn=%s, err=%v", req.OrderSn, err)
+			return err
+		}
 
 		return nil
 	})

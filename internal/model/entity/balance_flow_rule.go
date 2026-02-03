@@ -10,13 +10,13 @@ import (
 
 // BalanceFlowRule is the golang structure for table balance_flow_rule.
 type BalanceFlowRule struct {
-	Id           int         `json:"id"           orm:"id"            description:"主键ID"`
+	Id           uint        `json:"id"           orm:"id"            description:"主键ID"`
 	SiteId       int         `json:"siteId"       orm:"site_id"       description:"站点ID"`
 	RuleName     string      `json:"ruleName"     orm:"rule_name"     description:"规则名称"`
-	RuleType     int         `json:"ruleType"     orm:"rule_type"     description:"规则类型"`
+	RuleType     int         `json:"ruleType"     orm:"rule_type"     description:"规则类型: 1=充值流水, 2=红利流水, 3=活动流水, 4=人工加款流水"`
 	FlowMultiple float64     `json:"flowMultiple" orm:"flow_multiple" description:"默认流水倍数"`
-	ExpireDays   int         `json:"expireDays"   orm:"expire_days"   description:"有效天数"`
-	Status       int         `json:"status"       orm:"status"        description:"状态"`
+	ExpireDays   int         `json:"expireDays"   orm:"expire_days"   description:"有效天数（0表示永久）"`
+	Status       int         `json:"status"       orm:"status"        description:"状态: 0=禁用, 1=启用"`
 	Sort         int         `json:"sort"         orm:"sort"          description:"排序"`
 	Remark       string      `json:"remark"       orm:"remark"        description:"备注说明"`
 	CreatedAt    *gtime.Time `json:"createdAt"    orm:"created_at"    description:"创建时间"`

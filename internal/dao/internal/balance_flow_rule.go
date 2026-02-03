@@ -24,10 +24,10 @@ type BalanceFlowRuleColumns struct {
 	Id           string // 主键ID
 	SiteId       string // 站点ID
 	RuleName     string // 规则名称
-	RuleType     string // 规则类型
+	RuleType     string // 规则类型: 1=充值流水, 2=红利流水, 3=活动流水, 4=人工加款流水
 	FlowMultiple string // 默认流水倍数
-	ExpireDays   string // 有效天数
-	Status       string // 状态
+	ExpireDays   string // 有效天数（0表示永久）
+	Status       string // 状态: 0=禁用, 1=启用
 	Sort         string // 排序
 	Remark       string // 备注说明
 	CreatedAt    string // 创建时间
@@ -89,6 +89,11 @@ func (dao *BalanceFlowRuleDao) Ctx(ctx context.Context) *gdb.Model {
 }
 
 // Transaction wraps the transaction logic using function f.
+// It rolls back the transaction and returns the error if function f returns a non-nil error.
+// It commits the transaction and returns nil if function f returns nil.
+//
+// Note: Do not commit or roll back the transaction in function f,
+// as it is automatically handled by this function.
 func (dao *BalanceFlowRuleDao) Transaction(ctx context.Context, f func(ctx context.Context, tx gdb.TX) error) (err error) {
 	return dao.Ctx(ctx).Transaction(ctx, f)
 }

@@ -1257,7 +1257,7 @@ func (s *sBalance) CreateFlowRule(ctx context.Context, req *v1.CreateFlowRuleReq
 	if req.RuleName == "" {
 		return &v1.CreateFlowRuleRes{Success: false, Message: "规则名称不能为空"}, nil
 	}
-	if req.RuleType <= 0 {
+	if req.RuleType <= 0 || req.RuleType > balanceConsts.RuleTypeLuckySpin {
 		return &v1.CreateFlowRuleRes{Success: false, Message: "规则类型无效"}, nil
 	}
 	if req.FlowMultiple <= 0 {
@@ -1300,7 +1300,7 @@ func (s *sBalance) UpdateFlowRule(ctx context.Context, req *v1.UpdateFlowRuleReq
 	if req.RuleName == "" {
 		return &v1.UpdateFlowRuleRes{Success: false, Message: "规则名称不能为空"}, nil
 	}
-	if req.RuleType <= 0 {
+	if req.RuleType <= 0 || req.RuleType > balanceConsts.RuleTypeLuckySpin {
 		return &v1.UpdateFlowRuleRes{Success: false, Message: "规则类型无效"}, nil
 	}
 	if req.FlowMultiple <= 0 {

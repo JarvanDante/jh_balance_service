@@ -121,3 +121,11 @@ func (d balanceFlowRuleDao) DeleteFlowRule(ctx context.Context, id int32) error 
 	_, err := d.Ctx(ctx).Where("id", id).Delete()
 	return err
 }
+
+// GetActiveRule 获取启用的流水规则（按 sort ASC, id DESC）
+func (d balanceFlowRuleDao) GetActiveRule(ctx context.Context, siteId int, ruleType int) (*entity.BalanceFlowRule, error) {
+	var rule *entity.BalanceFlowRule
+	model := d.Ctx(ctx).Where("site_id", siteId).Where("rule_type", ruleType).Where("status", 1)
+	err := model.Order("sort ASC, id DESC").Limit(1).Scan(&rule)
+	return rule, err
+}
