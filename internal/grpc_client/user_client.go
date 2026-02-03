@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	userv1 "jh_balance_service/api/grpc/user/v1"
+	userv1 "jh_balance_service/api/grpc/user/backend/v1"
 	"jh_balance_service/internal/registry"
 )
 

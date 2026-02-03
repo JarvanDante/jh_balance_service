@@ -5,7 +5,7 @@ import (
 	"fmt"
 	v1 "jh_balance_service/api/backend/balance/v1"
 	gamev1 "jh_balance_service/api/grpc/game/backend/v1"
-	userv1 "jh_balance_service/api/grpc/user/v1"
+	userv1 "jh_balance_service/api/grpc/user/backend/v1"
 	balanceConsts "jh_balance_service/internal/consts/backend/balance"
 	"jh_balance_service/internal/dao"
 	withdrawReview "jh_balance_service/internal/domain/withdraw_review"
