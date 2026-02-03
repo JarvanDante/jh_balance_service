@@ -132,3 +132,28 @@ func (*Controller) GetChangeList(ctx context.Context, req *v1.GetChangeListReq) 
 func (*Controller) GetManualList(ctx context.Context, req *v1.GetManualListReq) (*v1.GetManualListRes, error) {
 	return backend.Balance().GetManualList(ctx, req)
 }
+
+// GetFlowRules 获取流水规则列表
+func (*Controller) GetFlowRules(ctx context.Context, req *v1.GetFlowRulesReq) (*v1.GetFlowRulesRes, error) {
+	return backend.Balance().GetFlowRules(ctx, req)
+}
+
+// GetFlowRule 获取流水规则详情
+func (*Controller) GetFlowRule(ctx context.Context, req *v1.GetFlowRuleReq) (*v1.GetFlowRuleRes, error) {
+	return backend.Balance().GetFlowRule(ctx, req)
+}
+
+// CreateFlowRule 创建流水规则
+func (*Controller) CreateFlowRule(ctx context.Context, req *v1.CreateFlowRuleReq) (*v1.CreateFlowRuleRes, error) {
+	return backend.Balance().CreateFlowRule(ctx, req)
+}
+
+// UpdateFlowRule 更新流水规则
+func (*Controller) UpdateFlowRule(ctx context.Context, req *v1.UpdateFlowRuleReq) (*v1.UpdateFlowRuleRes, error) {
+	return backend.Balance().UpdateFlowRule(ctx, req)
+}
+
+// DeleteFlowRule 删除流水规则
+func (*Controller) DeleteFlowRule(ctx context.Context, req *v1.DeleteFlowRuleReq) (*v1.DeleteFlowRuleRes, error) {
+	return backend.Balance().DeleteFlowRule(ctx, req)
+}

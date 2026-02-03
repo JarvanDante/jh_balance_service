@@ -37,6 +37,13 @@ service Balance {
     
     // 操作类型选项
     rpc GetManualList(GetManualListReq) returns (GetManualListRes) {}
+
+    // 流水规则管理
+    rpc GetFlowRules(GetFlowRulesReq) returns (GetFlowRulesRes) {}
+    rpc GetFlowRule(GetFlowRuleReq) returns (GetFlowRuleRes) {}
+    rpc CreateFlowRule(CreateFlowRuleReq) returns (CreateFlowRuleRes) {}
+    rpc UpdateFlowRule(UpdateFlowRuleReq) returns (UpdateFlowRuleRes) {}
+    rpc DeleteFlowRule(DeleteFlowRuleReq) returns (DeleteFlowRuleRes) {}
 }
 
 // 获取交易类型列表请求
@@ -369,6 +376,94 @@ message GetManualListReq {
 // 获取操作类型列表响应
 message GetManualListRes {
     map<int32, string> list = 1;  // 操作类型列表
+}
+
+// 获取流水规则列表请求
+message GetFlowRulesReq {
+    int32 site_id = 1;        // 站点ID（可选）
+    int32 rule_type = 2;      // 规则类型（可选）
+    int32 status = 3;         // 状态（可选）
+    string rule_name = 4;     // 规则名称（模糊搜索，可选）
+    int32 page = 5;           // 页码
+    int32 size = 6;           // 每页数量
+}
+
+// 流水规则信息
+message FlowRuleInfo {
+    int32 id = 1;             // 主键ID
+    int32 site_id = 2;        // 站点ID
+    string rule_name = 3;     // 规则名称
+    int32 rule_type = 4;      // 规则类型
+    double flow_multiple = 5; // 默认流水倍数
+    int32 expire_days = 6;    // 有效天数（0表示永久）
+    int32 status = 7;         // 状态
+    int32 sort = 8;           // 排序
+    string remark = 9;        // 备注说明
+    string created_at = 10;   // 创建时间
+    string updated_at = 11;   // 更新时间
+}
+
+// 获取流水规则列表响应
+message GetFlowRulesRes {
+    repeated FlowRuleInfo list = 1; // 列表
+    int32 count = 2;                // 总数
+}
+
+// 获取流水规则详情请求
+message GetFlowRuleReq {
+    int32 id = 1; // 规则ID
+}
+
+// 获取流水规则详情响应
+message GetFlowRuleRes {
+    FlowRuleInfo info = 1; // 规则详情
+}
+
+// 创建流水规则请求
+message CreateFlowRuleReq {
+    string rule_name = 1;     // 规则名称
+    int32 rule_type = 2;      // 规则类型
+    double flow_multiple = 3; // 默认流水倍数
+    int32 expire_days = 4;    // 有效天数
+    int32 status = 5;         // 状态
+    int32 sort = 6;           // 排序
+    string remark = 7;        // 备注说明
+}
+
+// 创建流水规则响应
+message CreateFlowRuleRes {
+    bool success = 1;
+    string message = 2;
+    int32 id = 3; // 新建ID
+}
+
+// 更新流水规则请求
+message UpdateFlowRuleReq {
+    int32 id = 1;             // 规则ID
+    string rule_name = 2;     // 规则名称
+    int32 rule_type = 3;      // 规则类型
+    double flow_multiple = 4; // 默认流水倍数
+    int32 expire_days = 5;    // 有效天数
+    int32 status = 6;         // 状态
+    int32 sort = 7;           // 排序
+    string remark = 8;        // 备注说明
+}
+
+// 更新流水规则响应
+message UpdateFlowRuleRes {
+    bool success = 1;
+    string message = 2;
+}
+
+// 删除流水规则请求
+message DeleteFlowRuleReq {
+    int32 id = 1; // 规则ID
+}
+
+// 删除流水规则响应
+message DeleteFlowRuleRes {
+    bool success = 1;
+    string message = 2;
 }
 
 // 获取站点支付列表请求

@@ -24,6 +24,11 @@ type (
 		GetSiteWithdraws(ctx context.Context, req *v1.GetSiteWithdrawsReq) (*v1.GetSiteWithdrawsRes, error)
 		UpdateSiteWithdraw(ctx context.Context, req *v1.UpdateSiteWithdrawReq) (*v1.UpdateSiteWithdrawRes, error)
 		GetManualList(ctx context.Context, req *v1.GetManualListReq) (*v1.GetManualListRes, error)
+		GetFlowRules(ctx context.Context, req *v1.GetFlowRulesReq) (*v1.GetFlowRulesRes, error)
+		GetFlowRule(ctx context.Context, req *v1.GetFlowRuleReq) (*v1.GetFlowRuleRes, error)
+		CreateFlowRule(ctx context.Context, req *v1.CreateFlowRuleReq) (*v1.CreateFlowRuleRes, error)
+		UpdateFlowRule(ctx context.Context, req *v1.UpdateFlowRuleReq) (*v1.UpdateFlowRuleRes, error)
+		DeleteFlowRule(ctx context.Context, req *v1.DeleteFlowRuleReq) (*v1.DeleteFlowRuleRes, error)
 	}
 )
 

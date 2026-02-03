@@ -18,6 +18,7 @@ import (
 
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/os/gtime"
 	"github.com/gogf/gf/v2/util/gconv"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -1126,6 +1127,221 @@ func (s *sBalance) GetManualList(ctx context.Context, req *v1.GetManualListReq) 
 
 	return &v1.GetManualListRes{
 		List: manualList,
+	}, nil
+}
+
+// GetFlowRules 获取流水规则列表
+func (s *sBalance) GetFlowRules(ctx context.Context, req *v1.GetFlowRulesReq) (*v1.GetFlowRulesRes, error) {
+	ctx, span := tracing.StartSpan(ctx, "balance.GetFlowRules", trace.WithAttributes(
+		attribute.String("method", "GetFlowRules"),
+		attribute.Int("page", int(req.Page)),
+		attribute.Int("size", int(req.Size)),
+	))
+	defer span.End()
+
+	page := req.Page
+	size := req.Size
+	if page <= 0 {
+		page = 1
+	}
+	if size <= 0 {
+		size = 50
+	}
+
+	model := dao.BalanceFlowRule.Ctx(ctx)
+	if req.SiteId > 0 {
+		model = model.Where("site_id", req.SiteId)
+	}
+	if req.RuleType > 0 {
+		model = model.Where("rule_type", req.RuleType)
+	}
+	if req.Status >= 0 {
+		model = model.Where("status", req.Status)
+	}
+	if req.RuleName != "" {
+		model = model.WhereLike("rule_name", "%"+req.RuleName+"%")
+	}
+
+	count, err := model.Count()
+	if err != nil {
+		return nil, fmt.Errorf("查询流水规则总数失败: %v", err)
+	}
+
+	var rules []*entity.BalanceFlowRule
+	err = model.Page(int(page), int(size)).
+		Order("sort ASC, id DESC").
+		Scan(&rules)
+	if err != nil {
+		return nil, fmt.Errorf("查询流水规则列表失败: %v", err)
+	}
+
+	list := make([]*v1.FlowRuleInfo, 0, len(rules))
+	for _, rule := range rules {
+		createdAt := ""
+		if rule.CreatedAt != nil {
+			createdAt = rule.CreatedAt.Format("2006-01-02 15:04:05")
+		}
+		updatedAt := ""
+		if rule.UpdatedAt != nil {
+			updatedAt = rule.UpdatedAt.Format("2006-01-02 15:04:05")
+		}
+
+		list = append(list, &v1.FlowRuleInfo{
+			Id:           int32(rule.Id),
+			SiteId:       int32(rule.SiteId),
+			RuleName:     rule.RuleName,
+			RuleType:     int32(rule.RuleType),
+			FlowMultiple: rule.FlowMultiple,
+			ExpireDays:   int32(rule.ExpireDays),
+			Status:       int32(rule.Status),
+			Sort:         int32(rule.Sort),
+			Remark:       rule.Remark,
+			CreatedAt:    createdAt,
+			UpdatedAt:    updatedAt,
+		})
+	}
+
+	return &v1.GetFlowRulesRes{
+		List:  list,
+		Count: int32(count),
+	}, nil
+}
+
+// GetFlowRule 获取流水规则详情
+func (s *sBalance) GetFlowRule(ctx context.Context, req *v1.GetFlowRuleReq) (*v1.GetFlowRuleRes, error) {
+	if req.Id <= 0 {
+		return &v1.GetFlowRuleRes{}, nil
+	}
+
+	var rule *entity.BalanceFlowRule
+	err := dao.BalanceFlowRule.Ctx(ctx).Where("id", req.Id).Scan(&rule)
+	if err != nil {
+		return nil, fmt.Errorf("查询流水规则失败: %v", err)
+	}
+	if rule == nil {
+		return &v1.GetFlowRuleRes{}, nil
+	}
+
+	createdAt := ""
+	if rule.CreatedAt != nil {
+		createdAt = rule.CreatedAt.Format("2006-01-02 15:04:05")
+	}
+	updatedAt := ""
+	if rule.UpdatedAt != nil {
+		updatedAt = rule.UpdatedAt.Format("2006-01-02 15:04:05")
+	}
+
+	return &v1.GetFlowRuleRes{
+		Info: &v1.FlowRuleInfo{
+			Id:           int32(rule.Id),
+			SiteId:       int32(rule.SiteId),
+			RuleName:     rule.RuleName,
+			RuleType:     int32(rule.RuleType),
+			FlowMultiple: rule.FlowMultiple,
+			ExpireDays:   int32(rule.ExpireDays),
+			Status:       int32(rule.Status),
+			Sort:         int32(rule.Sort),
+			Remark:       rule.Remark,
+			CreatedAt:    createdAt,
+			UpdatedAt:    updatedAt,
+		},
+	}, nil
+}
+
+// CreateFlowRule 创建流水规则
+func (s *sBalance) CreateFlowRule(ctx context.Context, req *v1.CreateFlowRuleReq) (*v1.CreateFlowRuleRes, error) {
+	siteId, ok := middleware.GetSiteIdFromContext(ctx)
+	if !ok || siteId == 0 {
+		return &v1.CreateFlowRuleRes{Success: false, Message: "站点ID不能为空"}, nil
+	}
+	if req.RuleName == "" {
+		return &v1.CreateFlowRuleRes{Success: false, Message: "规则名称不能为空"}, nil
+	}
+	if req.RuleType <= 0 {
+		return &v1.CreateFlowRuleRes{Success: false, Message: "规则类型无效"}, nil
+	}
+	if req.FlowMultiple <= 0 {
+		return &v1.CreateFlowRuleRes{Success: false, Message: "流水倍数无效"}, nil
+	}
+
+	result, err := dao.BalanceFlowRule.Ctx(ctx).Insert(g.Map{
+		"site_id":       siteId,
+		"rule_name":     req.RuleName,
+		"rule_type":     req.RuleType,
+		"flow_multiple": req.FlowMultiple,
+		"expire_days":   req.ExpireDays,
+		"status":        req.Status,
+		"sort":          req.Sort,
+		"remark":        req.Remark,
+		"created_at":    gtime.Now(),
+		"updated_at":    gtime.Now(),
+	})
+	if err != nil {
+		return &v1.CreateFlowRuleRes{Success: false, Message: fmt.Sprintf("创建失败: %v", err)}, nil
+	}
+
+	id, _ := result.LastInsertId()
+	return &v1.CreateFlowRuleRes{
+		Success: true,
+		Message: "创建成功",
+		Id:      int32(id),
+	}, nil
+}
+
+// UpdateFlowRule 更新流水规则
+func (s *sBalance) UpdateFlowRule(ctx context.Context, req *v1.UpdateFlowRuleReq) (*v1.UpdateFlowRuleRes, error) {
+	if req.Id <= 0 {
+		return &v1.UpdateFlowRuleRes{Success: false, Message: "规则ID不能为空"}, nil
+	}
+	siteId, ok := middleware.GetSiteIdFromContext(ctx)
+	if !ok || siteId == 0 {
+		return &v1.UpdateFlowRuleRes{Success: false, Message: "站点ID不能为空"}, nil
+	}
+	if req.RuleName == "" {
+		return &v1.UpdateFlowRuleRes{Success: false, Message: "规则名称不能为空"}, nil
+	}
+	if req.RuleType <= 0 {
+		return &v1.UpdateFlowRuleRes{Success: false, Message: "规则类型无效"}, nil
+	}
+	if req.FlowMultiple <= 0 {
+		return &v1.UpdateFlowRuleRes{Success: false, Message: "流水倍数无效"}, nil
+	}
+
+	_, err := dao.BalanceFlowRule.Ctx(ctx).Where("id", req.Id).Update(g.Map{
+		"site_id":       siteId,
+		"rule_name":     req.RuleName,
+		"rule_type":     req.RuleType,
+		"flow_multiple": req.FlowMultiple,
+		"expire_days":   req.ExpireDays,
+		"status":        req.Status,
+		"sort":          req.Sort,
+		"remark":        req.Remark,
+		"updated_at":    gtime.Now(),
+	})
+	if err != nil {
+		return &v1.UpdateFlowRuleRes{Success: false, Message: fmt.Sprintf("更新失败: %v", err)}, nil
+	}
+
+	return &v1.UpdateFlowRuleRes{
+		Success: true,
+		Message: "更新成功",
+	}, nil
+}
+
+// DeleteFlowRule 删除流水规则
+func (s *sBalance) DeleteFlowRule(ctx context.Context, req *v1.DeleteFlowRuleReq) (*v1.DeleteFlowRuleRes, error) {
+	if req.Id <= 0 {
+		return &v1.DeleteFlowRuleRes{Success: false, Message: "规则ID不能为空"}, nil
+	}
+
+	_, err := dao.BalanceFlowRule.Ctx(ctx).Where("id", req.Id).Delete()
+	if err != nil {
+		return &v1.DeleteFlowRuleRes{Success: false, Message: fmt.Sprintf("删除失败: %v", err)}, nil
+	}
+
+	return &v1.DeleteFlowRuleRes{
+		Success: true,
+		Message: "删除成功",
 	}, nil
 }
 

@@ -3,13 +3,13 @@ package grpc_client
 import (
 	"context"
 	"fmt"
+	"jh_balance_service/internal/registry"
 
 	"github.com/gogf/gf/v2/frame/g"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
 	userv1 "jh_balance_service/api/grpc/user/backend/v1"
-	"jh_balance_service/internal/registry"
 )
 
 // GetUserClient 获取 User 服务的 gRPC 客户端
