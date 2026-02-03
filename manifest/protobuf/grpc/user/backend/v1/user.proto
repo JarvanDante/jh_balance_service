@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package user;
 
-option go_package = "jh_balance_service/api/grpc/user/v1";
+option go_package = "jh_balance_service/api/grpc/user/backend/v1";
 
 service User {
     rpc GetUserList(GetUserListReq) returns (GetUserListRes) {}

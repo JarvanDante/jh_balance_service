@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.10
 // 	protoc        v6.33.1
-// source: grpc/user/v1/user.proto
+// source: grpc/user/backend/v1/user.proto
 
 package v1
 
@@ -47,7 +47,7 @@ type GetUserListReq struct {
 
 func (x *GetUserListReq) Reset() {
 	*x = GetUserListReq{}
-	mi := &file_grpc_user_v1_user_proto_msgTypes[0]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -59,7 +59,7 @@ func (x *GetUserListReq) String() string {
 func (*GetUserListReq) ProtoMessage() {}
 
 func (x *GetUserListReq) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_user_v1_user_proto_msgTypes[0]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -72,7 +72,7 @@ func (x *GetUserListReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserListReq.ProtoReflect.Descriptor instead.
 func (*GetUserListReq) Descriptor() ([]byte, []int) {
-	return file_grpc_user_v1_user_proto_rawDescGZIP(), []int{0}
+	return file_grpc_user_backend_v1_user_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *GetUserListReq) GetGradeId() int32 {
@@ -222,7 +222,7 @@ type UserInfo struct {
 
 func (x *UserInfo) Reset() {
 	*x = UserInfo{}
-	mi := &file_grpc_user_v1_user_proto_msgTypes[1]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -234,7 +234,7 @@ func (x *UserInfo) String() string {
 func (*UserInfo) ProtoMessage() {}
 
 func (x *UserInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_user_v1_user_proto_msgTypes[1]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -247,7 +247,7 @@ func (x *UserInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserInfo.ProtoReflect.Descriptor instead.
 func (*UserInfo) Descriptor() ([]byte, []int) {
-	return file_grpc_user_v1_user_proto_rawDescGZIP(), []int{1}
+	return file_grpc_user_backend_v1_user_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *UserInfo) GetId() int32 {
@@ -445,7 +445,7 @@ type GetUserListRes struct {
 
 func (x *GetUserListRes) Reset() {
 	*x = GetUserListRes{}
-	mi := &file_grpc_user_v1_user_proto_msgTypes[2]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -457,7 +457,7 @@ func (x *GetUserListRes) String() string {
 func (*GetUserListRes) ProtoMessage() {}
 
 func (x *GetUserListRes) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_user_v1_user_proto_msgTypes[2]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -470,7 +470,7 @@ func (x *GetUserListRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserListRes.ProtoReflect.Descriptor instead.
 func (*GetUserListRes) Descriptor() ([]byte, []int) {
-	return file_grpc_user_v1_user_proto_rawDescGZIP(), []int{2}
+	return file_grpc_user_backend_v1_user_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *GetUserListRes) GetList() []*UserInfo {
@@ -526,7 +526,7 @@ type UpdateUserReq struct {
 
 func (x *UpdateUserReq) Reset() {
 	*x = UpdateUserReq{}
-	mi := &file_grpc_user_v1_user_proto_msgTypes[3]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -538,7 +538,7 @@ func (x *UpdateUserReq) String() string {
 func (*UpdateUserReq) ProtoMessage() {}
 
 func (x *UpdateUserReq) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_user_v1_user_proto_msgTypes[3]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -551,7 +551,7 @@ func (x *UpdateUserReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateUserReq.ProtoReflect.Descriptor instead.
 func (*UpdateUserReq) Descriptor() ([]byte, []int) {
-	return file_grpc_user_v1_user_proto_rawDescGZIP(), []int{3}
+	return file_grpc_user_backend_v1_user_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *UpdateUserReq) GetId() int32 {
@@ -677,7 +677,7 @@ type UpdateUserRes struct {
 
 func (x *UpdateUserRes) Reset() {
 	*x = UpdateUserRes{}
-	mi := &file_grpc_user_v1_user_proto_msgTypes[4]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -689,7 +689,7 @@ func (x *UpdateUserRes) String() string {
 func (*UpdateUserRes) ProtoMessage() {}
 
 func (x *UpdateUserRes) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_user_v1_user_proto_msgTypes[4]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -702,7 +702,7 @@ func (x *UpdateUserRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateUserRes.ProtoReflect.Descriptor instead.
 func (*UpdateUserRes) Descriptor() ([]byte, []int) {
-	return file_grpc_user_v1_user_proto_rawDescGZIP(), []int{4}
+	return file_grpc_user_backend_v1_user_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *UpdateUserRes) GetSuccess() bool {
@@ -729,7 +729,7 @@ type GetUserBasicInfoReq struct {
 
 func (x *GetUserBasicInfoReq) Reset() {
 	*x = GetUserBasicInfoReq{}
-	mi := &file_grpc_user_v1_user_proto_msgTypes[5]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -741,7 +741,7 @@ func (x *GetUserBasicInfoReq) String() string {
 func (*GetUserBasicInfoReq) ProtoMessage() {}
 
 func (x *GetUserBasicInfoReq) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_user_v1_user_proto_msgTypes[5]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -754,7 +754,7 @@ func (x *GetUserBasicInfoReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserBasicInfoReq.ProtoReflect.Descriptor instead.
 func (*GetUserBasicInfoReq) Descriptor() ([]byte, []int) {
-	return file_grpc_user_v1_user_proto_rawDescGZIP(), []int{5}
+	return file_grpc_user_backend_v1_user_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetUserBasicInfoReq) GetId() int32 {
@@ -797,7 +797,7 @@ type UserBasicInfo struct {
 
 func (x *UserBasicInfo) Reset() {
 	*x = UserBasicInfo{}
-	mi := &file_grpc_user_v1_user_proto_msgTypes[6]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -809,7 +809,7 @@ func (x *UserBasicInfo) String() string {
 func (*UserBasicInfo) ProtoMessage() {}
 
 func (x *UserBasicInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_user_v1_user_proto_msgTypes[6]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -822,7 +822,7 @@ func (x *UserBasicInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserBasicInfo.ProtoReflect.Descriptor instead.
 func (*UserBasicInfo) Descriptor() ([]byte, []int) {
-	return file_grpc_user_v1_user_proto_rawDescGZIP(), []int{6}
+	return file_grpc_user_backend_v1_user_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *UserBasicInfo) GetId() int32 {
@@ -1004,7 +1004,7 @@ type BankInfo struct {
 
 func (x *BankInfo) Reset() {
 	*x = BankInfo{}
-	mi := &file_grpc_user_v1_user_proto_msgTypes[7]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1016,7 +1016,7 @@ func (x *BankInfo) String() string {
 func (*BankInfo) ProtoMessage() {}
 
 func (x *BankInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_user_v1_user_proto_msgTypes[7]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1029,7 +1029,7 @@ func (x *BankInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BankInfo.ProtoReflect.Descriptor instead.
 func (*BankInfo) Descriptor() ([]byte, []int) {
-	return file_grpc_user_v1_user_proto_rawDescGZIP(), []int{7}
+	return file_grpc_user_backend_v1_user_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *BankInfo) GetBankName() string {
@@ -1056,7 +1056,7 @@ type GetUserBasicInfoRes struct {
 
 func (x *GetUserBasicInfoRes) Reset() {
 	*x = GetUserBasicInfoRes{}
-	mi := &file_grpc_user_v1_user_proto_msgTypes[8]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1068,7 +1068,7 @@ func (x *GetUserBasicInfoRes) String() string {
 func (*GetUserBasicInfoRes) ProtoMessage() {}
 
 func (x *GetUserBasicInfoRes) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_user_v1_user_proto_msgTypes[8]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1081,7 +1081,7 @@ func (x *GetUserBasicInfoRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserBasicInfoRes.ProtoReflect.Descriptor instead.
 func (*GetUserBasicInfoRes) Descriptor() ([]byte, []int) {
-	return file_grpc_user_v1_user_proto_rawDescGZIP(), []int{8}
+	return file_grpc_user_backend_v1_user_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetUserBasicInfoRes) GetUser() *UserBasicInfo {
@@ -1101,7 +1101,7 @@ type GetUserGradesReq struct {
 
 func (x *GetUserGradesReq) Reset() {
 	*x = GetUserGradesReq{}
-	mi := &file_grpc_user_v1_user_proto_msgTypes[9]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1113,7 +1113,7 @@ func (x *GetUserGradesReq) String() string {
 func (*GetUserGradesReq) ProtoMessage() {}
 
 func (x *GetUserGradesReq) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_user_v1_user_proto_msgTypes[9]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1126,7 +1126,7 @@ func (x *GetUserGradesReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserGradesReq.ProtoReflect.Descriptor instead.
 func (*GetUserGradesReq) Descriptor() ([]byte, []int) {
-	return file_grpc_user_v1_user_proto_rawDescGZIP(), []int{9}
+	return file_grpc_user_backend_v1_user_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetUserGradesReq) GetSiteId() int32 {
@@ -1161,7 +1161,7 @@ type UserGradeInfo struct {
 
 func (x *UserGradeInfo) Reset() {
 	*x = UserGradeInfo{}
-	mi := &file_grpc_user_v1_user_proto_msgTypes[10]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1173,7 +1173,7 @@ func (x *UserGradeInfo) String() string {
 func (*UserGradeInfo) ProtoMessage() {}
 
 func (x *UserGradeInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_user_v1_user_proto_msgTypes[10]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1186,7 +1186,7 @@ func (x *UserGradeInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserGradeInfo.ProtoReflect.Descriptor instead.
 func (*UserGradeInfo) Descriptor() ([]byte, []int) {
-	return file_grpc_user_v1_user_proto_rawDescGZIP(), []int{10}
+	return file_grpc_user_backend_v1_user_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *UserGradeInfo) GetId() int32 {
@@ -1313,7 +1313,7 @@ type GetUserGradesRes struct {
 
 func (x *GetUserGradesRes) Reset() {
 	*x = GetUserGradesRes{}
-	mi := &file_grpc_user_v1_user_proto_msgTypes[11]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1325,7 +1325,7 @@ func (x *GetUserGradesRes) String() string {
 func (*GetUserGradesRes) ProtoMessage() {}
 
 func (x *GetUserGradesRes) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_user_v1_user_proto_msgTypes[11]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1338,7 +1338,7 @@ func (x *GetUserGradesRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserGradesRes.ProtoReflect.Descriptor instead.
 func (*GetUserGradesRes) Descriptor() ([]byte, []int) {
-	return file_grpc_user_v1_user_proto_rawDescGZIP(), []int{11}
+	return file_grpc_user_backend_v1_user_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetUserGradesRes) GetCode() int32 {
@@ -1375,7 +1375,7 @@ type SaveUserGradesReq struct {
 
 func (x *SaveUserGradesReq) Reset() {
 	*x = SaveUserGradesReq{}
-	mi := &file_grpc_user_v1_user_proto_msgTypes[12]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1387,7 +1387,7 @@ func (x *SaveUserGradesReq) String() string {
 func (*SaveUserGradesReq) ProtoMessage() {}
 
 func (x *SaveUserGradesReq) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_user_v1_user_proto_msgTypes[12]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1400,7 +1400,7 @@ func (x *SaveUserGradesReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveUserGradesReq.ProtoReflect.Descriptor instead.
 func (*SaveUserGradesReq) Descriptor() ([]byte, []int) {
-	return file_grpc_user_v1_user_proto_rawDescGZIP(), []int{12}
+	return file_grpc_user_backend_v1_user_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *SaveUserGradesReq) GetSiteId() int32 {
@@ -1442,7 +1442,7 @@ type SaveUserGradesRes struct {
 
 func (x *SaveUserGradesRes) Reset() {
 	*x = SaveUserGradesRes{}
-	mi := &file_grpc_user_v1_user_proto_msgTypes[13]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1454,7 +1454,7 @@ func (x *SaveUserGradesRes) String() string {
 func (*SaveUserGradesRes) ProtoMessage() {}
 
 func (x *SaveUserGradesRes) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_user_v1_user_proto_msgTypes[13]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1467,7 +1467,7 @@ func (x *SaveUserGradesRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveUserGradesRes.ProtoReflect.Descriptor instead.
 func (*SaveUserGradesRes) Descriptor() ([]byte, []int) {
-	return file_grpc_user_v1_user_proto_rawDescGZIP(), []int{13}
+	return file_grpc_user_backend_v1_user_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *SaveUserGradesRes) GetCode() int32 {
@@ -1495,7 +1495,7 @@ type DeleteUserGradesReq struct {
 
 func (x *DeleteUserGradesReq) Reset() {
 	*x = DeleteUserGradesReq{}
-	mi := &file_grpc_user_v1_user_proto_msgTypes[14]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1507,7 +1507,7 @@ func (x *DeleteUserGradesReq) String() string {
 func (*DeleteUserGradesReq) ProtoMessage() {}
 
 func (x *DeleteUserGradesReq) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_user_v1_user_proto_msgTypes[14]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1520,7 +1520,7 @@ func (x *DeleteUserGradesReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteUserGradesReq.ProtoReflect.Descriptor instead.
 func (*DeleteUserGradesReq) Descriptor() ([]byte, []int) {
-	return file_grpc_user_v1_user_proto_rawDescGZIP(), []int{14}
+	return file_grpc_user_backend_v1_user_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *DeleteUserGradesReq) GetSiteId() int32 {
@@ -1548,7 +1548,7 @@ type DeleteUserGradesRes struct {
 
 func (x *DeleteUserGradesRes) Reset() {
 	*x = DeleteUserGradesRes{}
-	mi := &file_grpc_user_v1_user_proto_msgTypes[15]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1560,7 +1560,7 @@ func (x *DeleteUserGradesRes) String() string {
 func (*DeleteUserGradesRes) ProtoMessage() {}
 
 func (x *DeleteUserGradesRes) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_user_v1_user_proto_msgTypes[15]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1573,7 +1573,7 @@ func (x *DeleteUserGradesRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteUserGradesRes.ProtoReflect.Descriptor instead.
 func (*DeleteUserGradesRes) Descriptor() ([]byte, []int) {
-	return file_grpc_user_v1_user_proto_rawDescGZIP(), []int{15}
+	return file_grpc_user_backend_v1_user_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *DeleteUserGradesRes) GetCode() int32 {
@@ -1605,7 +1605,7 @@ type GetUserLoginLogsReq struct {
 
 func (x *GetUserLoginLogsReq) Reset() {
 	*x = GetUserLoginLogsReq{}
-	mi := &file_grpc_user_v1_user_proto_msgTypes[16]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1617,7 +1617,7 @@ func (x *GetUserLoginLogsReq) String() string {
 func (*GetUserLoginLogsReq) ProtoMessage() {}
 
 func (x *GetUserLoginLogsReq) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_user_v1_user_proto_msgTypes[16]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1630,7 +1630,7 @@ func (x *GetUserLoginLogsReq) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserLoginLogsReq.ProtoReflect.Descriptor instead.
 func (*GetUserLoginLogsReq) Descriptor() ([]byte, []int) {
-	return file_grpc_user_v1_user_proto_rawDescGZIP(), []int{16}
+	return file_grpc_user_backend_v1_user_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetUserLoginLogsReq) GetUsername() string {
@@ -1699,7 +1699,7 @@ type UserLoginLogInfo struct {
 
 func (x *UserLoginLogInfo) Reset() {
 	*x = UserLoginLogInfo{}
-	mi := &file_grpc_user_v1_user_proto_msgTypes[17]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1711,7 +1711,7 @@ func (x *UserLoginLogInfo) String() string {
 func (*UserLoginLogInfo) ProtoMessage() {}
 
 func (x *UserLoginLogInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_user_v1_user_proto_msgTypes[17]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1724,7 +1724,7 @@ func (x *UserLoginLogInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserLoginLogInfo.ProtoReflect.Descriptor instead.
 func (*UserLoginLogInfo) Descriptor() ([]byte, []int) {
-	return file_grpc_user_v1_user_proto_rawDescGZIP(), []int{17}
+	return file_grpc_user_backend_v1_user_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *UserLoginLogInfo) GetId() int32 {
@@ -1843,7 +1843,7 @@ type GetUserLoginLogsRes struct {
 
 func (x *GetUserLoginLogsRes) Reset() {
 	*x = GetUserLoginLogsRes{}
-	mi := &file_grpc_user_v1_user_proto_msgTypes[18]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1855,7 +1855,7 @@ func (x *GetUserLoginLogsRes) String() string {
 func (*GetUserLoginLogsRes) ProtoMessage() {}
 
 func (x *GetUserLoginLogsRes) ProtoReflect() protoreflect.Message {
-	mi := &file_grpc_user_v1_user_proto_msgTypes[18]
+	mi := &file_grpc_user_backend_v1_user_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1868,7 +1868,7 @@ func (x *GetUserLoginLogsRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserLoginLogsRes.ProtoReflect.Descriptor instead.
 func (*GetUserLoginLogsRes) Descriptor() ([]byte, []int) {
-	return file_grpc_user_v1_user_proto_rawDescGZIP(), []int{18}
+	return file_grpc_user_backend_v1_user_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetUserLoginLogsRes) GetList() []*UserLoginLogInfo {
@@ -1885,11 +1885,11 @@ func (x *GetUserLoginLogsRes) GetCount() int32 {
 	return 0
 }
 
-var File_grpc_user_v1_user_proto protoreflect.FileDescriptor
+var File_grpc_user_backend_v1_user_proto protoreflect.FileDescriptor
 
-const file_grpc_user_v1_user_proto_rawDesc = "" +
+const file_grpc_user_backend_v1_user_proto_rawDesc = "" +
 	"\n" +
-	"\x17grpc/user/v1/user.proto\x12\x04user\"\xbc\x03\n" +
+	"\x1fgrpc/user/backend/v1/user.proto\x12\x04user\"\xbc\x03\n" +
 	"\x0eGetUserListReq\x12\x19\n" +
 	"\bgrade_id\x18\x01 \x01(\x05R\agradeId\x12\x19\n" +
 	"\blevel_id\x18\x02 \x01(\x05R\alevelId\x12\x16\n" +
@@ -2088,22 +2088,22 @@ const file_grpc_user_v1_user_proto_rawDesc = "" +
 	"\rGetUserGrades\x12\x16.user.GetUserGradesReq\x1a\x16.user.GetUserGradesRes\"\x00\x12D\n" +
 	"\x0eSaveUserGrades\x12\x17.user.SaveUserGradesReq\x1a\x17.user.SaveUserGradesRes\"\x00\x12J\n" +
 	"\x10DeleteUserGrades\x12\x19.user.DeleteUserGradesReq\x1a\x19.user.DeleteUserGradesRes\"\x00\x12J\n" +
-	"\x10GetUserLoginLogs\x12\x19.user.GetUserLoginLogsReq\x1a\x19.user.GetUserLoginLogsRes\"\x00B%Z#jh_balance_service/api/grpc/user/v1b\x06proto3"
+	"\x10GetUserLoginLogs\x12\x19.user.GetUserLoginLogsReq\x1a\x19.user.GetUserLoginLogsRes\"\x00B-Z+jh_balance_service/api/grpc/user/backend/v1b\x06proto3"
 
 var (
-	file_grpc_user_v1_user_proto_rawDescOnce sync.Once
-	file_grpc_user_v1_user_proto_rawDescData []byte
+	file_grpc_user_backend_v1_user_proto_rawDescOnce sync.Once
+	file_grpc_user_backend_v1_user_proto_rawDescData []byte
 )
 
-func file_grpc_user_v1_user_proto_rawDescGZIP() []byte {
-	file_grpc_user_v1_user_proto_rawDescOnce.Do(func() {
-		file_grpc_user_v1_user_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_grpc_user_v1_user_proto_rawDesc), len(file_grpc_user_v1_user_proto_rawDesc)))
+func file_grpc_user_backend_v1_user_proto_rawDescGZIP() []byte {
+	file_grpc_user_backend_v1_user_proto_rawDescOnce.Do(func() {
+		file_grpc_user_backend_v1_user_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_grpc_user_backend_v1_user_proto_rawDesc), len(file_grpc_user_backend_v1_user_proto_rawDesc)))
 	})
-	return file_grpc_user_v1_user_proto_rawDescData
+	return file_grpc_user_backend_v1_user_proto_rawDescData
 }
 
-var file_grpc_user_v1_user_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
-var file_grpc_user_v1_user_proto_goTypes = []any{
+var file_grpc_user_backend_v1_user_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_grpc_user_backend_v1_user_proto_goTypes = []any{
 	(*GetUserListReq)(nil),      // 0: user.GetUserListReq
 	(*UserInfo)(nil),            // 1: user.UserInfo
 	(*GetUserListRes)(nil),      // 2: user.GetUserListRes
@@ -2124,7 +2124,7 @@ var file_grpc_user_v1_user_proto_goTypes = []any{
 	(*UserLoginLogInfo)(nil),    // 17: user.UserLoginLogInfo
 	(*GetUserLoginLogsRes)(nil), // 18: user.GetUserLoginLogsRes
 }
-var file_grpc_user_v1_user_proto_depIdxs = []int32{
+var file_grpc_user_backend_v1_user_proto_depIdxs = []int32{
 	1,  // 0: user.GetUserListRes.list:type_name -> user.UserInfo
 	6,  // 1: user.GetUserBasicInfoRes.user:type_name -> user.UserBasicInfo
 	10, // 2: user.GetUserGradesRes.data:type_name -> user.UserGradeInfo
@@ -2151,26 +2151,26 @@ var file_grpc_user_v1_user_proto_depIdxs = []int32{
 	0,  // [0:5] is the sub-list for field type_name
 }
 
-func init() { file_grpc_user_v1_user_proto_init() }
-func file_grpc_user_v1_user_proto_init() {
-	if File_grpc_user_v1_user_proto != nil {
+func init() { file_grpc_user_backend_v1_user_proto_init() }
+func file_grpc_user_backend_v1_user_proto_init() {
+	if File_grpc_user_backend_v1_user_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_grpc_user_v1_user_proto_rawDesc), len(file_grpc_user_v1_user_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_grpc_user_backend_v1_user_proto_rawDesc), len(file_grpc_user_backend_v1_user_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_grpc_user_v1_user_proto_goTypes,
-		DependencyIndexes: file_grpc_user_v1_user_proto_depIdxs,
-		MessageInfos:      file_grpc_user_v1_user_proto_msgTypes,
+		GoTypes:           file_grpc_user_backend_v1_user_proto_goTypes,
+		DependencyIndexes: file_grpc_user_backend_v1_user_proto_depIdxs,
+		MessageInfos:      file_grpc_user_backend_v1_user_proto_msgTypes,
 	}.Build()
-	File_grpc_user_v1_user_proto = out.File
-	file_grpc_user_v1_user_proto_goTypes = nil
-	file_grpc_user_v1_user_proto_depIdxs = nil
+	File_grpc_user_backend_v1_user_proto = out.File
+	file_grpc_user_backend_v1_user_proto_goTypes = nil
+	file_grpc_user_backend_v1_user_proto_depIdxs = nil
 }

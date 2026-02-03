@@ -4,26 +4,12 @@
 
 echo "=== 开始生成protobuf文件 ==="
 
-# 生成protobuf文件（balance 相关用 gf，保留 dc 标签）
-gf gen pb -p manifest/protobuf/frontend/balance/v1
-gf gen pb -p manifest/protobuf/backend/balance/v1
-gf gen pb -p manifest/protobuf/grpc/user/v1
+# 生成protobuf文件
+gf gen pb
 
-# 生成 game 相关 pb（仅客户端，不生成 controller）
-PROTO_DIR="manifest/protobuf"
-OUT_DIR="api"
-GAME_PROTO_FILES=(
-    "grpc/game/backend/v1/game.proto"
-    "grpc/game/frontend/v1/game.proto"
-)
-
-for proto in "${GAME_PROTO_FILES[@]}"; do
-    /opt/homebrew/bin/protoc \
-        --proto_path="${PROTO_DIR}" \
-        --go_out=paths=source_relative:"${OUT_DIR}" \
-        --go-grpc_out=paths=source_relative:"${OUT_DIR}" \
-        "${PROTO_DIR}/${proto}"
-done
+# 清理 game 的 controller stub（仅客户端使用，不需要服务端桩）
+rm -f internal/controller/backend/backend.go
+rm -f internal/controller/frontend/frontend.go
 
 echo "=== 开始清理omitempty标签和重复的dc标签 ==="
 
@@ -236,6 +222,7 @@ DIRS_TO_DELETE=(
     "internal/controller/balance"
     "internal/controller/game"
     "internal/controller/user"
+    "internal/controller/jh_balance_service"
     # 如果有其他需要删除的目录，在这里添加
     # "internal/controller/other_dir"
 )
