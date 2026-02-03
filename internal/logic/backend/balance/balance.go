@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	v1 "jh_balance_service/api/backend/balance/v1"
+	userv1 "jh_balance_service/api/grpc/user/v1"
 	balanceConsts "jh_balance_service/internal/consts/backend/balance"
 	"jh_balance_service/internal/dao"
 	withdrawReview "jh_balance_service/internal/domain/withdraw_review"
+	"jh_balance_service/internal/grpc_client"
 	"jh_balance_service/internal/model/entity"
 	"jh_balance_service/internal/service/backend"
 	"jh_balance_service/internal/tracing"
@@ -14,8 +16,10 @@ import (
 
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/util/gconv"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc/metadata"
 )
 
 type (
@@ -587,7 +591,32 @@ func (s *sBalance) GetWithdrawReview(ctx context.Context, req *v1.GetWithdrawRev
 		totalWithdrawCount = 0
 	}
 
-	// 7. 银行卡脱敏处理（保留前4位和后4位）
+	// 7. 从 app 服务获取用户基本信息（注册时间、注册IP、VIP等级）
+	var registerTime, registerIp string
+	var vipLevel int32
+
+	userClient, userConn, err := grpc_client.GetUserClient(ctx)
+	if err != nil {
+		g.Log().Warningf(ctx, "获取 User 客户端失败: %v", err)
+	} else {
+		defer userConn.Close()
+
+		// 创建带有 metadata 的上下文，传递 site_id
+		ctxWithMeta := metadata.AppendToOutgoingContext(ctx, "site_id", gconv.String(siteId))
+
+		userInfoResp, err := userClient.GetUserBasicInfo(ctxWithMeta, &userv1.GetUserBasicInfoReq{
+			Id: int32(withdraw.UserId),
+		})
+		if err != nil {
+			g.Log().Warningf(ctx, "调用 GetUserBasicInfo 失败: %v", err)
+		} else if userInfoResp != nil && userInfoResp.User != nil {
+			registerTime = userInfoResp.User.RegisterTime
+			registerIp = userInfoResp.User.RegisterIp
+			vipLevel = int32(userInfoResp.User.GradeId)
+		}
+	}
+
+	// 8. 银行卡脱敏处理（保留前4位和后4位）
 	bankCardMasked := s.maskCardNo(withdraw.CardNo)
 
 	// 构建审核信息响应
@@ -609,10 +638,10 @@ func (s *sBalance) GetWithdrawReview(ctx context.Context, req *v1.GetWithdrawRev
 		TodayRecharge: todayRecharge,
 		TodayWithdraw: todayWithdraw,
 
-		// ========== 第三块：风险信息 ==========
-		RegisterTime:       "", // TODO: 从 user 服务获取注册时间
-		RegisterIp:         "", // TODO: 从 user 服务获取注册IP
-		VipLevel:           0,  // TODO: 从 user 服务获取VIP等级
+		// ========== 第三块：扩展信息 ==========
+		RegisterTime:       registerTime,
+		RegisterIp:         registerIp,
+		VipLevel:           vipLevel,
 		TotalWithdrawCount: int32(totalWithdrawCount),
 		TotalWinLose:       0, // TODO: 从 game 服务获取总输赢
 		TotalBetMultiple:   0, // TODO: 从 game 服务获取总打码倍数
