@@ -143,6 +143,16 @@ func (*Controller) GetFlowRule(ctx context.Context, req *v1.GetFlowRuleReq) (*v1
 	return backend.Balance().GetFlowRule(ctx, req)
 }
 
+// GetFlowRequirements 获取流水要求列表
+func (*Controller) GetFlowRequirements(ctx context.Context, req *v1.GetFlowRequirementsReq) (*v1.GetFlowRequirementsRes, error) {
+	return backend.Balance().GetFlowRequirements(ctx, req)
+}
+
+// UpdateFlowRequirement 更新流水要求
+func (*Controller) UpdateFlowRequirement(ctx context.Context, req *v1.UpdateFlowRequirementReq) (*v1.UpdateFlowRequirementRes, error) {
+	return backend.Balance().UpdateFlowRequirement(ctx, req)
+}
+
 // CreateFlowRule 创建流水规则
 func (*Controller) CreateFlowRule(ctx context.Context, req *v1.CreateFlowRuleReq) (*v1.CreateFlowRuleRes, error) {
 	return backend.Balance().CreateFlowRule(ctx, req)

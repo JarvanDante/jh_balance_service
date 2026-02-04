@@ -1248,6 +1248,157 @@ func (s *sBalance) GetFlowRule(ctx context.Context, req *v1.GetFlowRuleReq) (*v1
 	}, nil
 }
 
+// GetFlowRequirements 获取流水要求列表
+func (s *sBalance) GetFlowRequirements(ctx context.Context, req *v1.GetFlowRequirementsReq) (*v1.GetFlowRequirementsRes, error) {
+	ctx, span := tracing.StartSpan(ctx, "balance.GetFlowRequirements", trace.WithAttributes(
+		attribute.String("method", "GetFlowRequirements"),
+		attribute.Int("page", int(req.Page)),
+		attribute.Int("size", int(req.Size)),
+	))
+	defer span.End()
+
+	page := req.Page
+	size := req.Size
+	if page <= 0 {
+		page = 1
+	}
+	if size <= 0 {
+		size = 50
+	}
+
+	model := dao.BalanceFlowRequirement.Ctx(ctx)
+	siteId := req.SiteId
+	if siteId <= 0 {
+		if ctxSiteId, ok := middleware.GetSiteIdFromContext(ctx); ok {
+			siteId = int32(ctxSiteId)
+		}
+	}
+	if siteId > 0 {
+		model = model.Where("site_id", siteId)
+	}
+	if req.UserId > 0 {
+		model = model.Where("user_id", req.UserId)
+	}
+	if req.Username != "" {
+		model = model.Where("username", req.Username)
+	}
+	if req.Status >= 0 {
+		model = model.Where("status", req.Status)
+	}
+	if req.SourceType > 0 {
+		model = model.Where("source_type", req.SourceType)
+	}
+	if req.StartTime != "" {
+		model = model.Where("created_at >= ?", req.StartTime)
+	}
+	if req.EndTime != "" {
+		model = model.Where("created_at <= ?", req.EndTime)
+	}
+
+	count, err := model.Count()
+	if err != nil {
+		return nil, fmt.Errorf("查询流水要求总数失败: %v", err)
+	}
+
+	var items []*entity.BalanceFlowRequirement
+	err = model.Page(int(page), int(size)).
+		Order("created_at DESC, id DESC").
+		Scan(&items)
+	if err != nil {
+		return nil, fmt.Errorf("查询流水要求列表失败: %v", err)
+	}
+
+	list := make([]*v1.FlowRequirementInfo, 0, len(items))
+	for _, item := range items {
+		startTime := ""
+		if item.StartTime != nil {
+			startTime = item.StartTime.Format("2006-01-02 15:04:05")
+		}
+		expireTime := ""
+		if item.ExpireTime != nil {
+			expireTime = item.ExpireTime.Format("2006-01-02 15:04:05")
+		}
+		completeTime := ""
+		if item.CompleteTime != nil {
+			completeTime = item.CompleteTime.Format("2006-01-02 15:04:05")
+		}
+		createdAt := ""
+		if item.CreatedAt != nil {
+			createdAt = item.CreatedAt.Format("2006-01-02 15:04:05")
+		}
+		updatedAt := ""
+		if item.UpdatedAt != nil {
+			updatedAt = item.UpdatedAt.Format("2006-01-02 15:04:05")
+		}
+
+		list = append(list, &v1.FlowRequirementInfo{
+			Id:            int64(item.Id),
+			SiteId:        int32(item.SiteId),
+			UserId:        int64(item.UserId),
+			Username:      item.Username,
+			SourceType:    int32(item.SourceType),
+			SourceId:      int64(item.SourceId),
+			TradeNo:       item.TradeNo,
+			Amount:        item.Amount,
+			BonusAmount:   item.BonusAmount,
+			FlowMultiple:  item.FlowMultiple,
+			RequiredFlow:  item.RequiredFlow,
+			CompletedFlow: item.CompletedFlow,
+			RemainingFlow: item.RemainingFlow,
+			Status:        int32(item.Status),
+			Progress:      item.Progress,
+			StartTime:     startTime,
+			ExpireTime:    expireTime,
+			CompleteTime:  completeTime,
+			Remark:        item.Remark,
+			CreatedAt:     createdAt,
+			UpdatedAt:     updatedAt,
+		})
+	}
+
+	return &v1.GetFlowRequirementsRes{
+		List:  list,
+		Count: int32(count),
+	}, nil
+}
+
+// UpdateFlowRequirement 更新流水要求
+func (s *sBalance) UpdateFlowRequirement(ctx context.Context, req *v1.UpdateFlowRequirementReq) (*v1.UpdateFlowRequirementRes, error) {
+	if req.Id <= 0 {
+		return &v1.UpdateFlowRequirementRes{Success: false, Message: "流水要求ID不能为空"}, nil
+	}
+	if req.Status < 1 || req.Status > 4 {
+		return &v1.UpdateFlowRequirementRes{Success: false, Message: "状态无效"}, nil
+	}
+
+	updateData := g.Map{
+		"status":     req.Status,
+		"updated_at": gtime.Now(),
+	}
+	if req.Remark != "" {
+		updateData["remark"] = req.Remark
+	}
+	if req.ExpireTime != "" {
+		expireTime, err := gtime.StrToTime(req.ExpireTime)
+		if err != nil {
+			return &v1.UpdateFlowRequirementRes{Success: false, Message: "过期时间格式无效"}, nil
+		}
+		updateData["expire_time"] = expireTime
+	}
+	if req.Status == 2 {
+		updateData["complete_time"] = gtime.Now()
+	}
+
+	_, err := dao.BalanceFlowRequirement.Ctx(ctx).
+		Where("id", req.Id).
+		Update(updateData)
+	if err != nil {
+		return &v1.UpdateFlowRequirementRes{Success: false, Message: fmt.Sprintf("更新失败: %v", err)}, nil
+	}
+
+	return &v1.UpdateFlowRequirementRes{Success: true, Message: "更新成功"}, nil
+}
+
 // CreateFlowRule 创建流水规则
 func (s *sBalance) CreateFlowRule(ctx context.Context, req *v1.CreateFlowRuleReq) (*v1.CreateFlowRuleRes, error) {
 	siteId, ok := middleware.GetSiteIdFromContext(ctx)

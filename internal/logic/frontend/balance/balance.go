@@ -1783,6 +1783,91 @@ func (s *sBalance) GetBalanceLog(ctx context.Context, req *v1.GetBalanceLogReq) 
 	}, nil
 }
 
+// GetUserFlowRequirements 获取用户流水要求列表
+func (s *sBalance) GetUserFlowRequirements(ctx context.Context, req *v1.GetUserFlowRequirementsReq) (*v1.GetUserFlowRequirementsRes, error) {
+	userId, ok := middleware.GetUserIdFromContext(ctx)
+	if !ok || userId == 0 {
+		return &v1.GetUserFlowRequirementsRes{}, nil
+	}
+	siteId, ok := middleware.GetSiteIdFromContext(ctx)
+	if !ok || siteId == 0 {
+		return &v1.GetUserFlowRequirementsRes{}, nil
+	}
+
+	page := req.Page
+	size := req.Size
+	if page <= 0 {
+		page = 1
+	}
+	if size <= 0 {
+		size = 50
+	}
+
+	model := dao.BalanceFlowRequirement.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId)
+	if req.Status >= 0 {
+		model = model.Where("status", req.Status)
+	}
+
+	count, err := model.Count()
+	if err != nil {
+		return nil, fmt.Errorf("查询流水要求总数失败: %v", err)
+	}
+
+	var items []*entity.BalanceFlowRequirement
+	err = model.Page(int(page), int(size)).
+		Order("created_at DESC, id DESC").
+		Scan(&items)
+	if err != nil {
+		return nil, fmt.Errorf("查询流水要求列表失败: %v", err)
+	}
+
+	list := make([]*v1.UserFlowRequirementInfo, 0, len(items))
+	for _, item := range items {
+		startTime := ""
+		if item.StartTime != nil {
+			startTime = item.StartTime.Format("2006-01-02 15:04:05")
+		}
+		expireTime := ""
+		if item.ExpireTime != nil {
+			expireTime = item.ExpireTime.Format("2006-01-02 15:04:05")
+		}
+		completeTime := ""
+		if item.CompleteTime != nil {
+			completeTime = item.CompleteTime.Format("2006-01-02 15:04:05")
+		}
+		createdAt := ""
+		if item.CreatedAt != nil {
+			createdAt = item.CreatedAt.Format("2006-01-02 15:04:05")
+		}
+
+		list = append(list, &v1.UserFlowRequirementInfo{
+			Id:            int64(item.Id),
+			SourceType:    int32(item.SourceType),
+			TradeNo:       item.TradeNo,
+			Amount:        item.Amount,
+			BonusAmount:   item.BonusAmount,
+			FlowMultiple:  item.FlowMultiple,
+			RequiredFlow:  item.RequiredFlow,
+			CompletedFlow: item.CompletedFlow,
+			RemainingFlow: item.RemainingFlow,
+			Status:        int32(item.Status),
+			Progress:      item.Progress,
+			StartTime:     startTime,
+			ExpireTime:    expireTime,
+			CompleteTime:  completeTime,
+			Remark:        item.Remark,
+			CreatedAt:     createdAt,
+		})
+	}
+
+	return &v1.GetUserFlowRequirementsRes{
+		List:  list,
+		Count: int32(count),
+	}, nil
+}
+
 // getTotalRecharge 获取充值总计
 func (s *sBalance) getTotalRecharge(ctx context.Context, siteId, userId int, startTime, endTime string) float64 {
 	result, err := dao.BalanceLog.Ctx(ctx).

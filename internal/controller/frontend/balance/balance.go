@@ -116,6 +116,11 @@ func (c *Controller) GetBalanceLog(ctx context.Context, req *v1.GetBalanceLogReq
 	return frontend.Balance().GetBalanceLog(ctx, req)
 }
 
+// GetUserFlowRequirements 获取用户流水要求列表
+func (c *Controller) GetUserFlowRequirements(ctx context.Context, req *v1.GetUserFlowRequirementsReq) (res *v1.GetUserFlowRequirementsRes, err error) {
+	return frontend.Balance().GetUserFlowRequirements(ctx, req)
+}
+
 // DepositCallback 充值异步回调
 func (c *Controller) DepositCallback(ctx context.Context, req *v1.DepositCallbackReq) (res *v1.DepositCallbackRes, err error) {
 	g.Log().Infof(ctx, "Frontend Balance Controller收到DepositCallback请求")

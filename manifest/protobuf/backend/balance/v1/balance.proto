@@ -44,6 +44,10 @@ service Balance {
     rpc CreateFlowRule(CreateFlowRuleReq) returns (CreateFlowRuleRes) {}
     rpc UpdateFlowRule(UpdateFlowRuleReq) returns (UpdateFlowRuleRes) {}
     rpc DeleteFlowRule(DeleteFlowRuleReq) returns (DeleteFlowRuleRes) {}
+
+    // 流水要求管理
+    rpc GetFlowRequirements(GetFlowRequirementsReq) returns (GetFlowRequirementsRes) {}
+    rpc UpdateFlowRequirement(UpdateFlowRequirementReq) returns (UpdateFlowRequirementRes) {}
 }
 
 // 获取交易类型列表请求
@@ -407,6 +411,64 @@ message FlowRuleInfo {
 message GetFlowRulesRes {
     repeated FlowRuleInfo list = 1; // 列表
     int32 count = 2;                // 总数
+}
+
+// 流水要求信息
+message FlowRequirementInfo {
+    int64 id = 1;
+    int32 site_id = 2;
+    int64 user_id = 3;
+    string username = 4;
+    int32 source_type = 5;
+    int64 source_id = 6;
+    string trade_no = 7;
+    double amount = 8;
+    double bonus_amount = 9;
+    double flow_multiple = 10;
+    double required_flow = 11;
+    double completed_flow = 12;
+    double remaining_flow = 13;
+    int32 status = 14;
+    double progress = 15;
+    string start_time = 16;
+    string expire_time = 17;
+    string complete_time = 18;
+    string remark = 19;
+    string created_at = 20;
+    string updated_at = 21;
+}
+
+// 获取流水要求列表请求（后台）
+message GetFlowRequirementsReq {
+    int32 site_id = 1;
+    int64 user_id = 2;
+    string username = 3;
+    int32 status = 4;        // -1=全部
+    int32 source_type = 5;   // 0=全部
+    string start_time = 6;
+    string end_time = 7;
+    int32 page = 8;
+    int32 size = 9;
+}
+
+// 获取流水要求列表响应（后台）
+message GetFlowRequirementsRes {
+    repeated FlowRequirementInfo list = 1;
+    int32 count = 2;
+}
+
+// 更新流水要求请求（后台）
+message UpdateFlowRequirementReq {
+    int64 id = 1;
+    int32 status = 2;     // 1=进行中 2=已完成 3=已过期 4=已取消
+    string remark = 3;
+    string expire_time = 4; // 可选，格式: YYYY-MM-DD HH:MM:SS
+}
+
+// 更新流水要求响应（后台）
+message UpdateFlowRequirementRes {
+    bool success = 1;
+    string message = 2;
 }
 
 // 获取流水规则详情请求

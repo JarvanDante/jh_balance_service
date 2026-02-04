@@ -5,6 +5,8 @@
 package dao
 
 import (
+	"context"
+	"github.com/gogf/gf/v2/database/gdb"
 	"jh_balance_service/internal/dao/internal"
 )
 
@@ -16,7 +18,14 @@ type balanceFlowConsumeRetryDao struct {
 
 var (
 	// BalanceFlowConsumeRetry is a globally accessible object for table balance_flow_consume_retry operations.
-	BalanceFlowConsumeRetry = balanceFlowConsumeRetryDao{internal.NewBalanceFlowConsumeRetryDao()}
+	BalanceFlowConsumeRetry = balanceFlowConsumeRetryDao{internal.NewBalanceFlowConsumeRetryDao(DynamicDBHandler)}
 )
+
+// Ctx 重写Ctx方法，使用动态数据库连接
+func (d balanceFlowConsumeRetryDao) Ctx(ctx context.Context) *gdb.Model {
+	// 使用辅助函数获取动态Model
+	originalModel := d.BalanceFlowConsumeRetryDao.Ctx(ctx)
+	return GetDynamicModel(ctx, d.Table(), originalModel)
+}
 
 // Add your custom methods and functionality below.

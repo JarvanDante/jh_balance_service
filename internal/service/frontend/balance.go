@@ -23,6 +23,7 @@ type IBalance interface {
 	GetWithdrawNonce(ctx context.Context, req *v1.GetWithdrawNonceReq) (res *v1.GetWithdrawNonceRes, err error)
 	CreateDepositOrder(ctx context.Context, req *v1.CreateDepositOrderReq) (res *v1.CreateDepositOrderRes, err error)
 	GetBalanceLog(ctx context.Context, req *v1.GetBalanceLogReq) (res *v1.GetBalanceLogRes, err error)
+	GetUserFlowRequirements(ctx context.Context, req *v1.GetUserFlowRequirementsReq) (res *v1.GetUserFlowRequirementsRes, err error)
 	DepositCallback(ctx context.Context, req *v1.DepositCallbackReq) (res *v1.DepositCallbackRes, err error)
 	Withdraw(ctx context.Context, req *v1.WithdrawReq) (res *v1.WithdrawRes, err error)
 }
