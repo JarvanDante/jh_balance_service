@@ -1264,6 +1264,18 @@ func (s *sBalance) CreateFlowRule(ctx context.Context, req *v1.CreateFlowRuleReq
 		return &v1.CreateFlowRuleRes{Success: false, Message: "流水倍数无效"}, nil
 	}
 
+	// 同一站点下 rule_type 不允许重复
+	dupCount, err := dao.BalanceFlowRule.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("rule_type", req.RuleType).
+		Count()
+	if err != nil {
+		return &v1.CreateFlowRuleRes{Success: false, Message: fmt.Sprintf("校验规则类型失败: %v", err)}, nil
+	}
+	if dupCount > 0 {
+		return &v1.CreateFlowRuleRes{Success: false, Message: "该规则类型已存在"}, nil
+	}
+
 	result, err := dao.BalanceFlowRule.Ctx(ctx).Insert(g.Map{
 		"site_id":       siteId,
 		"rule_name":     req.RuleName,
@@ -1307,7 +1319,20 @@ func (s *sBalance) UpdateFlowRule(ctx context.Context, req *v1.UpdateFlowRuleReq
 		return &v1.UpdateFlowRuleRes{Success: false, Message: "流水倍数无效"}, nil
 	}
 
-	_, err := dao.BalanceFlowRule.Ctx(ctx).Where("id", req.Id).Update(g.Map{
+	// 同一站点下 rule_type 不允许重复（排除自身）
+	dupCount, err := dao.BalanceFlowRule.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("rule_type", req.RuleType).
+		Where("id !=", req.Id).
+		Count()
+	if err != nil {
+		return &v1.UpdateFlowRuleRes{Success: false, Message: fmt.Sprintf("校验规则类型失败: %v", err)}, nil
+	}
+	if dupCount > 0 {
+		return &v1.UpdateFlowRuleRes{Success: false, Message: "该规则类型已存在"}, nil
+	}
+
+	_, err = dao.BalanceFlowRule.Ctx(ctx).Where("id", req.Id).Update(g.Map{
 		"site_id":       siteId,
 		"rule_name":     req.RuleName,
 		"rule_type":     req.RuleType,
