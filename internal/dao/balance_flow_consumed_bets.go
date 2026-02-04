@@ -5,6 +5,9 @@
 package dao
 
 import (
+	"context"
+
+	"github.com/gogf/gf/v2/database/gdb"
 	"jh_balance_service/internal/dao/internal"
 )
 
@@ -16,7 +19,14 @@ type balanceFlowConsumedBetsDao struct {
 
 var (
 	// BalanceFlowConsumedBets is a globally accessible object for table balance_flow_consumed_bets operations.
-	BalanceFlowConsumedBets = balanceFlowConsumedBetsDao{internal.NewBalanceFlowConsumedBetsDao()}
+	BalanceFlowConsumedBets = balanceFlowConsumedBetsDao{internal.NewBalanceFlowConsumedBetsDao(DynamicDBHandler)}
 )
+
+// Ctx 重写Ctx方法，使用动态数据库连接
+func (d balanceFlowConsumedBetsDao) Ctx(ctx context.Context) *gdb.Model {
+	// 使用辅助函数获取动态Model
+	originalModel := d.BalanceFlowConsumedBetsDao.Ctx(ctx)
+	return GetDynamicModel(ctx, d.Table(), originalModel)
+}
 
 // Add your custom methods and functionality below.

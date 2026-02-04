@@ -44,7 +44,7 @@ func main() {
 	}
 
 	// 添加子命令
-	command.AddCommand(&cmd.Main, cmd.MqConsumer)
+	command.AddCommand(&cmd.Main, cmd.MqConsumer, cmd.FlowConsumer, cmd.FlowRetry)
 
 	// 运行命令
 	command.Run(ctx)
