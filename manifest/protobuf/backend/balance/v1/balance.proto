@@ -289,8 +289,8 @@ message WithdrawReviewInfo {
     // ========== 第二块：资金合规与流水 ==========
     double total_recharge = 8;          // 总充值
     double valid_bet = 9;               // 有效投注
-    // double required_flow = 10;       // 所需流水（待实现）
-    // double remaining_flow = 11;      // 还需流水（待实现）
+    double required_flow = 10;          // 所需流水
+    double remaining_flow = 11;         // 还需流水
     double today_recharge = 12;         // 今日充值
     double today_withdraw = 13;         // 今日提现
     

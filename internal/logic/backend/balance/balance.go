@@ -594,6 +594,25 @@ func (s *sBalance) GetWithdrawReview(ctx context.Context, req *v1.GetWithdrawRev
 		totalWithdrawCount = 0
 	}
 
+	// 6.1 查询所需/剩余流水（仅统计进行中）
+	requiredFlow := 0.0
+	remainingFlow := 0.0
+	flowAgg := struct {
+		RequiredFlow  float64 `json:"required_flow"`
+		RemainingFlow float64 `json:"remaining_flow"`
+	}{}
+	err = dao.BalanceFlowRequirement.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", withdraw.UserId).
+		Where("status !=", 2).
+		Fields("IFNULL(SUM(required_flow),0) as required_flow", "IFNULL(SUM(remaining_flow),0) as remaining_flow").
+		Scan(&flowAgg)
+	if err != nil {
+		g.Log().Warningf(ctx, "查询所需/剩余流水失败: %v", err)
+	} else {
+		requiredFlow = flowAgg.RequiredFlow
+		remainingFlow = flowAgg.RemainingFlow
+	}
 	// 7. 从 app 服务获取用户基本信息（注册时间、注册IP、VIP等级）
 	var registerTime, registerIp string
 	var vipLevel int32
@@ -680,6 +699,11 @@ func (s *sBalance) GetWithdrawReview(ctx context.Context, req *v1.GetWithdrawRev
 			}
 		}
 	}
+	if requiredFlow > 0 {
+		totalBetMultiple = validBet / requiredFlow
+	} else {
+		totalBetMultiple = 0
+	}
 
 	// 构建审核信息响应
 	reviewInfo := &v1.WithdrawReviewInfo{
@@ -695,8 +719,8 @@ func (s *sBalance) GetWithdrawReview(ctx context.Context, req *v1.GetWithdrawRev
 		// ========== 第二块：资金合规与流水 ==========
 		TotalRecharge: totalRecharge,
 		ValidBet:      validBet,
-		// RequiredFlow:  0, // 待实现
-		// RemainingFlow: 0, // 待实现
+		RequiredFlow:  requiredFlow,
+		RemainingFlow: remainingFlow,
 		TodayRecharge: todayRecharge,
 		TodayWithdraw: todayWithdraw,
 
@@ -706,7 +730,7 @@ func (s *sBalance) GetWithdrawReview(ctx context.Context, req *v1.GetWithdrawRev
 		VipLevel:           vipLevel,
 		TotalWithdrawCount: int32(totalWithdrawCount),
 		TotalWinLose:       totalWinLose,
-		TotalBetMultiple:   totalBetMultiple,
+		TotalBetMultiple:   totalBetMultiple, //打码倍数 = 有效投注总额 / 需要完成的流水要求
 
 		// ========== 其他信息（用于后续处理） ==========
 		WithdrawId:  int64(withdraw.Id),
