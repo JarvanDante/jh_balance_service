@@ -55,6 +55,9 @@ var (
 				g.Log().Fatalf(ctx, "Failed to start flow consumer: %v", err)
 			}
 
+			// 启动流水幂等表定期清理（保留1个月）
+			StartFlowConsumedCleanup(ctx, dbManager)
+
 			g.Log().Info(ctx, "Flow Consumer 启动成功，等待消息...")
 
 			// 等待退出信号
