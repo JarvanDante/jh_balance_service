@@ -424,19 +424,26 @@ func processUserFlowBatch(ctx context.Context, siteID int32, userID int64, siteC
 		return err
 	}
 
-	// FIFO 消费流水（逐条事务，失败写入 retry 表并继续）
+	// FIFO 消费流水（按用户聚合一次事务）
+	totalAmount := 0.0
 	for _, d := range newDeliveries {
-		err := g.DB(groupName).Transaction(siteCtx, func(ctx context.Context, tx gdb.TX) error {
-			return ApplyFlowRequirementTx(ctx, tx, int(siteID), userID, d.msg.ValidAmount)
-		})
-		if err != nil {
-			g.Log().Errorf(ctx, "流水消费失败，写入重试表: order_no=%s, user_id=%d, site=%s, err=%v",
-				d.msg.OrderNo, userID, siteCode, err)
-			_ = insertFlowConsumeRetry(siteCtx, groupName, d.msg, err)
-			// 继续处理其它订单
-			continue
-		}
+		totalAmount += d.msg.ValidAmount
 	}
+
+	err := g.DB(groupName).Transaction(siteCtx, func(ctx context.Context, tx gdb.TX) error {
+		return ApplyFlowRequirementTx(ctx, tx, int(siteID), userID, totalAmount)
+	})
+	if err != nil {
+		g.Log().Errorf(ctx, "流水消费失败，写入重试表: user_id=%d, site=%s, total=%.4f, err=%v",
+			userID, siteCode, totalAmount, err)
+		for _, d := range newDeliveries {
+			_ = insertFlowConsumeRetry(siteCtx, groupName, d.msg, err)
+		}
+		return nil
+	}
+
+	g.Log().Infof(ctx, "流水消费聚合完成: user_id=%d, site=%s, total=%.4f, orders=%d",
+		userID, siteCode, totalAmount, len(newDeliveries))
 
 	return nil
 }
