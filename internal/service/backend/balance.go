@@ -26,6 +26,7 @@ type (
 		GetManualList(ctx context.Context, req *v1.GetManualListReq) (*v1.GetManualListRes, error)
 		GetFlowRules(ctx context.Context, req *v1.GetFlowRulesReq) (*v1.GetFlowRulesRes, error)
 		GetFlowRule(ctx context.Context, req *v1.GetFlowRuleReq) (*v1.GetFlowRuleRes, error)
+		GetFlowOptions(ctx context.Context, req *v1.GetFlowOptionsReq) (*v1.GetFlowOptionsRes, error)
 		GetFlowRequirements(ctx context.Context, req *v1.GetFlowRequirementsReq) (*v1.GetFlowRequirementsRes, error)
 		UpdateFlowRequirement(ctx context.Context, req *v1.UpdateFlowRequirementReq) (*v1.UpdateFlowRequirementRes, error)
 		CreateFlowRule(ctx context.Context, req *v1.CreateFlowRuleReq) (*v1.CreateFlowRuleRes, error)

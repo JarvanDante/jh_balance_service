@@ -1248,6 +1248,25 @@ func (s *sBalance) GetFlowRule(ctx context.Context, req *v1.GetFlowRuleReq) (*v1
 	}, nil
 }
 
+// GetFlowOptions 获取流水规则类型选项
+func (s *sBalance) GetFlowOptions(ctx context.Context, req *v1.GetFlowOptionsReq) (*v1.GetFlowOptionsRes, error) {
+	list := []*v1.FlowOptionItem{
+		{Value: 1, Label: "充值流水"},
+		{Value: 2, Label: "红利流水"},
+		{Value: 3, Label: "返水流水"},
+		{Value: 4, Label: "人工加款流水"},
+		{Value: 5, Label: "注册送彩金活动"},
+		{Value: 6, Label: "充值送彩金活动"},
+		{Value: 7, Label: "升级送彩金活动"},
+		{Value: 8, Label: "每日签到活动"},
+		{Value: 9, Label: "幸运大转盘活动"},
+	}
+
+	return &v1.GetFlowOptionsRes{
+		List: list,
+	}, nil
+}
+
 // GetFlowRequirements 获取流水要求列表
 func (s *sBalance) GetFlowRequirements(ctx context.Context, req *v1.GetFlowRequirementsReq) (*v1.GetFlowRequirementsRes, error) {
 	ctx, span := tracing.StartSpan(ctx, "balance.GetFlowRequirements", trace.WithAttributes(

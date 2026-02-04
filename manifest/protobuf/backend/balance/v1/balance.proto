@@ -44,10 +44,26 @@ service Balance {
     rpc CreateFlowRule(CreateFlowRuleReq) returns (CreateFlowRuleRes) {}
     rpc UpdateFlowRule(UpdateFlowRuleReq) returns (UpdateFlowRuleRes) {}
     rpc DeleteFlowRule(DeleteFlowRuleReq) returns (DeleteFlowRuleRes) {}
+    // 流水规则类型选项
+    rpc GetFlowOptions(GetFlowOptionsReq) returns (GetFlowOptionsRes) {}
 
     // 流水要求管理
     rpc GetFlowRequirements(GetFlowRequirementsReq) returns (GetFlowRequirementsRes) {}
     rpc UpdateFlowRequirement(UpdateFlowRequirementReq) returns (UpdateFlowRequirementRes) {}
+}
+
+// 获取流水规则类型选项请求
+message GetFlowOptionsReq {}
+
+// 流水规则类型选项
+message FlowOptionItem {
+    int32 value = 1;
+    string label = 2;
+}
+
+// 获取流水规则类型选项响应
+message GetFlowOptionsRes {
+    repeated FlowOptionItem list = 1;
 }
 
 // 获取交易类型列表请求
