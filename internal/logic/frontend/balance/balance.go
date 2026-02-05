@@ -2273,22 +2273,55 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 				msg = incRes.Message
 			}
 			g.Log().Warningf(ctx, "IncreasePayTimes 返回失败: %s", msg)
-		} else if incRes.OldPayTimes == 0 && incRes.InviterId > 0 {
+		} else if incRes.InviterId > 0 {
+			minDeposit := g.Cfg().MustGet(ctx, "invite.min_deposit", 100).Float64()
 			bonusAmount := g.Cfg().MustGet(ctx, "invite.bonus_amount", 0).Float64()
-			if bonusAmount > 0 {
-				grantRes, err := s.GrantInviteBonus(ctx, &v1.GrantInviteBonusReq{
-					SiteId: int32(paymentLog.SiteId),
-					UserId: int32(incRes.InviterId),
-					Amount: bonusAmount,
-					Remark: "邀请首充红利",
-				})
-				if err != nil {
-					g.Log().Warningf(ctx, "发放邀请首充红利失败: %v", err)
-				} else if grantRes != nil && !grantRes.Success {
-					g.Log().Warningf(ctx, "发放邀请首充红利失败: %s", grantRes.Message)
-				}
-			} else {
+			if bonusAmount <= 0 {
 				g.Log().Warningf(ctx, "邀请首充红利未配置或金额为0，跳过发放: user_id=%d", incRes.InviterId)
+			} else {
+				model := dao.GetDynamicModel(ctx, "balance_invite_reward", g.DB().Model("balance_invite_reward").Safe().Ctx(ctx))
+				count, err := model.Where("site_id", paymentLog.SiteId).Where("invitee_id", paymentLog.UserId).Count()
+				if err != nil {
+					g.Log().Warningf(ctx, "查询邀请红利发放记录失败: %v", err)
+				} else if count > 0 {
+					g.Log().Warningf(ctx, "邀请红利已发放，跳过: invitee_id=%d", paymentLog.UserId)
+				} else {
+					totalActual, err := dao.BalanceLogPayment.Ctx(ctx).
+						Where("site_id", paymentLog.SiteId).
+						Where("user_id", paymentLog.UserId).
+						Where("status", balanceConsts.StatusSuccess).
+						Sum("actual_money")
+					if err != nil {
+						g.Log().Warningf(ctx, "统计邀请用户累计实付失败: %v", err)
+					} else if totalActual < minDeposit {
+						g.Log().Warningf(ctx, "累计实付不足%.2f，跳过发放邀请红利: invitee_id=%d, total=%.2f",
+							minDeposit, paymentLog.UserId, totalActual)
+					} else {
+						grantRes, err := s.GrantInviteBonus(ctx, &v1.GrantInviteBonusReq{
+							SiteId: int32(paymentLog.SiteId),
+							UserId: int32(incRes.InviterId),
+							Amount: bonusAmount,
+							Remark: "邀请首充红利",
+						})
+						if err != nil {
+							g.Log().Warningf(ctx, "发放邀请首充红利失败: %v", err)
+						} else if grantRes != nil && !grantRes.Success {
+							g.Log().Warningf(ctx, "发放邀请首充红利失败: %s", grantRes.Message)
+						} else {
+							_, err = model.Data(g.Map{
+								"site_id":      paymentLog.SiteId,
+								"inviter_id":   incRes.InviterId,
+								"invitee_id":   paymentLog.UserId,
+								"bonus_amount": bonusAmount,
+								"trade_no":     grantRes.TradeNo,
+								"created_at":   gtime.Now(),
+							}).Insert()
+							if err != nil {
+								g.Log().Warningf(ctx, "记录邀请红利发放失败: %v", err)
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -2541,6 +2574,61 @@ func (s *sBalance) GrantInviteBonus(ctx context.Context, req *v1.GrantInviteBonu
 		Message: "发放红利成功",
 		TradeNo: tradeNo,
 	}, nil
+}
+
+// GetValidReferralCount 统计有效邀请人数（按充值总额）
+func (s *sBalance) GetValidReferralCount(ctx context.Context, req *v1.GetValidReferralCountReq) (*v1.GetValidReferralCountRes, error) {
+	if req == nil || len(req.UserIds) == 0 {
+		return &v1.GetValidReferralCountRes{Count: 0}, nil
+	}
+
+	siteId, ok := middleware.GetSiteIdFromContext(ctx)
+	if !ok || siteId == 0 {
+		if req.SiteId <= 0 {
+			return &v1.GetValidReferralCountRes{Count: 0}, nil
+		}
+		siteId = uint(req.SiteId)
+		// 兜底设置动态数据库组（避免无metadata时路由失败）
+		siteCode := registry.GetDBConfigManager().GetSiteCodeBySiteID(int64(siteId))
+		if siteCode != "" {
+			ctx = context.WithValue(ctx, "dynamic_db_group", "site_"+siteCode)
+		}
+	}
+
+	minTotal := req.MinTotal
+	if minTotal <= 0 {
+		minTotal = g.Cfg().MustGet(ctx, "invite.min_deposit", 100).Float64()
+	}
+
+	userIds := make([]int, 0, len(req.UserIds))
+	for _, id := range req.UserIds {
+		if id > 0 {
+			userIds = append(userIds, int(id))
+		}
+	}
+	if len(userIds) == 0 {
+		return &v1.GetValidReferralCountRes{Count: 0}, nil
+	}
+
+	var rows []struct {
+		UserId int64   `json:"user_id"`
+		Total  float64 `json:"total"`
+	}
+
+	err := dao.BalanceLogPayment.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("status", balanceConsts.StatusSuccess).
+		WhereIn("user_id", userIds).
+		Fields("user_id, IFNULL(SUM(actual_money),0) as total").
+		Group("user_id").
+		Having("total >= ?", minTotal).
+		Scan(&rows)
+	if err != nil {
+		g.Log().Warningf(ctx, "统计有效邀请人数失败: %v", err)
+		return &v1.GetValidReferralCountRes{Count: 0}, nil
+	}
+
+	return &v1.GetValidReferralCountRes{Count: int32(len(rows))}, nil
 }
 
 // GetInviteBonusSummary 获取邀请红利统计

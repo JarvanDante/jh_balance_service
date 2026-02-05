@@ -212,3 +212,8 @@ func (c *Controller) GrantInviteBonus(ctx context.Context, req *v1.GrantInviteBo
 func (c *Controller) GetInviteBonusSummary(ctx context.Context, req *v1.GetInviteBonusSummaryReq) (res *v1.GetInviteBonusSummaryRes, err error) {
 	return frontend.Balance().GetInviteBonusSummary(ctx, req)
 }
+
+// GetValidReferralCount 统计有效邀请人数
+func (c *Controller) GetValidReferralCount(ctx context.Context, req *v1.GetValidReferralCountReq) (res *v1.GetValidReferralCountRes, err error) {
+	return frontend.Balance().GetValidReferralCount(ctx, req)
+}
