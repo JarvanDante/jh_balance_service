@@ -202,3 +202,13 @@ func (c *Controller) Withdraw(ctx context.Context, req *v1.WithdrawReq) (res *v1
 
 	return frontend.Balance().Withdraw(ctx, req)
 }
+
+// GrantInviteBonus 发放邀请红利
+func (c *Controller) GrantInviteBonus(ctx context.Context, req *v1.GrantInviteBonusReq) (res *v1.GrantInviteBonusRes, err error) {
+	return frontend.Balance().GrantInviteBonus(ctx, req)
+}
+
+// GetInviteBonusSummary 获取邀请红利统计
+func (c *Controller) GetInviteBonusSummary(ctx context.Context, req *v1.GetInviteBonusSummaryReq) (res *v1.GetInviteBonusSummaryRes, err error) {
+	return frontend.Balance().GetInviteBonusSummary(ctx, req)
+}

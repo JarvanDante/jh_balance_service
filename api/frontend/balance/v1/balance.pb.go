@@ -2861,6 +2861,250 @@ func (x *WithdrawRes) GetTradeNo() string {
 	return ""
 }
 
+// 发放邀请红利请求
+type GrantInviteBonusReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SiteId        int32                  `protobuf:"varint,1,opt,name=site_id,json=siteId,proto3" json:"site_id" dc:"站点ID"` // 站点ID
+	UserId        int32                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id" dc:"用户ID"` // 用户ID
+	Amount        float64                `protobuf:"fixed64,3,opt,name=amount,proto3" json:"amount" dc:"红利金额"`              // 红利金额
+	Remark        string                 `protobuf:"bytes,4,opt,name=remark,proto3" json:"remark" dc:"备注"`                  // 备注
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GrantInviteBonusReq) Reset() {
+	*x = GrantInviteBonusReq{}
+	mi := &file_frontend_balance_v1_balance_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GrantInviteBonusReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GrantInviteBonusReq) ProtoMessage() {}
+
+func (x *GrantInviteBonusReq) ProtoReflect() protoreflect.Message {
+	mi := &file_frontend_balance_v1_balance_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GrantInviteBonusReq.ProtoReflect.Descriptor instead.
+func (*GrantInviteBonusReq) Descriptor() ([]byte, []int) {
+	return file_frontend_balance_v1_balance_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *GrantInviteBonusReq) GetSiteId() int32 {
+	if x != nil {
+		return x.SiteId
+	}
+	return 0
+}
+
+func (x *GrantInviteBonusReq) GetUserId() int32 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *GrantInviteBonusReq) GetAmount() float64 {
+	if x != nil {
+		return x.Amount
+	}
+	return 0
+}
+
+func (x *GrantInviteBonusReq) GetRemark() string {
+	if x != nil {
+		return x.Remark
+	}
+	return ""
+}
+
+// 发放邀请红利响应
+type GrantInviteBonusRes struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success" dc:"是否成功"`              // 是否成功
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message" dc:"消息"`                 // 消息
+	TradeNo       string                 `protobuf:"bytes,3,opt,name=trade_no,json=tradeNo,proto3" json:"trade_no" dc:"流水号"` // 流水号
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GrantInviteBonusRes) Reset() {
+	*x = GrantInviteBonusRes{}
+	mi := &file_frontend_balance_v1_balance_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GrantInviteBonusRes) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GrantInviteBonusRes) ProtoMessage() {}
+
+func (x *GrantInviteBonusRes) ProtoReflect() protoreflect.Message {
+	mi := &file_frontend_balance_v1_balance_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GrantInviteBonusRes.ProtoReflect.Descriptor instead.
+func (*GrantInviteBonusRes) Descriptor() ([]byte, []int) {
+	return file_frontend_balance_v1_balance_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *GrantInviteBonusRes) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *GrantInviteBonusRes) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *GrantInviteBonusRes) GetTradeNo() string {
+	if x != nil {
+		return x.TradeNo
+	}
+	return ""
+}
+
+// 获取邀请红利统计请求
+type GetInviteBonusSummaryReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SiteId        int32                  `protobuf:"varint,1,opt,name=site_id,json=siteId,proto3" json:"site_id" dc:"站点ID"` // 站点ID
+	UserId        int32                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id" dc:"用户ID"` // 用户ID
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetInviteBonusSummaryReq) Reset() {
+	*x = GetInviteBonusSummaryReq{}
+	mi := &file_frontend_balance_v1_balance_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetInviteBonusSummaryReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetInviteBonusSummaryReq) ProtoMessage() {}
+
+func (x *GetInviteBonusSummaryReq) ProtoReflect() protoreflect.Message {
+	mi := &file_frontend_balance_v1_balance_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetInviteBonusSummaryReq.ProtoReflect.Descriptor instead.
+func (*GetInviteBonusSummaryReq) Descriptor() ([]byte, []int) {
+	return file_frontend_balance_v1_balance_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *GetInviteBonusSummaryReq) GetSiteId() int32 {
+	if x != nil {
+		return x.SiteId
+	}
+	return 0
+}
+
+func (x *GetInviteBonusSummaryReq) GetUserId() int32 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+// 获取邀请红利统计响应
+type GetInviteBonusSummaryRes struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	TodayAmount     float64                `protobuf:"fixed64,1,opt,name=today_amount,json=todayAmount,proto3" json:"today_amount" dc:"今日邀请红利"`             // 今日邀请红利
+	YesterdayAmount float64                `protobuf:"fixed64,2,opt,name=yesterday_amount,json=yesterdayAmount,proto3" json:"yesterday_amount" dc:"昨日邀请红利"` // 昨日邀请红利
+	TotalAmount     float64                `protobuf:"fixed64,3,opt,name=total_amount,json=totalAmount,proto3" json:"total_amount" dc:"总邀请红利"`              // 总邀请红利
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *GetInviteBonusSummaryRes) Reset() {
+	*x = GetInviteBonusSummaryRes{}
+	mi := &file_frontend_balance_v1_balance_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetInviteBonusSummaryRes) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetInviteBonusSummaryRes) ProtoMessage() {}
+
+func (x *GetInviteBonusSummaryRes) ProtoReflect() protoreflect.Message {
+	mi := &file_frontend_balance_v1_balance_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetInviteBonusSummaryRes.ProtoReflect.Descriptor instead.
+func (*GetInviteBonusSummaryRes) Descriptor() ([]byte, []int) {
+	return file_frontend_balance_v1_balance_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *GetInviteBonusSummaryRes) GetTodayAmount() float64 {
+	if x != nil {
+		return x.TodayAmount
+	}
+	return 0
+}
+
+func (x *GetInviteBonusSummaryRes) GetYesterdayAmount() float64 {
+	if x != nil {
+		return x.YesterdayAmount
+	}
+	return 0
+}
+
+func (x *GetInviteBonusSummaryRes) GetTotalAmount() float64 {
+	if x != nil {
+		return x.TotalAmount
+	}
+	return 0
+}
+
 var File_frontend_balance_v1_balance_proto protoreflect.FileDescriptor
 
 const file_frontend_balance_v1_balance_proto_rawDesc = "" +
@@ -3087,7 +3331,23 @@ const file_frontend_balance_v1_balance_proto_rawDesc = "" +
 	"\vWithdrawRes\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x19\n" +
-	"\btrade_no\x18\x03 \x01(\tR\atradeNo2\xda\x0e\n" +
+	"\btrade_no\x18\x03 \x01(\tR\atradeNo\"w\n" +
+	"\x13GrantInviteBonusReq\x12\x17\n" +
+	"\asite_id\x18\x01 \x01(\x05R\x06siteId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\x05R\x06userId\x12\x16\n" +
+	"\x06amount\x18\x03 \x01(\x01R\x06amount\x12\x16\n" +
+	"\x06remark\x18\x04 \x01(\tR\x06remark\"d\n" +
+	"\x13GrantInviteBonusRes\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12\x19\n" +
+	"\btrade_no\x18\x03 \x01(\tR\atradeNo\"L\n" +
+	"\x18GetInviteBonusSummaryReq\x12\x17\n" +
+	"\asite_id\x18\x01 \x01(\x05R\x06siteId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\x05R\x06userId\"\x8b\x01\n" +
+	"\x18GetInviteBonusSummaryRes\x12!\n" +
+	"\ftoday_amount\x18\x01 \x01(\x01R\vtodayAmount\x12)\n" +
+	"\x10yesterday_amount\x18\x02 \x01(\x01R\x0fyesterdayAmount\x12!\n" +
+	"\ftotal_amount\x18\x03 \x01(\x01R\vtotalAmount2\xb1\x10\n" +
 	"\aBalance\x12_\n" +
 	"\x0fInitBalanceUser\x12$.frontend_balance.InitBalanceUserReq\x1a$.frontend_balance.InitBalanceUserRes\"\x00\x12\\\n" +
 	"\x0eRefreshBalance\x12#.frontend_balance.RefreshBalanceReq\x1a#.frontend_balance.RefreshBalanceRes\"\x00\x12Y\n" +
@@ -3107,7 +3367,9 @@ const file_frontend_balance_v1_balance_proto_rawDesc = "" +
 	"\rGetBalanceLog\x12\".frontend_balance.GetBalanceLogReq\x1a\".frontend_balance.GetBalanceLogRes\"\x00\x12w\n" +
 	"\x17GetUserFlowRequirements\x12,.frontend_balance.GetUserFlowRequirementsReq\x1a,.frontend_balance.GetUserFlowRequirementsRes\"\x00\x12_\n" +
 	"\x0fDepositCallback\x12$.frontend_balance.DepositCallbackReq\x1a$.frontend_balance.DepositCallbackRes\"\x00\x12J\n" +
-	"\bWithdraw\x12\x1d.frontend_balance.WithdrawReq\x1a\x1d.frontend_balance.WithdrawRes\"\x00B,Z*jh_balance_service/api/frontend/balance/v1b\x06proto3"
+	"\bWithdraw\x12\x1d.frontend_balance.WithdrawReq\x1a\x1d.frontend_balance.WithdrawRes\"\x00\x12b\n" +
+	"\x10GrantInviteBonus\x12%.frontend_balance.GrantInviteBonusReq\x1a%.frontend_balance.GrantInviteBonusRes\"\x00\x12q\n" +
+	"\x15GetInviteBonusSummary\x12*.frontend_balance.GetInviteBonusSummaryReq\x1a*.frontend_balance.GetInviteBonusSummaryRes\"\x00B,Z*jh_balance_service/api/frontend/balance/v1b\x06proto3"
 
 var (
 	file_frontend_balance_v1_balance_proto_rawDescOnce sync.Once
@@ -3121,7 +3383,7 @@ func file_frontend_balance_v1_balance_proto_rawDescGZIP() []byte {
 	return file_frontend_balance_v1_balance_proto_rawDescData
 }
 
-var file_frontend_balance_v1_balance_proto_msgTypes = make([]protoimpl.MessageInfo, 43)
+var file_frontend_balance_v1_balance_proto_msgTypes = make([]protoimpl.MessageInfo, 47)
 var file_frontend_balance_v1_balance_proto_goTypes = []any{
 	(*InitBalanceUserReq)(nil),         // 0: frontend_balance.InitBalanceUserReq
 	(*InitBalanceUserRes)(nil),         // 1: frontend_balance.InitBalanceUserRes
@@ -3166,6 +3428,10 @@ var file_frontend_balance_v1_balance_proto_goTypes = []any{
 	(*DepositCallbackRes)(nil),         // 40: frontend_balance.DepositCallbackRes
 	(*WithdrawReq)(nil),                // 41: frontend_balance.WithdrawReq
 	(*WithdrawRes)(nil),                // 42: frontend_balance.WithdrawRes
+	(*GrantInviteBonusReq)(nil),        // 43: frontend_balance.GrantInviteBonusReq
+	(*GrantInviteBonusRes)(nil),        // 44: frontend_balance.GrantInviteBonusRes
+	(*GetInviteBonusSummaryReq)(nil),   // 45: frontend_balance.GetInviteBonusSummaryReq
+	(*GetInviteBonusSummaryRes)(nil),   // 46: frontend_balance.GetInviteBonusSummaryRes
 }
 var file_frontend_balance_v1_balance_proto_depIdxs = []int32{
 	13, // 0: frontend_balance.GetPaymentListRes.list:type_name -> frontend_balance.PaymentInfo
@@ -3192,27 +3458,31 @@ var file_frontend_balance_v1_balance_proto_depIdxs = []int32{
 	36, // 21: frontend_balance.Balance.GetUserFlowRequirements:input_type -> frontend_balance.GetUserFlowRequirementsReq
 	39, // 22: frontend_balance.Balance.DepositCallback:input_type -> frontend_balance.DepositCallbackReq
 	41, // 23: frontend_balance.Balance.Withdraw:input_type -> frontend_balance.WithdrawReq
-	1,  // 24: frontend_balance.Balance.InitBalanceUser:output_type -> frontend_balance.InitBalanceUserRes
-	3,  // 25: frontend_balance.Balance.RefreshBalance:output_type -> frontend_balance.RefreshBalanceRes
-	5,  // 26: frontend_balance.Balance.AdjustBalance:output_type -> frontend_balance.AdjustBalanceRes
-	7,  // 27: frontend_balance.Balance.UpdateTransferStatus:output_type -> frontend_balance.UpdateTransferStatusRes
-	9,  // 28: frontend_balance.Balance.CompensateBalance:output_type -> frontend_balance.CompensateBalanceRes
-	11, // 29: frontend_balance.Balance.GetLastBalanceLogGame:output_type -> frontend_balance.GetLastBalanceLogGameRes
-	14, // 30: frontend_balance.Balance.GetPaymentList:output_type -> frontend_balance.GetPaymentListRes
-	17, // 31: frontend_balance.Balance.GetWithdrawList:output_type -> frontend_balance.GetWithdrawListRes
-	19, // 32: frontend_balance.Balance.AddBankCard:output_type -> frontend_balance.AddBankCardRes
-	22, // 33: frontend_balance.Balance.GetBankCardList:output_type -> frontend_balance.GetBankCardListRes
-	24, // 34: frontend_balance.Balance.DeleteBankCard:output_type -> frontend_balance.DeleteBankCardRes
-	26, // 35: frontend_balance.Balance.SetDefaultBankCard:output_type -> frontend_balance.SetDefaultBankCardRes
-	28, // 36: frontend_balance.Balance.GetDepositNonce:output_type -> frontend_balance.GetDepositNonceRes
-	30, // 37: frontend_balance.Balance.GetWithdrawNonce:output_type -> frontend_balance.GetWithdrawNonceRes
-	32, // 38: frontend_balance.Balance.CreateDepositOrder:output_type -> frontend_balance.CreateDepositOrderRes
-	35, // 39: frontend_balance.Balance.GetBalanceLog:output_type -> frontend_balance.GetBalanceLogRes
-	38, // 40: frontend_balance.Balance.GetUserFlowRequirements:output_type -> frontend_balance.GetUserFlowRequirementsRes
-	40, // 41: frontend_balance.Balance.DepositCallback:output_type -> frontend_balance.DepositCallbackRes
-	42, // 42: frontend_balance.Balance.Withdraw:output_type -> frontend_balance.WithdrawRes
-	24, // [24:43] is the sub-list for method output_type
-	5,  // [5:24] is the sub-list for method input_type
+	43, // 24: frontend_balance.Balance.GrantInviteBonus:input_type -> frontend_balance.GrantInviteBonusReq
+	45, // 25: frontend_balance.Balance.GetInviteBonusSummary:input_type -> frontend_balance.GetInviteBonusSummaryReq
+	1,  // 26: frontend_balance.Balance.InitBalanceUser:output_type -> frontend_balance.InitBalanceUserRes
+	3,  // 27: frontend_balance.Balance.RefreshBalance:output_type -> frontend_balance.RefreshBalanceRes
+	5,  // 28: frontend_balance.Balance.AdjustBalance:output_type -> frontend_balance.AdjustBalanceRes
+	7,  // 29: frontend_balance.Balance.UpdateTransferStatus:output_type -> frontend_balance.UpdateTransferStatusRes
+	9,  // 30: frontend_balance.Balance.CompensateBalance:output_type -> frontend_balance.CompensateBalanceRes
+	11, // 31: frontend_balance.Balance.GetLastBalanceLogGame:output_type -> frontend_balance.GetLastBalanceLogGameRes
+	14, // 32: frontend_balance.Balance.GetPaymentList:output_type -> frontend_balance.GetPaymentListRes
+	17, // 33: frontend_balance.Balance.GetWithdrawList:output_type -> frontend_balance.GetWithdrawListRes
+	19, // 34: frontend_balance.Balance.AddBankCard:output_type -> frontend_balance.AddBankCardRes
+	22, // 35: frontend_balance.Balance.GetBankCardList:output_type -> frontend_balance.GetBankCardListRes
+	24, // 36: frontend_balance.Balance.DeleteBankCard:output_type -> frontend_balance.DeleteBankCardRes
+	26, // 37: frontend_balance.Balance.SetDefaultBankCard:output_type -> frontend_balance.SetDefaultBankCardRes
+	28, // 38: frontend_balance.Balance.GetDepositNonce:output_type -> frontend_balance.GetDepositNonceRes
+	30, // 39: frontend_balance.Balance.GetWithdrawNonce:output_type -> frontend_balance.GetWithdrawNonceRes
+	32, // 40: frontend_balance.Balance.CreateDepositOrder:output_type -> frontend_balance.CreateDepositOrderRes
+	35, // 41: frontend_balance.Balance.GetBalanceLog:output_type -> frontend_balance.GetBalanceLogRes
+	38, // 42: frontend_balance.Balance.GetUserFlowRequirements:output_type -> frontend_balance.GetUserFlowRequirementsRes
+	40, // 43: frontend_balance.Balance.DepositCallback:output_type -> frontend_balance.DepositCallbackRes
+	42, // 44: frontend_balance.Balance.Withdraw:output_type -> frontend_balance.WithdrawRes
+	44, // 45: frontend_balance.Balance.GrantInviteBonus:output_type -> frontend_balance.GrantInviteBonusRes
+	46, // 46: frontend_balance.Balance.GetInviteBonusSummary:output_type -> frontend_balance.GetInviteBonusSummaryRes
+	26, // [26:47] is the sub-list for method output_type
+	5,  // [5:26] is the sub-list for method input_type
 	5,  // [5:5] is the sub-list for extension type_name
 	5,  // [5:5] is the sub-list for extension extendee
 	0,  // [0:5] is the sub-list for field type_name
@@ -3229,7 +3499,7 @@ func file_frontend_balance_v1_balance_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_frontend_balance_v1_balance_proto_rawDesc), len(file_frontend_balance_v1_balance_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   43,
+			NumMessages:   47,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

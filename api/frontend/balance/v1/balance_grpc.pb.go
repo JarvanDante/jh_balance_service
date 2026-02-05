@@ -39,6 +39,8 @@ const (
 	Balance_GetUserFlowRequirements_FullMethodName = "/frontend_balance.Balance/GetUserFlowRequirements"
 	Balance_DepositCallback_FullMethodName         = "/frontend_balance.Balance/DepositCallback"
 	Balance_Withdraw_FullMethodName                = "/frontend_balance.Balance/Withdraw"
+	Balance_GrantInviteBonus_FullMethodName        = "/frontend_balance.Balance/GrantInviteBonus"
+	Balance_GetInviteBonusSummary_FullMethodName   = "/frontend_balance.Balance/GetInviteBonusSummary"
 )
 
 // BalanceClient is the client API for Balance service.
@@ -83,6 +85,10 @@ type BalanceClient interface {
 	DepositCallback(ctx context.Context, in *DepositCallbackReq, opts ...grpc.CallOption) (*DepositCallbackRes, error)
 	// 申请提现
 	Withdraw(ctx context.Context, in *WithdrawReq, opts ...grpc.CallOption) (*WithdrawRes, error)
+	// 发放邀请红利
+	GrantInviteBonus(ctx context.Context, in *GrantInviteBonusReq, opts ...grpc.CallOption) (*GrantInviteBonusRes, error)
+	// 获取邀请红利统计
+	GetInviteBonusSummary(ctx context.Context, in *GetInviteBonusSummaryReq, opts ...grpc.CallOption) (*GetInviteBonusSummaryRes, error)
 }
 
 type balanceClient struct {
@@ -283,6 +289,26 @@ func (c *balanceClient) Withdraw(ctx context.Context, in *WithdrawReq, opts ...g
 	return out, nil
 }
 
+func (c *balanceClient) GrantInviteBonus(ctx context.Context, in *GrantInviteBonusReq, opts ...grpc.CallOption) (*GrantInviteBonusRes, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GrantInviteBonusRes)
+	err := c.cc.Invoke(ctx, Balance_GrantInviteBonus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *balanceClient) GetInviteBonusSummary(ctx context.Context, in *GetInviteBonusSummaryReq, opts ...grpc.CallOption) (*GetInviteBonusSummaryRes, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetInviteBonusSummaryRes)
+	err := c.cc.Invoke(ctx, Balance_GetInviteBonusSummary_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BalanceServer is the server API for Balance service.
 // All implementations must embed UnimplementedBalanceServer
 // for forward compatibility.
@@ -325,6 +351,10 @@ type BalanceServer interface {
 	DepositCallback(context.Context, *DepositCallbackReq) (*DepositCallbackRes, error)
 	// 申请提现
 	Withdraw(context.Context, *WithdrawReq) (*WithdrawRes, error)
+	// 发放邀请红利
+	GrantInviteBonus(context.Context, *GrantInviteBonusReq) (*GrantInviteBonusRes, error)
+	// 获取邀请红利统计
+	GetInviteBonusSummary(context.Context, *GetInviteBonusSummaryReq) (*GetInviteBonusSummaryRes, error)
 	mustEmbedUnimplementedBalanceServer()
 }
 
@@ -391,6 +421,12 @@ func (UnimplementedBalanceServer) DepositCallback(context.Context, *DepositCallb
 }
 func (UnimplementedBalanceServer) Withdraw(context.Context, *WithdrawReq) (*WithdrawRes, error) {
 	return nil, status.Error(codes.Unimplemented, "method Withdraw not implemented")
+}
+func (UnimplementedBalanceServer) GrantInviteBonus(context.Context, *GrantInviteBonusReq) (*GrantInviteBonusRes, error) {
+	return nil, status.Error(codes.Unimplemented, "method GrantInviteBonus not implemented")
+}
+func (UnimplementedBalanceServer) GetInviteBonusSummary(context.Context, *GetInviteBonusSummaryReq) (*GetInviteBonusSummaryRes, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetInviteBonusSummary not implemented")
 }
 func (UnimplementedBalanceServer) mustEmbedUnimplementedBalanceServer() {}
 func (UnimplementedBalanceServer) testEmbeddedByValue()                 {}
@@ -755,6 +791,42 @@ func _Balance_Withdraw_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Balance_GrantInviteBonus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GrantInviteBonusReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BalanceServer).GrantInviteBonus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Balance_GrantInviteBonus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BalanceServer).GrantInviteBonus(ctx, req.(*GrantInviteBonusReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Balance_GetInviteBonusSummary_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetInviteBonusSummaryReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BalanceServer).GetInviteBonusSummary(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Balance_GetInviteBonusSummary_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BalanceServer).GetInviteBonusSummary(ctx, req.(*GetInviteBonusSummaryReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Balance_ServiceDesc is the grpc.ServiceDesc for Balance service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -837,6 +909,14 @@ var Balance_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Withdraw",
 			Handler:    _Balance_Withdraw_Handler,
+		},
+		{
+			MethodName: "GrantInviteBonus",
+			Handler:    _Balance_GrantInviteBonus_Handler,
+		},
+		{
+			MethodName: "GetInviteBonusSummary",
+			Handler:    _Balance_GetInviteBonusSummary_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

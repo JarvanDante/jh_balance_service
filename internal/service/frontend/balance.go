@@ -26,6 +26,8 @@ type IBalance interface {
 	GetUserFlowRequirements(ctx context.Context, req *v1.GetUserFlowRequirementsReq) (res *v1.GetUserFlowRequirementsRes, err error)
 	DepositCallback(ctx context.Context, req *v1.DepositCallbackReq) (res *v1.DepositCallbackRes, err error)
 	Withdraw(ctx context.Context, req *v1.WithdrawReq) (res *v1.WithdrawRes, err error)
+	GrantInviteBonus(ctx context.Context, req *v1.GrantInviteBonusReq) (res *v1.GrantInviteBonusRes, err error)
+	GetInviteBonusSummary(ctx context.Context, req *v1.GetInviteBonusSummaryReq) (res *v1.GetInviteBonusSummaryRes, err error)
 }
 
 var localBalance IBalance

@@ -43,7 +43,12 @@ service Balance {
     rpc DepositCallback(DepositCallbackReq) returns (DepositCallbackRes) {}
     // 申请提现
     rpc Withdraw(WithdrawReq) returns (WithdrawRes) {}
+    // 发放邀请红利
+    rpc GrantInviteBonus(GrantInviteBonusReq) returns (GrantInviteBonusRes) {}
+    // 获取邀请红利统计
+    rpc GetInviteBonusSummary(GetInviteBonusSummaryReq) returns (GetInviteBonusSummaryRes) {}
 }
+
 
 // 初始化用户余额请求
 message InitBalanceUserReq {
@@ -371,4 +376,32 @@ message WithdrawRes {
     bool success = 1;           // 是否成功
     string message = 2;         // 消息
     string trade_no = 3;        // 订单号
+}
+
+// 发放邀请红利请求
+message GrantInviteBonusReq {
+    int32 site_id = 1;      // 站点ID
+    int32 user_id = 2;      // 用户ID
+    double amount = 3;      // 红利金额
+    string remark = 4;      // 备注
+}
+
+// 发放邀请红利响应
+message GrantInviteBonusRes {
+    bool success = 1;       // 是否成功
+    string message = 2;     // 消息
+    string trade_no = 3;    // 流水号
+}
+
+// 获取邀请红利统计请求
+message GetInviteBonusSummaryReq {
+    int32 site_id = 1;      // 站点ID
+    int32 user_id = 2;      // 用户ID
+}
+
+// 获取邀请红利统计响应
+message GetInviteBonusSummaryRes {
+    double today_amount = 1;      // 今日邀请红利
+    double yesterday_amount = 2;  // 昨日邀请红利
+    double total_amount = 3;      // 总邀请红利
 }

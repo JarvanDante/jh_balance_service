@@ -16,6 +16,7 @@ import (
 
 	v1 "jh_balance_service/api/frontend/balance/v1"
 	gamev1 "jh_balance_service/api/grpc/game/frontend/v1"
+	userv1 "jh_balance_service/api/grpc/user/backend/v1"
 	balanceConsts "jh_balance_service/internal/consts/backend/balance"
 	"jh_balance_service/internal/dao"
 	"jh_balance_service/internal/domain/common"
@@ -25,6 +26,7 @@ import (
 	"jh_balance_service/internal/grpc_client"
 	"jh_balance_service/internal/middleware"
 	"jh_balance_service/internal/model/entity"
+	"jh_balance_service/internal/registry"
 	"jh_balance_service/internal/service/frontend"
 	"jh_balance_service/internal/util"
 )
@@ -2252,8 +2254,44 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 	duration3 := time.Since(time3)
 	g.Log().Infof(ctx, "第3阶段-事务处理，总耗时: %.2fms", float64(duration3.Milliseconds()))
 
-	// 注意：由于User表不在balance服务中，充值次数更新需要通过MQ或其他方式通知app_service
-	// 这里暂时注释掉，后续可以通过消息队列实现
+	// 4. 更新 app_service 用户充值次数，并在首充时发放邀请红利
+	userClient, userConn, err := grpc_client.GetUserClient(ctx)
+	if err != nil {
+		g.Log().Warningf(ctx, "获取 User 客户端失败: %v", err)
+	} else {
+		defer userConn.Close()
+		ctxWithMeta := metadata.AppendToOutgoingContext(ctx, "site_id", gconv.String(paymentLog.SiteId))
+		incRes, err := userClient.IncreasePayTimes(ctxWithMeta, &userv1.IncreasePayTimesReq{
+			SiteId: int32(paymentLog.SiteId),
+			UserId: int32(paymentLog.UserId),
+		})
+		if err != nil {
+			g.Log().Warningf(ctx, "调用 IncreasePayTimes 失败: %v", err)
+		} else if incRes == nil || !incRes.Success {
+			msg := ""
+			if incRes != nil {
+				msg = incRes.Message
+			}
+			g.Log().Warningf(ctx, "IncreasePayTimes 返回失败: %s", msg)
+		} else if incRes.OldPayTimes == 0 && incRes.InviterId > 0 {
+			bonusAmount := g.Cfg().MustGet(ctx, "invite.bonus_amount", 0).Float64()
+			if bonusAmount > 0 {
+				grantRes, err := s.GrantInviteBonus(ctx, &v1.GrantInviteBonusReq{
+					SiteId: int32(paymentLog.SiteId),
+					UserId: int32(incRes.InviterId),
+					Amount: bonusAmount,
+					Remark: "邀请首充红利",
+				})
+				if err != nil {
+					g.Log().Warningf(ctx, "发放邀请首充红利失败: %v", err)
+				} else if grantRes != nil && !grantRes.Success {
+					g.Log().Warningf(ctx, "发放邀请首充红利失败: %s", grantRes.Message)
+				}
+			} else {
+				g.Log().Warningf(ctx, "邀请首充红利未配置或金额为0，跳过发放: user_id=%d", incRes.InviterId)
+			}
+		}
+	}
 
 	totalDuration := time.Since(startTime)
 	g.Log().Infof(ctx, "充值异步回调成功: order_sn=%s, amount=%.2f, 总耗时: %.2fms",
@@ -2323,5 +2361,233 @@ func (s *sBalance) Withdraw(ctx context.Context, req *v1.WithdrawReq) (*v1.Withd
 		Success: true,
 		Message: result.Message,
 		TradeNo: result.TradeNo,
+	}, nil
+}
+
+// GrantInviteBonus 发放邀请红利
+func (s *sBalance) GrantInviteBonus(ctx context.Context, req *v1.GrantInviteBonusReq) (*v1.GrantInviteBonusRes, error) {
+	if req == nil {
+		return &v1.GrantInviteBonusRes{Success: false, Message: "请求参数不能为空"}, nil
+	}
+	if req.UserId <= 0 {
+		return &v1.GrantInviteBonusRes{Success: false, Message: "用户ID不能为空"}, nil
+	}
+	if req.Amount <= 0 {
+		return &v1.GrantInviteBonusRes{Success: false, Message: "红利金额必须大于0"}, nil
+	}
+
+	siteId, ok := middleware.GetSiteIdFromContext(ctx)
+	if !ok || siteId == 0 {
+		if req.SiteId <= 0 {
+			return &v1.GrantInviteBonusRes{Success: false, Message: "未获取站点ID"}, nil
+		}
+		siteId = uint(req.SiteId)
+		// 兜底设置动态数据库组（避免无metadata时路由失败）
+		siteCode := registry.GetDBConfigManager().GetSiteCodeBySiteID(int64(siteId))
+		if siteCode != "" {
+			ctx = context.WithValue(ctx, "dynamic_db_group", "site_"+siteCode)
+		}
+	}
+
+	// 读取流水规则（红利类型）
+	rule, err := dao.BalanceFlowRule.GetActiveRule(ctx, int(siteId), balanceConsts.RuleTypeBonus)
+	if err != nil {
+		return &v1.GrantInviteBonusRes{Success: false, Message: "查询流水规则失败"}, nil
+	}
+	if rule == nil {
+		return &v1.GrantInviteBonusRes{Success: false, Message: "未配置可用的流水规则"}, nil
+	}
+
+	remark := req.Remark
+	if remark == "" {
+		remark = "邀请红利"
+	}
+
+	var tradeNo string
+
+	err = dao.BalanceUser.Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		// 查询并锁定用户余额
+		var balanceUser *entity.BalanceUser
+		if err := dao.BalanceUser.Ctx(ctx).TX(tx).
+			Where("site_id", siteId).
+			Where("user_id", req.UserId).
+			LockUpdate().
+			Scan(&balanceUser); err != nil {
+			return err
+		}
+		if balanceUser == nil || balanceUser.Id == 0 {
+			return fmt.Errorf("用户余额记录不存在")
+		}
+
+		balanceOld := balanceUser.Balance
+		balanceNew := balanceOld + req.Amount
+		now := gtime.Now()
+
+		// 更新用户余额
+		if _, err := dao.BalanceUser.Ctx(ctx).TX(tx).
+			Where("id", balanceUser.Id).
+			Update(g.Map{
+				"balance":    balanceNew,
+				"updated_at": now,
+			}); err != nil {
+			return err
+		}
+
+		// 生成流水号
+		tradeNo = util.GenerateTradeNo(ctx, balanceConsts.LOG_TYPE_BONUS)
+
+		// 记录资金日志
+		if _, err := dao.BalanceLog.Ctx(ctx).TX(tx).Insert(g.Map{
+			"site_id":      siteId,
+			"user_id":      req.UserId,
+			"trade_type":   balanceConsts.LOG_TYPE_BONUS,
+			"trade_no":     tradeNo,
+			"money":        req.Amount,
+			"actual_money": req.Amount,
+			"fee":          0,
+			"status":       balanceConsts.StatusSuccess,
+			"remark":       remark,
+			"created_at":   now,
+			"updated_at":   now,
+		}); err != nil {
+			return err
+		}
+
+		// 记录账变
+		if _, err := dao.BalanceChange.Ctx(ctx).TX(tx).Insert(g.Map{
+			"site_id":        siteId,
+			"trade_type":     balanceConsts.TradeTypeBonus,
+			"user_id":        req.UserId,
+			"username":       balanceUser.Username,
+			"trade_no":       tradeNo,
+			"balance_old":    balanceOld,
+			"money":          req.Amount,
+			"balance_new":    balanceNew,
+			"balance_frozen": balanceUser.BalanceFrozen,
+			"status":         balanceConsts.StatusSuccess,
+			"remark":         remark,
+			"created_at":     now,
+			"updated_at":     now,
+		}); err != nil {
+			return err
+		}
+
+		// 记录红利日志
+		bonusResult, err := dao.BalanceLogBonus.Ctx(ctx).TX(tx).Insert(g.Map{
+			"site_id":              siteId,
+			"trade_type":           balanceConsts.BonusTradeTypeInvite,
+			"user_id":              req.UserId,
+			"username":             balanceUser.Username,
+			"trade_no":             tradeNo,
+			"activity_recharge_id": 0,
+			"money":                req.Amount,
+			"fee":                  0,
+			"status":               balanceConsts.StatusSuccess,
+			"admin_id":             0,
+			"remark":               remark,
+			"created_at":           now,
+			"updated_at":           now,
+		})
+		if err != nil {
+			return err
+		}
+		bonusId, _ := bonusResult.LastInsertId()
+
+		// 记录流水要求
+		flowMultiple := rule.FlowMultiple
+		expireDays := rule.ExpireDays
+		requiredFlow := req.Amount * flowMultiple
+		var expireTime *gtime.Time
+		if expireDays > 0 {
+			expireTime = now.AddDate(0, 0, expireDays)
+		}
+
+		if _, err := dao.BalanceFlowRequirement.Ctx(ctx).TX(tx).Insert(g.Map{
+			"site_id":        siteId,
+			"user_id":        req.UserId,
+			"username":       balanceUser.Username,
+			"source_type":    balanceConsts.SourceTypeBonus,
+			"source_id":      bonusId,
+			"trade_no":       tradeNo,
+			"amount":         0,
+			"bonus_amount":   req.Amount,
+			"flow_multiple":  flowMultiple,
+			"required_flow":  requiredFlow,
+			"completed_flow": 0,
+			"remaining_flow": requiredFlow,
+			"status":         1,
+			"progress":       0,
+			"start_time":     now,
+			"expire_time":    expireTime,
+			"complete_time":  nil,
+			"remark":         remark,
+			"admin_id":       0,
+			"created_at":     now,
+			"updated_at":     now,
+		}); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		g.Log().Errorf(ctx, "发放邀请红利失败: %v", err)
+		return &v1.GrantInviteBonusRes{Success: false, Message: err.Error()}, nil
+	}
+
+	return &v1.GrantInviteBonusRes{
+		Success: true,
+		Message: "发放红利成功",
+		TradeNo: tradeNo,
+	}, nil
+}
+
+// GetInviteBonusSummary 获取邀请红利统计
+func (s *sBalance) GetInviteBonusSummary(ctx context.Context, req *v1.GetInviteBonusSummaryReq) (*v1.GetInviteBonusSummaryRes, error) {
+	if req == nil || req.UserId <= 0 {
+		return &v1.GetInviteBonusSummaryRes{}, nil
+	}
+
+	siteId, ok := middleware.GetSiteIdFromContext(ctx)
+	if !ok || siteId == 0 {
+		if req.SiteId <= 0 {
+			return &v1.GetInviteBonusSummaryRes{}, nil
+		}
+		siteId = uint(req.SiteId)
+		siteCode := registry.GetDBConfigManager().GetSiteCodeBySiteID(int64(siteId))
+		if siteCode != "" {
+			ctx = context.WithValue(ctx, "dynamic_db_group", "site_"+siteCode)
+		}
+	}
+
+	now := gtime.Now()
+	todayStart := now.StartOfDay()
+	tomorrowStart := todayStart.AddDate(0, 0, 1)
+	yesterdayStart := todayStart.AddDate(0, 0, -1)
+
+	baseQuery := dao.BalanceLogBonus.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", req.UserId).
+		Where("trade_type", balanceConsts.BonusTradeTypeInvite).
+		Where("status", balanceConsts.StatusSuccess)
+
+	todayAmount, err := baseQuery.WhereBetween("created_at", todayStart, tomorrowStart).Sum("money")
+	if err != nil {
+		todayAmount = 0
+	}
+	yesterdayAmount, err := baseQuery.WhereBetween("created_at", yesterdayStart, todayStart).Sum("money")
+	if err != nil {
+		yesterdayAmount = 0
+	}
+	totalAmount, err := baseQuery.Sum("money")
+	if err != nil {
+		totalAmount = 0
+	}
+
+	return &v1.GetInviteBonusSummaryRes{
+		TodayAmount:     gconv.Float64(todayAmount),
+		YesterdayAmount: gconv.Float64(yesterdayAmount),
+		TotalAmount:     gconv.Float64(totalAmount),
 	}, nil
 }
