@@ -1284,6 +1284,7 @@ func (s *sBalance) GetFlowOptions(ctx context.Context, req *v1.GetFlowOptionsReq
 		{Value: 7, Label: "升级送彩金活动"},
 		{Value: 8, Label: "每日签到活动"},
 		{Value: 9, Label: "幸运大转盘活动"},
+		{Value: 10, Label: "邀请朋友活动"},
 	}
 
 	return &v1.GetFlowOptionsRes{
