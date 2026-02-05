@@ -8,6 +8,8 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 
 	v1 "jh_balance_service/api/frontend/balance/v1"
+	"jh_balance_service/internal/dao"
+	"jh_balance_service/internal/middleware"
 	"jh_balance_service/internal/service/frontend"
 )
 
@@ -151,6 +153,50 @@ func (c *Controller) Withdraw(ctx context.Context, req *v1.WithdrawReq) (res *v1
 		return &v1.WithdrawRes{
 			Success: false,
 			Message: "请求参数无效，请刷新页面重试",
+		}, nil
+	}
+
+	// 检查是否存在未完成的流水要求
+	userId, ok := middleware.GetUserIdFromContext(ctx)
+	if !ok || userId == 0 {
+		g.Log().Warning(ctx, "未获取用户ID")
+		return &v1.WithdrawRes{
+			Success: false,
+			Message: "未登录",
+		}, nil
+	}
+
+	siteId, ok := middleware.GetSiteIdFromContext(ctx)
+	if !ok || siteId == 0 {
+		g.Log().Warning(ctx, "未获取站点ID")
+		return &v1.WithdrawRes{
+			Success: false,
+			Message: "未获取站点ID",
+		}, nil
+	}
+
+	flowAgg := struct {
+		RemainingFlow float64 `json:"remaining_flow"`
+	}{}
+	err = dao.BalanceFlowRequirement.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Where("status", 1).
+		Where("remaining_flow > ?", 0).
+		Fields("IFNULL(SUM(remaining_flow),0) as remaining_flow").
+		Scan(&flowAgg)
+	if err != nil {
+		g.Log().Errorf(ctx, "查询流水要求失败: %v", err)
+		return &v1.WithdrawRes{
+			Success: false,
+			Message: "系统繁忙，请稍后再试",
+		}, nil
+	}
+
+	if flowAgg.RemainingFlow > 0 {
+		return &v1.WithdrawRes{
+			Success: false,
+			Message: "您还有未完成的流水要求，暂不可提现",
 		}, nil
 	}
 
