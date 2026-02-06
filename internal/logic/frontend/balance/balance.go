@@ -2266,13 +2266,14 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 	g.Log().Infof(ctx, "第3阶段-事务处理，总耗时: %.2fms", float64(duration3.Milliseconds()))
 
 	// 4. 更新 app_service 用户充值次数，并在首充时发放邀请红利
+	var incRes *userv1.IncreasePayTimesRes
 	userClient, userConn, err := grpc_client.GetUserClient(ctx)
 	if err != nil {
 		g.Log().Warningf(ctx, "获取 User 客户端失败: %v", err)
 	} else {
 		defer userConn.Close()
 		ctxWithMeta := metadata.AppendToOutgoingContext(ctx, "site_id", gconv.String(paymentLog.SiteId))
-		incRes, err := userClient.IncreasePayTimes(ctxWithMeta, &userv1.IncreasePayTimesReq{
+		incRes, err = userClient.IncreasePayTimes(ctxWithMeta, &userv1.IncreasePayTimesReq{
 			SiteId: int32(paymentLog.SiteId),
 			UserId: int32(paymentLog.UserId),
 		})
@@ -2350,6 +2351,9 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 				}
 			}
 		}
+
+		// 充值送活动发放（不影响主流程）
+		s.tryGrantDepositBonus(ctx, paymentLog.SiteId, paymentLog.UserId, actualAmount, incRes)
 	}
 
 	totalDuration := time.Since(startTime)
@@ -2817,6 +2821,289 @@ func (s *sBalance) grantRegisterBonus(ctx context.Context, siteId int, userId in
 			"user_id":        userId,
 			"username":       balanceUser.Username,
 			"source_type":    balanceConsts.SourceTypeRegisterActivity,
+			"source_id":      bonusId,
+			"trade_no":       tradeNo,
+			"amount":         0,
+			"bonus_amount":   amount,
+			"flow_multiple":  flowMultiple,
+			"required_flow":  requiredFlow,
+			"completed_flow": 0,
+			"remaining_flow": requiredFlow,
+			"status":         1,
+			"progress":       0,
+			"start_time":     now,
+			"expire_time":    expireTime,
+			"complete_time":  nil,
+			"remark":         remark,
+			"admin_id":       0,
+			"created_at":     now,
+			"updated_at":     now,
+		}); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	return tradeNo, nil
+}
+
+func (s *sBalance) tryGrantDepositBonus(ctx context.Context, siteId int, userId int, actualAmount float64, incRes *userv1.IncreasePayTimesRes) {
+	if siteId <= 0 || userId <= 0 {
+		return
+	}
+
+	// 兜底设置动态数据库组（避免无metadata时路由失败）
+	if ctx.Value("dynamic_db_group") == nil {
+		siteCode := registry.GetDBConfigManager().GetSiteCodeBySiteID(int64(siteId))
+		if siteCode != "" {
+			ctx = context.WithValue(ctx, "dynamic_db_group", "site_"+siteCode)
+		}
+	}
+
+	model := dao.GetDynamicModel(ctx, "balance_deposit_reward", g.DB().Model("balance_deposit_reward").Safe().Ctx(ctx))
+	count, err := model.Where("site_id", siteId).Where("user_id", userId).Count()
+	if err != nil {
+		g.Log().Warningf(ctx, "查询充值送活动发放记录失败: %v", err)
+		return
+	}
+	if count > 0 {
+		g.Log().Infof(ctx, "充值送活动已发放，跳过: user_id=%d", userId)
+		return
+	}
+
+	cfg, err := getDepositActivityParams(ctx, siteId)
+	if err != nil {
+		g.Log().Warningf(ctx, "读取充值送活动配置失败: %v", err)
+		return
+	}
+	if cfg == nil {
+		g.Log().Infof(ctx, "充值送活动未配置或已关闭，跳过发放: user_id=%d", userId)
+		return
+	}
+	if cfg.RewardType != 1 && cfg.RewardType != 2 {
+		g.Log().Warningf(ctx, "充值送活动奖励类型不支持: %d", cfg.RewardType)
+		return
+	}
+	if cfg.RewardAmount <= 0 {
+		g.Log().Warningf(ctx, "充值送活动奖励金额为0，跳过发放: user_id=%d", userId)
+		return
+	}
+
+	minAmount := cfg.MinRechargeAmount
+	switch cfg.TriggerEvent {
+	case 1:
+		// 充值总和
+		totalActual, err := dao.BalanceLogPayment.Ctx(ctx).
+			Where("site_id", siteId).
+			Where("user_id", userId).
+			Where("status", balanceConsts.StatusSuccess).
+			Sum("actual_money")
+		if err != nil {
+			g.Log().Warningf(ctx, "统计充值送活动累计实付失败: %v", err)
+			return
+		}
+		if minAmount > 0 && totalActual < minAmount {
+			g.Log().Warningf(ctx, "累计实付不足%.2f，跳过充值送活动: user_id=%d, total=%.2f",
+				minAmount, userId, totalActual)
+			return
+		}
+	case 2:
+		// 首充
+		if incRes == nil || !incRes.Success {
+			g.Log().Warningf(ctx, "充值送活动需要首充信息但未获取到，跳过发放: user_id=%d", userId)
+			return
+		}
+		if incRes.OldPayTimes != 0 || incRes.NewPayTimes != 1 {
+			g.Log().Infof(ctx, "充值送活动非首充，跳过发放: user_id=%d, old=%d, new=%d",
+				userId, incRes.OldPayTimes, incRes.NewPayTimes)
+			return
+		}
+		if minAmount > 0 && actualAmount < minAmount {
+			g.Log().Warningf(ctx, "首充金额不足%.2f，跳过充值送活动: user_id=%d, amount=%.2f",
+				minAmount, userId, actualAmount)
+			return
+		}
+	default:
+		g.Log().Warningf(ctx, "充值送活动触发类型不支持: %d", cfg.TriggerEvent)
+		return
+	}
+
+	bonusAmount := cfg.RewardAmount
+	if cfg.RewardType == 2 {
+		if actualAmount <= 0 {
+			g.Log().Warningf(ctx, "充值金额为0，跳过比例奖励: user_id=%d", userId)
+			return
+		}
+		bonusAmount = actualAmount * cfg.RewardAmount
+	}
+	bonusAmount = float64(int(bonusAmount*100+0.5)) / 100
+	if bonusAmount <= 0 {
+		g.Log().Warningf(ctx, "充值送活动奖励金额为0，跳过发放: user_id=%d", userId)
+		return
+	}
+
+	tradeNo, err := s.grantDepositBonus(ctx, siteId, int32(userId), bonusAmount)
+	if err != nil {
+		g.Log().Warningf(ctx, "发放充值送活动失败: %v", err)
+		return
+	}
+
+	if _, err := model.Data(g.Map{
+		"site_id":      siteId,
+		"user_id":      userId,
+		"bonus_amount": bonusAmount,
+		"trade_no":     tradeNo,
+		"created_at":   gtime.Now(),
+	}).Insert(); err != nil {
+		g.Log().Warningf(ctx, "记录充值送活动发放失败: %v", err)
+	}
+}
+
+func (s *sBalance) grantDepositBonus(ctx context.Context, siteId int, userId int32, amount float64) (string, error) {
+	if siteId <= 0 {
+		return "", fmt.Errorf("站点ID不能为空")
+	}
+	if userId <= 0 {
+		return "", fmt.Errorf("用户ID不能为空")
+	}
+	if amount <= 0 {
+		return "", fmt.Errorf("红利金额必须大于0")
+	}
+
+	// 兜底设置动态数据库组（避免无metadata时路由失败）
+	if ctx.Value("dynamic_db_group") == nil {
+		siteCode := registry.GetDBConfigManager().GetSiteCodeBySiteID(int64(siteId))
+		if siteCode != "" {
+			ctx = context.WithValue(ctx, "dynamic_db_group", "site_"+siteCode)
+		}
+	}
+
+	// 优先使用充值送活动流水规则，未配置则回退红利规则
+	rule, err := dao.BalanceFlowRule.GetActiveRule(ctx, siteId, balanceConsts.RuleTypeRechargeActivity)
+	if err != nil {
+		return "", fmt.Errorf("查询流水规则失败")
+	}
+	if rule == nil {
+		rule, err = dao.BalanceFlowRule.GetActiveRule(ctx, siteId, balanceConsts.RuleTypeBonus)
+		if err != nil {
+			return "", fmt.Errorf("查询流水规则失败")
+		}
+	}
+	if rule == nil {
+		return "", fmt.Errorf("未配置可用的流水规则")
+	}
+
+	var tradeNo string
+	now := gtime.Now()
+
+	err = dao.BalanceUser.Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		// 查询并锁定用户余额
+		var balanceUser *entity.BalanceUser
+		if err := dao.BalanceUser.Ctx(ctx).TX(tx).
+			Where("site_id", siteId).
+			Where("user_id", userId).
+			LockUpdate().
+			Scan(&balanceUser); err != nil {
+			return err
+		}
+		if balanceUser == nil || balanceUser.Id == 0 {
+			return fmt.Errorf("用户余额记录不存在")
+		}
+
+		balanceOld := balanceUser.Balance
+		balanceNew := balanceOld + amount
+
+		// 更新用户余额
+		if _, err := dao.BalanceUser.Ctx(ctx).TX(tx).
+			Where("id", balanceUser.Id).
+			Update(g.Map{
+				"balance":    balanceNew,
+				"updated_at": now,
+			}); err != nil {
+			return err
+		}
+
+		// 生成流水号
+		tradeNo = util.GenerateTradeNo(ctx, balanceConsts.LOG_TYPE_BONUS)
+
+		remark := "充值送彩金"
+
+		// 记录资金日志
+		if _, err := dao.BalanceLog.Ctx(ctx).TX(tx).Insert(g.Map{
+			"site_id":      siteId,
+			"user_id":      userId,
+			"trade_type":   balanceConsts.LOG_TYPE_BONUS,
+			"trade_no":     tradeNo,
+			"money":        amount,
+			"actual_money": amount,
+			"fee":          0,
+			"status":       balanceConsts.StatusSuccess,
+			"remark":       remark,
+			"created_at":   now,
+			"updated_at":   now,
+		}); err != nil {
+			return err
+		}
+
+		// 记录账变
+		if _, err := dao.BalanceChange.Ctx(ctx).TX(tx).Insert(g.Map{
+			"site_id":        siteId,
+			"trade_type":     balanceConsts.TradeTypeBonus,
+			"user_id":        userId,
+			"username":       balanceUser.Username,
+			"trade_no":       tradeNo,
+			"balance_old":    balanceOld,
+			"money":          amount,
+			"balance_new":    balanceNew,
+			"balance_frozen": balanceUser.BalanceFrozen,
+			"status":         balanceConsts.StatusSuccess,
+			"remark":         remark,
+			"created_at":     now,
+			"updated_at":     now,
+		}); err != nil {
+			return err
+		}
+
+		// 记录红利日志
+		bonusResult, err := dao.BalanceLogBonus.Ctx(ctx).TX(tx).Insert(g.Map{
+			"site_id":              siteId,
+			"trade_type":           balanceConsts.BonusTradeTypeDeposit,
+			"user_id":              userId,
+			"username":             balanceUser.Username,
+			"trade_no":             tradeNo,
+			"activity_recharge_id": 0,
+			"money":                amount,
+			"fee":                  0,
+			"status":               balanceConsts.StatusSuccess,
+			"admin_id":             0,
+			"remark":               remark,
+			"created_at":           now,
+			"updated_at":           now,
+		})
+		if err != nil {
+			return err
+		}
+		bonusId, _ := bonusResult.LastInsertId()
+
+		// 记录流水要求
+		flowMultiple := rule.FlowMultiple
+		expireDays := rule.ExpireDays
+		requiredFlow := amount * flowMultiple
+		var expireTime *gtime.Time
+		if expireDays > 0 {
+			expireTime = now.AddDate(0, 0, expireDays)
+		}
+
+		if _, err := dao.BalanceFlowRequirement.Ctx(ctx).TX(tx).Insert(g.Map{
+			"site_id":        siteId,
+			"user_id":        userId,
+			"username":       balanceUser.Username,
+			"source_type":    balanceConsts.SourceTypeRechargeActivity,
 			"source_id":      bonusId,
 			"trade_no":       tradeNo,
 			"amount":         0,

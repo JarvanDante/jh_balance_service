@@ -5,6 +5,8 @@
 package dao
 
 import (
+	"context"
+	"github.com/gogf/gf/v2/database/gdb"
 	"jh_balance_service/internal/dao/internal"
 )
 
@@ -16,7 +18,14 @@ type balanceDepositRewardDao struct {
 
 var (
 	// BalanceDepositReward is a globally accessible object for table balance_deposit_reward operations.
-	BalanceDepositReward = balanceDepositRewardDao{internal.NewBalanceDepositRewardDao()}
+	BalanceDepositReward = balanceDepositRewardDao{internal.NewBalanceDepositRewardDao(DynamicDBHandler)}
 )
+
+// Ctx 重写Ctx方法，使用动态数据库连接
+func (d balanceDepositRewardDao) Ctx(ctx context.Context) *gdb.Model {
+	// 使用辅助函数获取动态Model
+	originalModel := d.BalanceDepositRewardDao.Ctx(ctx)
+	return GetDynamicModel(ctx, d.Table(), originalModel)
+}
 
 // Add your custom methods and functionality below.
