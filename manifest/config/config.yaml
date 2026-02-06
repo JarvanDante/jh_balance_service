@@ -84,7 +84,3 @@ database:
 # RabbitMQ 配置
 rabbitmq:
   url: "amqp://admin:admin123@rabbitmq:5672/" # RabbitMQ连接地址
-# 邀请配置
-invite:
-  bonus_amount: 80  # 首充邀请红利金额（0表示不发放）
-  min_deposit: 200 # 有效邀请门槛（累计实付）
