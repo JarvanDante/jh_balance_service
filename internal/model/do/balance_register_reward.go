@@ -15,6 +15,8 @@ type BalanceRegisterReward struct {
 	Id          any         //
 	SiteId      any         //
 	UserId      any         //
+	RegisterIp  any         // 注册IP
+	DeviceId    any         // 设备ID
 	BonusAmount any         //
 	TradeNo     any         // 发放流水号/订单号
 	CreatedAt   *gtime.Time //

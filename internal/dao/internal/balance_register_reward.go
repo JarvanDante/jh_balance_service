@@ -24,6 +24,8 @@ type BalanceRegisterRewardColumns struct {
 	Id          string //
 	SiteId      string //
 	UserId      string //
+	RegisterIp  string // 注册IP
+	DeviceId    string // 设备ID
 	BonusAmount string //
 	TradeNo     string // 发放流水号/订单号
 	CreatedAt   string //
@@ -35,6 +37,8 @@ var balanceRegisterRewardColumns = BalanceRegisterRewardColumns{
 	Id:          "id",
 	SiteId:      "site_id",
 	UserId:      "user_id",
+	RegisterIp:  "register_ip",
+	DeviceId:    "device_id",
 	BonusAmount: "bonus_amount",
 	TradeNo:     "trade_no",
 	CreatedAt:   "created_at",

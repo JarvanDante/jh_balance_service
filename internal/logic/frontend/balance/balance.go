@@ -56,6 +56,14 @@ func (s *sBalance) InitBalanceUser(ctx context.Context, req *v1.InitBalanceUserR
 		}, nil
 	}
 
+	// 兜底设置动态数据库组（MQ消费等场景没有metadata时）
+	if ctx.Value("dynamic_db_group") == nil {
+		siteCode := registry.GetDBConfigManager().GetSiteCodeBySiteID(int64(req.SiteId))
+		if siteCode != "" {
+			ctx = context.WithValue(ctx, "dynamic_db_group", "site_"+siteCode)
+		}
+	}
+
 	if req.UserId <= 0 {
 		g.Log().Errorf(ctx, "用户ID无效: %d", req.UserId)
 		return &v1.InitBalanceUserRes{
@@ -133,6 +141,9 @@ func (s *sBalance) InitBalanceUser(ctx context.Context, req *v1.InitBalanceUserR
 	rowsAffected, _ := result.RowsAffected()
 	g.Log().Infof(ctx, "用户余额初始化成功: site_id=%d, user_id=%d, username=%s, rows_affected=%d",
 		req.SiteId, req.UserId, req.Username, rowsAffected)
+
+	// 尝试发放注册送彩金（不影响主流程）
+	s.tryGrantRegisterBonus(ctx, req.SiteId, req.UserId)
 
 	return &v1.InitBalanceUserRes{
 		Success: true,
@@ -2589,6 +2600,275 @@ func (s *sBalance) GrantInviteBonus(ctx context.Context, req *v1.GrantInviteBonu
 		Message: "发放红利成功",
 		TradeNo: tradeNo,
 	}, nil
+}
+
+func (s *sBalance) tryGrantRegisterBonus(ctx context.Context, siteId int32, userId int32) {
+	if siteId <= 0 || userId <= 0 {
+		return
+	}
+
+	model := dao.GetDynamicModel(ctx, "balance_register_reward", g.DB().Model("balance_register_reward").Safe().Ctx(ctx))
+	count, err := model.Where("site_id", siteId).Where("user_id", userId).Count()
+	if err != nil {
+		g.Log().Warningf(ctx, "查询注册送彩金记录失败: %v", err)
+		return
+	}
+	if count > 0 {
+		g.Log().Infof(ctx, "注册送彩金已发放，跳过: user_id=%d", userId)
+		return
+	}
+
+	cfg, err := getRegisterActivityParams(ctx, int(siteId))
+	if err != nil {
+		g.Log().Warningf(ctx, "读取注册活动配置失败: %v", err)
+		return
+	}
+	if cfg == nil {
+		g.Log().Infof(ctx, "注册活动未配置或已关闭，跳过发放: user_id=%d", userId)
+		return
+	}
+	if cfg.RewardAmount <= 0 {
+		g.Log().Warningf(ctx, "注册活动奖励金额为0，跳过发放: user_id=%d", userId)
+		return
+	}
+
+	var registerIP string
+	if cfg.LimitIp > 0 {
+		var err error
+		registerIP, _, err = getRegisterUserInfo(ctx, siteId, userId)
+		if err != nil {
+			g.Log().Warningf(ctx, "读取注册用户信息失败: %v", err)
+			return
+		}
+		if registerIP == "" {
+			g.Log().Warningf(ctx, "注册活动限制IP但未获取到注册IP，跳过发放: user_id=%d", userId)
+			return
+		}
+		ipCount, err := model.Where("site_id", siteId).Where("register_ip", registerIP).Count()
+		if err != nil {
+			g.Log().Warningf(ctx, "查询注册IP发放次数失败: %v", err)
+			return
+		}
+		if ipCount >= cfg.LimitIp {
+			g.Log().Warningf(ctx, "注册IP已达限制次数，跳过发放: ip=%s, limit=%d", registerIP, cfg.LimitIp)
+			return
+		}
+	}
+
+	if cfg.LimitDevice > 0 {
+		g.Log().Infof(ctx, "注册活动设备限制已配置(limit_device=%d)，当前仅启用IP限制", cfg.LimitDevice)
+	}
+
+	tradeNo, err := s.grantRegisterBonus(ctx, int(siteId), userId, cfg.RewardAmount)
+	if err != nil {
+		g.Log().Warningf(ctx, "发放注册送彩金失败: %v", err)
+		return
+	}
+
+	if _, err := model.Data(g.Map{
+		"site_id":      siteId,
+		"user_id":      userId,
+		"register_ip":  registerIP,
+		"bonus_amount": cfg.RewardAmount,
+		"trade_no":     tradeNo,
+		"created_at":   gtime.Now(),
+	}).Insert(); err != nil {
+		g.Log().Warningf(ctx, "记录注册送彩金失败: %v", err)
+	}
+}
+
+func (s *sBalance) grantRegisterBonus(ctx context.Context, siteId int, userId int32, amount float64) (string, error) {
+	if siteId <= 0 {
+		return "", fmt.Errorf("站点ID不能为空")
+	}
+	if userId <= 0 {
+		return "", fmt.Errorf("用户ID不能为空")
+	}
+	if amount <= 0 {
+		return "", fmt.Errorf("红利金额必须大于0")
+	}
+
+	// 兜底设置动态数据库组（避免无metadata时路由失败）
+	if ctx.Value("dynamic_db_group") == nil {
+		siteCode := registry.GetDBConfigManager().GetSiteCodeBySiteID(int64(siteId))
+		if siteCode != "" {
+			ctx = context.WithValue(ctx, "dynamic_db_group", "site_"+siteCode)
+		}
+	}
+
+	// 优先使用注册活动流水规则，未配置则回退红利规则
+	rule, err := dao.BalanceFlowRule.GetActiveRule(ctx, siteId, balanceConsts.RuleTypeRegisterActivity)
+	if err != nil {
+		return "", fmt.Errorf("查询流水规则失败")
+	}
+	if rule == nil {
+		rule, err = dao.BalanceFlowRule.GetActiveRule(ctx, siteId, balanceConsts.RuleTypeBonus)
+		if err != nil {
+			return "", fmt.Errorf("查询流水规则失败")
+		}
+	}
+	if rule == nil {
+		return "", fmt.Errorf("未配置可用的流水规则")
+	}
+
+	var tradeNo string
+	now := gtime.Now()
+
+	err = dao.BalanceUser.Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		// 查询并锁定用户余额
+		var balanceUser *entity.BalanceUser
+		if err := dao.BalanceUser.Ctx(ctx).TX(tx).
+			Where("site_id", siteId).
+			Where("user_id", userId).
+			LockUpdate().
+			Scan(&balanceUser); err != nil {
+			return err
+		}
+		if balanceUser == nil || balanceUser.Id == 0 {
+			return fmt.Errorf("用户余额记录不存在")
+		}
+
+		balanceOld := balanceUser.Balance
+		balanceNew := balanceOld + amount
+
+		// 更新用户余额
+		if _, err := dao.BalanceUser.Ctx(ctx).TX(tx).
+			Where("id", balanceUser.Id).
+			Update(g.Map{
+				"balance":    balanceNew,
+				"updated_at": now,
+			}); err != nil {
+			return err
+		}
+
+		// 生成流水号
+		tradeNo = util.GenerateTradeNo(ctx, balanceConsts.LOG_TYPE_BONUS)
+
+		remark := "注册送彩金"
+
+		// 记录资金日志
+		if _, err := dao.BalanceLog.Ctx(ctx).TX(tx).Insert(g.Map{
+			"site_id":      siteId,
+			"user_id":      userId,
+			"trade_type":   balanceConsts.LOG_TYPE_BONUS,
+			"trade_no":     tradeNo,
+			"money":        amount,
+			"actual_money": amount,
+			"fee":          0,
+			"status":       balanceConsts.StatusSuccess,
+			"remark":       remark,
+			"created_at":   now,
+			"updated_at":   now,
+		}); err != nil {
+			return err
+		}
+
+		// 记录账变
+		if _, err := dao.BalanceChange.Ctx(ctx).TX(tx).Insert(g.Map{
+			"site_id":        siteId,
+			"trade_type":     balanceConsts.TradeTypeBonus,
+			"user_id":        userId,
+			"username":       balanceUser.Username,
+			"trade_no":       tradeNo,
+			"balance_old":    balanceOld,
+			"money":          amount,
+			"balance_new":    balanceNew,
+			"balance_frozen": balanceUser.BalanceFrozen,
+			"status":         balanceConsts.StatusSuccess,
+			"remark":         remark,
+			"created_at":     now,
+			"updated_at":     now,
+		}); err != nil {
+			return err
+		}
+
+		// 记录红利日志
+		bonusResult, err := dao.BalanceLogBonus.Ctx(ctx).TX(tx).Insert(g.Map{
+			"site_id":              siteId,
+			"trade_type":           balanceConsts.BonusTradeTypeRegister,
+			"user_id":              userId,
+			"username":             balanceUser.Username,
+			"trade_no":             tradeNo,
+			"activity_recharge_id": 0,
+			"money":                amount,
+			"fee":                  0,
+			"status":               balanceConsts.StatusSuccess,
+			"admin_id":             0,
+			"remark":               remark,
+			"created_at":           now,
+			"updated_at":           now,
+		})
+		if err != nil {
+			return err
+		}
+		bonusId, _ := bonusResult.LastInsertId()
+
+		// 记录流水要求
+		flowMultiple := rule.FlowMultiple
+		expireDays := rule.ExpireDays
+		requiredFlow := amount * flowMultiple
+		var expireTime *gtime.Time
+		if expireDays > 0 {
+			expireTime = now.AddDate(0, 0, expireDays)
+		}
+
+		if _, err := dao.BalanceFlowRequirement.Ctx(ctx).TX(tx).Insert(g.Map{
+			"site_id":        siteId,
+			"user_id":        userId,
+			"username":       balanceUser.Username,
+			"source_type":    balanceConsts.SourceTypeRegisterActivity,
+			"source_id":      bonusId,
+			"trade_no":       tradeNo,
+			"amount":         0,
+			"bonus_amount":   amount,
+			"flow_multiple":  flowMultiple,
+			"required_flow":  requiredFlow,
+			"completed_flow": 0,
+			"remaining_flow": requiredFlow,
+			"status":         1,
+			"progress":       0,
+			"start_time":     now,
+			"expire_time":    expireTime,
+			"complete_time":  nil,
+			"remark":         remark,
+			"admin_id":       0,
+			"created_at":     now,
+			"updated_at":     now,
+		}); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	return tradeNo, nil
+}
+
+func getRegisterUserInfo(ctx context.Context, siteId int32, userId int32) (string, string, error) {
+	userClient, userConn, err := grpc_client.GetUserClient(ctx)
+	if err != nil {
+		return "", "", err
+	}
+	defer userConn.Close()
+
+	ctxWithMeta := metadata.AppendToOutgoingContext(ctx, "site_id", gconv.String(siteId))
+	res, err := userClient.GetUserBasicInfo(ctxWithMeta, &userv1.GetUserBasicInfoReq{
+		Id: userId,
+	})
+	if err != nil {
+		return "", "", err
+	}
+	if res == nil || res.User == nil {
+		return "", "", fmt.Errorf("用户信息不存在")
+	}
+
+	registerIP := strings.TrimSpace(res.User.RegisterIp)
+	deviceID := strings.TrimSpace(res.User.Device)
+	return registerIP, deviceID, nil
 }
 
 // GetValidReferralCount 统计有效邀请人数（按充值总额）

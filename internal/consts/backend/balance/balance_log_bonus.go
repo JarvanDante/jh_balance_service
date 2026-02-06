@@ -7,4 +7,5 @@ const (
 	BonusTradeTypeBirthday       = 3 // 生日红利
 	BonusTradeTypeSign           = 4 // 签到红利
 	BonusTradeTypeInvite         = 5 // 邀请红利
+	BonusTradeTypeRegister       = 6 // 注册红利
 )
