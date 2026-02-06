@@ -2281,6 +2281,8 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 			} else if count > 0 {
 				g.Log().Warningf(ctx, "邀请红利已发放，跳过: invitee_id=%d", paymentLog.UserId)
 			} else {
+				g.Log().Infof(ctx, "邀请红利未发放，开始读取配置: invitee_id=%d, inviter_id=%d",
+					paymentLog.UserId, incRes.InviterId)
 				inviteCfg, err := getInviteActivityParams(ctx, paymentLog.SiteId)
 				if err != nil {
 					g.Log().Warningf(ctx, "读取邀请活动配置失败: %v", err)
@@ -2289,6 +2291,8 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 				} else if inviteCfg.TriggerEvent != 1 || inviteCfg.RewardType != 1 {
 					g.Log().Warningf(ctx, "邀请活动配置不匹配(仅支持充值总和+固定奖励)，跳过发放: user_id=%d", incRes.InviterId)
 				} else {
+					g.Log().Infof(ctx, "邀请活动配置已获取: trigger_event=%d, reward_type=%d, min=%.2f, bonus=%.2f",
+						inviteCfg.TriggerEvent, inviteCfg.RewardType, inviteCfg.MinRechargeAmount, inviteCfg.InviterRewardAmount)
 					minDeposit := inviteCfg.MinRechargeAmount
 					bonusAmount := inviteCfg.InviterRewardAmount
 					if bonusAmount <= 0 {
@@ -2305,6 +2309,8 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 							g.Log().Warningf(ctx, "累计实付不足%.2f，跳过发放邀请红利: invitee_id=%d, total=%.2f",
 								minDeposit, paymentLog.UserId, totalActual)
 						} else {
+							g.Log().Infof(ctx, "满足邀请红利条件，准备发放: inviter_id=%d, invitee_id=%d, amount=%.2f",
+								incRes.InviterId, paymentLog.UserId, bonusAmount)
 							grantRes, err := s.GrantInviteBonus(ctx, &v1.GrantInviteBonusReq{
 								SiteId: int32(paymentLog.SiteId),
 								UserId: int32(incRes.InviterId),

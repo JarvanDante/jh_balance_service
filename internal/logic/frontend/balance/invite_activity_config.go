@@ -20,9 +20,11 @@ type inviteActivityParams struct {
 }
 
 const inviteConfigCacheTTL = 30 * time.Second
+const inviteConfigErrorTTL = 5 * time.Second
 
 type inviteConfigCacheEntry struct {
 	value     *inviteActivityParams
+	err       error
 	expiresAt time.Time
 }
 
@@ -43,12 +45,19 @@ func getInviteActivityParams(ctx context.Context, siteId int) (*inviteActivityPa
 	inviteConfigCache.RLock()
 	if entry, ok := inviteConfigCache.items[cacheKey]; ok && now.Before(entry.expiresAt) {
 		inviteConfigCache.RUnlock()
-		return entry.value, nil
+		return entry.value, entry.err
 	}
 	inviteConfigCache.RUnlock()
 
 	client, conn, err := grpc_client.GetSiteClient(ctx)
 	if err != nil {
+		inviteConfigCache.Lock()
+		inviteConfigCache.items[cacheKey] = inviteConfigCacheEntry{
+			value:     nil,
+			err:       err,
+			expiresAt: now.Add(inviteConfigErrorTTL),
+		}
+		inviteConfigCache.Unlock()
 		return nil, err
 	}
 	defer conn.Close()
@@ -58,12 +67,20 @@ func getInviteActivityParams(ctx context.Context, siteId int) (*inviteActivityPa
 		Code:   "INVITE",
 	})
 	if err != nil {
+		inviteConfigCache.Lock()
+		inviteConfigCache.items[cacheKey] = inviteConfigCacheEntry{
+			value:     nil,
+			err:       err,
+			expiresAt: now.Add(inviteConfigErrorTTL),
+		}
+		inviteConfigCache.Unlock()
 		return nil, err
 	}
 	if res == nil || res.ActivityId == 0 || res.Status != 1 {
 		inviteConfigCache.Lock()
 		inviteConfigCache.items[cacheKey] = inviteConfigCacheEntry{
 			value:     nil,
+			err:       nil,
 			expiresAt: now.Add(inviteConfigCacheTTL),
 		}
 		inviteConfigCache.Unlock()
@@ -82,6 +99,7 @@ func getInviteActivityParams(ctx context.Context, siteId int) (*inviteActivityPa
 	inviteConfigCache.Lock()
 	inviteConfigCache.items[cacheKey] = inviteConfigCacheEntry{
 		value:     value,
+		err:       nil,
 		expiresAt: now.Add(inviteConfigCacheTTL),
 	}
 	inviteConfigCache.Unlock()
