@@ -25,8 +25,8 @@ type BalanceInviteRewardColumns struct {
 	SiteId      string //
 	InviterId   string //
 	InviteeId   string //
-	BonusAmount string //
-	TradeNo     string //
+	BonusAmount string // 发送金额
+	TradeNo     string // 最后触发订单号
 	CreatedAt   string //
 	UpdatedAt   string //
 }

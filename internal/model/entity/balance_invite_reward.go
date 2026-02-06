@@ -14,8 +14,8 @@ type BalanceInviteReward struct {
 	SiteId      int         `json:"siteId"      orm:"site_id"      description:""`
 	InviterId   int         `json:"inviterId"   orm:"inviter_id"   description:""`
 	InviteeId   int         `json:"inviteeId"   orm:"invitee_id"   description:""`
-	BonusAmount float64     `json:"bonusAmount" orm:"bonus_amount" description:""`
-	TradeNo     string      `json:"tradeNo"     orm:"trade_no"     description:""`
+	BonusAmount float64     `json:"bonusAmount" orm:"bonus_amount" description:"发送金额"`
+	TradeNo     string      `json:"tradeNo"     orm:"trade_no"     description:"最后触发订单号"`
 	CreatedAt   *gtime.Time `json:"createdAt"   orm:"created_at"   description:""`
 	UpdatedAt   *gtime.Time `json:"updatedAt"   orm:"updated_at"   description:""`
 }
