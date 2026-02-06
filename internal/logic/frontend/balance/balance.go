@@ -2274,25 +2274,25 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 			}
 			g.Log().Warningf(ctx, "IncreasePayTimes 返回失败: %s", msg)
 		} else if incRes.InviterId > 0 {
-			inviteCfg, err := getInviteActivityParams(ctx, paymentLog.SiteId)
+			model := dao.GetDynamicModel(ctx, "balance_invite_reward", g.DB().Model("balance_invite_reward").Safe().Ctx(ctx))
+			count, err := model.Where("site_id", paymentLog.SiteId).Where("invitee_id", paymentLog.UserId).Count()
 			if err != nil {
-				g.Log().Warningf(ctx, "读取邀请活动配置失败: %v", err)
-			} else if inviteCfg == nil {
-				g.Log().Warningf(ctx, "邀请活动未配置或已关闭，跳过发放: user_id=%d", incRes.InviterId)
-			} else if inviteCfg.TriggerEvent != 1 || inviteCfg.RewardType != 1 {
-				g.Log().Warningf(ctx, "邀请活动配置不匹配(仅支持充值总和+固定奖励)，跳过发放: user_id=%d", incRes.InviterId)
+				g.Log().Warningf(ctx, "查询邀请红利发放记录失败: %v", err)
+			} else if count > 0 {
+				g.Log().Warningf(ctx, "邀请红利已发放，跳过: invitee_id=%d", paymentLog.UserId)
 			} else {
-				minDeposit := inviteCfg.MinRechargeAmount
-				bonusAmount := inviteCfg.InviterRewardAmount
-				if bonusAmount <= 0 {
-					g.Log().Warningf(ctx, "邀请红利未配置或金额为0，跳过发放: user_id=%d", incRes.InviterId)
+				inviteCfg, err := getInviteActivityParams(ctx, paymentLog.SiteId)
+				if err != nil {
+					g.Log().Warningf(ctx, "读取邀请活动配置失败: %v", err)
+				} else if inviteCfg == nil {
+					g.Log().Warningf(ctx, "邀请活动未配置或已关闭，跳过发放: user_id=%d", incRes.InviterId)
+				} else if inviteCfg.TriggerEvent != 1 || inviteCfg.RewardType != 1 {
+					g.Log().Warningf(ctx, "邀请活动配置不匹配(仅支持充值总和+固定奖励)，跳过发放: user_id=%d", incRes.InviterId)
 				} else {
-					model := dao.GetDynamicModel(ctx, "balance_invite_reward", g.DB().Model("balance_invite_reward").Safe().Ctx(ctx))
-					count, err := model.Where("site_id", paymentLog.SiteId).Where("invitee_id", paymentLog.UserId).Count()
-					if err != nil {
-						g.Log().Warningf(ctx, "查询邀请红利发放记录失败: %v", err)
-					} else if count > 0 {
-						g.Log().Warningf(ctx, "邀请红利已发放，跳过: invitee_id=%d", paymentLog.UserId)
+					minDeposit := inviteCfg.MinRechargeAmount
+					bonusAmount := inviteCfg.InviterRewardAmount
+					if bonusAmount <= 0 {
+						g.Log().Warningf(ctx, "邀请红利未配置或金额为0，跳过发放: user_id=%d", incRes.InviterId)
 					} else {
 						totalActual, err := dao.BalanceLogPayment.Ctx(ctx).
 							Where("site_id", paymentLog.SiteId).
