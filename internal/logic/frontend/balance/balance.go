@@ -18,6 +18,7 @@ import (
 
 	v1 "jh_balance_service/api/frontend/balance/v1"
 	gamev1 "jh_balance_service/api/grpc/game/frontend/v1"
+	sitev1 "jh_balance_service/api/grpc/site/backend/v1"
 	userv1 "jh_balance_service/api/grpc/user/backend/v1"
 	balanceConsts "jh_balance_service/internal/consts/backend/balance"
 	"jh_balance_service/internal/dao"
@@ -3388,6 +3389,505 @@ func calcVipProgressPercent(current, target float64) float64 {
 
 func roundVipProgress(value float64) float64 {
 	return math.Round(value*100) / 100
+}
+
+// GetSigninActivityInfo 获取签到活动信息
+func (s *sBalance) GetSigninActivityInfo(ctx context.Context, req *v1.GetSigninActivityInfoReq) (*v1.GetSigninActivityInfoRes, error) {
+	userId, ok := middleware.GetUserIdFromContext(ctx)
+	if !ok || userId == 0 {
+		return &v1.GetSigninActivityInfoRes{
+			Success: false,
+			Message: "未登录",
+		}, nil
+	}
+
+	siteId, ok := middleware.GetSiteIdFromContext(ctx)
+	if !ok || siteId == 0 {
+		return &v1.GetSigninActivityInfoRes{
+			Success: false,
+			Message: "未获取站点ID",
+		}, nil
+	}
+
+	siteCode, _ := middleware.GetSiteCodeFromContext(ctx)
+	if siteCode == "" {
+		siteCode = registry.GetDBConfigManager().GetSiteCodeBySiteID(int64(siteId))
+	}
+	if siteCode != "" && ctx.Value("dynamic_db_group") == nil {
+		ctx = context.WithValue(ctx, "dynamic_db_group", "site_"+siteCode)
+	}
+
+	now := time.Now()
+	year := now.Year()
+	month := now.Month()
+	today := now.Day()
+	daysInMonth := time.Date(year, month+1, 0, 0, 0, 0, 0, now.Location()).Day()
+
+	res := &v1.GetSigninActivityInfoRes{
+		Success: true,
+		Message: "获取成功",
+		Active:  false,
+		Year:    int32(year),
+		Month:   int32(month),
+		Today:   int32(today),
+		DayList: make([]*v1.SigninDayInfo, 0, daysInMonth),
+	}
+
+	activity, err := getSigninActivity(ctx, int(siteId))
+	if err != nil {
+		g.Log().Errorf(ctx, "获取签到活动配置失败: site_id=%d, user_id=%d, err=%v", siteId, userId, err)
+		return &v1.GetSigninActivityInfoRes{
+			Success: false,
+			Message: "获取签到活动配置失败",
+		}, nil
+	}
+	if activity == nil {
+		res.Message = "签到活动未开启"
+		for day := 1; day <= daysInMonth; day++ {
+			res.DayList = append(res.DayList, &v1.SigninDayInfo{
+				DayNo:        int32(day),
+				RewardAmount: 0,
+				Signed:       false,
+			})
+		}
+		return res, nil
+	}
+	res.Active = true
+
+	dayRewards, err := s.getSigninDayRewards(ctx, int(siteId), int(activity.ActivityId))
+	if err != nil {
+		g.Log().Errorf(ctx, "查询签到日奖励配置失败: site_id=%d, user_id=%d, activity_id=%d, err=%v",
+			siteId, userId, activity.ActivityId, err)
+		return &v1.GetSigninActivityInfoRes{
+			Success: false,
+			Message: "查询签到奖励配置失败",
+		}, nil
+	}
+
+	monthStart := gtime.NewFromTime(time.Date(year, month, 1, 0, 0, 0, 0, now.Location()))
+	monthEnd := gtime.NewFromTime(time.Date(year, month, 1, 0, 0, 0, 0, now.Location()).AddDate(0, 1, 0))
+	signedDayMap, signedDays, signedAmount, err := s.getSigninMonthStats(ctx, int(siteId), int(userId), monthStart, monthEnd)
+	if err != nil {
+		g.Log().Errorf(ctx, "查询签到月统计失败: site_id=%d, user_id=%d, err=%v", siteId, userId, err)
+		return &v1.GetSigninActivityInfoRes{
+			Success: false,
+			Message: "查询签到记录失败",
+		}, nil
+	}
+
+	for day := 1; day <= daysInMonth; day++ {
+		rewardAmount := dayRewards[day]
+		signed := signedDayMap[day]
+		res.DayList = append(res.DayList, &v1.SigninDayInfo{
+			DayNo:        int32(day),
+			RewardAmount: rewardAmount,
+			Signed:       signed,
+		})
+	}
+
+	res.TodaySigned = signedDayMap[today]
+	res.SignedDays = int32(signedDays)
+	res.SignedAmount = signedAmount
+	res.TodayRewardAmount = dayRewards[today]
+
+	return res, nil
+}
+
+// ClaimSigninReward 签到领取
+func (s *sBalance) ClaimSigninReward(ctx context.Context, req *v1.ClaimSigninRewardReq) (*v1.ClaimSigninRewardRes, error) {
+	userId, ok := middleware.GetUserIdFromContext(ctx)
+	if !ok || userId == 0 {
+		return &v1.ClaimSigninRewardRes{
+			Success: false,
+			Message: "未登录",
+		}, nil
+	}
+
+	siteId, ok := middleware.GetSiteIdFromContext(ctx)
+	if !ok || siteId == 0 {
+		return &v1.ClaimSigninRewardRes{
+			Success: false,
+			Message: "未获取站点ID",
+		}, nil
+	}
+
+	siteCode, _ := middleware.GetSiteCodeFromContext(ctx)
+	if siteCode == "" {
+		siteCode = registry.GetDBConfigManager().GetSiteCodeBySiteID(int64(siteId))
+	}
+	if siteCode != "" && ctx.Value("dynamic_db_group") == nil {
+		ctx = context.WithValue(ctx, "dynamic_db_group", "site_"+siteCode)
+	}
+
+	activity, err := getSigninActivity(ctx, int(siteId))
+	if err != nil {
+		g.Log().Errorf(ctx, "获取签到活动配置失败: site_id=%d, user_id=%d, err=%v", siteId, userId, err)
+		return &v1.ClaimSigninRewardRes{
+			Success: false,
+			Message: "获取签到活动配置失败",
+		}, nil
+	}
+	if activity == nil {
+		return &v1.ClaimSigninRewardRes{
+			Success: false,
+			Message: "签到活动未开启",
+		}, nil
+	}
+
+	now := time.Now()
+	dayNo := now.Day()
+	signDate := now.Format("2006-01-02")
+
+	dayRewards, err := s.getSigninDayRewards(ctx, int(siteId), int(activity.ActivityId))
+	if err != nil {
+		g.Log().Errorf(ctx, "查询签到日奖励配置失败: site_id=%d, user_id=%d, activity_id=%d, err=%v",
+			siteId, userId, activity.ActivityId, err)
+		return &v1.ClaimSigninRewardRes{
+			Success: false,
+			Message: "查询签到奖励配置失败",
+		}, nil
+	}
+	rewardAmount := math.Round(dayRewards[dayNo]*100) / 100
+	if rewardAmount <= 0 {
+		return &v1.ClaimSigninRewardRes{
+			Success: false,
+			Message: "今日签到奖励未配置",
+			DayNo:   int32(dayNo),
+		}, nil
+	}
+
+	todaySignedCount, err := dao.BalanceSigninReward.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Where("date", signDate).
+		Count()
+	if err != nil {
+		g.Log().Errorf(ctx, "查询今日签到记录失败: site_id=%d, user_id=%d, sign_date=%s, err=%v",
+			siteId, userId, signDate, err)
+		return &v1.ClaimSigninRewardRes{
+			Success: false,
+			Message: "查询签到记录失败",
+		}, nil
+	}
+	if todaySignedCount > 0 {
+		return &v1.ClaimSigninRewardRes{
+			Success: false,
+			Message: "今日已签到，请明日再来",
+			DayNo:   int32(dayNo),
+		}, nil
+	}
+
+	tradeNo, err := s.grantSigninBonus(ctx, int(siteId), int(userId), rewardAmount, dayNo, signDate)
+	if err != nil {
+		g.Log().Errorf(ctx, "执行签到发放失败: site_id=%d, user_id=%d, sign_date=%s, err=%v",
+			siteId, userId, signDate, err)
+		return &v1.ClaimSigninRewardRes{
+			Success: false,
+			Message: err.Error(),
+			DayNo:   int32(dayNo),
+		}, nil
+	}
+
+	monthStart := gtime.NewFromTime(time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location()))
+	monthEnd := gtime.NewFromTime(time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location()).AddDate(0, 1, 0))
+	_, signedDays, signedAmount, err := s.getSigninMonthStats(ctx, int(siteId), int(userId), monthStart, monthEnd)
+	if err != nil {
+		g.Log().Warningf(ctx, "查询签到月统计失败(忽略): site_id=%d, user_id=%d, err=%v", siteId, userId, err)
+	}
+
+	return &v1.ClaimSigninRewardRes{
+		Success:      true,
+		Message:      "签到成功",
+		TradeNo:      tradeNo,
+		DayNo:        int32(dayNo),
+		RewardAmount: rewardAmount,
+		SignDate:     signDate,
+		SignedDays:   int32(signedDays),
+		SignedAmount: signedAmount,
+	}, nil
+}
+
+func (s *sBalance) getSigninDayRewards(ctx context.Context, siteId int, activityId int) (map[int]float64, error) {
+	rewardMap := make(map[int]float64, 31)
+	for day := 1; day <= 31; day++ {
+		rewardMap[day] = 0
+	}
+	if siteId <= 0 || activityId <= 0 {
+		return rewardMap, nil
+	}
+
+	client, conn, err := grpc_client.GetSiteClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	paramRes, err := client.GetSiteActivityParams(ctx, &sitev1.GetSiteActivityParamsReq{
+		SiteId:     int32(siteId),
+		ActivityId: int32(activityId),
+	})
+	if err != nil {
+		return nil, err
+	}
+	if paramRes == nil {
+		return rewardMap, nil
+	}
+
+	for key, raw := range paramRes.GetValues() {
+		dayNo, ok := parseSigninDayFieldName(key)
+		if !ok {
+			continue
+		}
+		amount := gconv.Float64(raw)
+		if amount < 0 {
+			amount = 0
+		}
+		rewardMap[dayNo] = math.Round(amount*100) / 100
+	}
+
+	return rewardMap, nil
+}
+
+func parseSigninDayFieldName(name string) (int, bool) {
+	if !strings.HasPrefix(name, "day_") {
+		return 0, false
+	}
+	dayNo := gconv.Int(strings.TrimPrefix(name, "day_"))
+	if dayNo < 1 || dayNo > 31 {
+		return 0, false
+	}
+	return dayNo, true
+}
+
+func (s *sBalance) getSigninMonthStats(
+	ctx context.Context,
+	siteId int,
+	userId int,
+	monthStart *gtime.Time,
+	monthEnd *gtime.Time,
+) (map[int]bool, int, float64, error) {
+	signedDayMap := make(map[int]bool, 31)
+	totalAmount := 0.0
+
+	var records []*entity.BalanceSigninReward
+	if err := dao.BalanceSigninReward.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Where("date >= ?", monthStart).
+		Where("date < ?", monthEnd).
+		Order("date asc, id asc").
+		Scan(&records); err != nil {
+		return nil, 0, 0, err
+	}
+
+	for _, record := range records {
+		if record == nil {
+			continue
+		}
+		if record.DayNo >= 1 && record.DayNo <= 31 {
+			signedDayMap[record.DayNo] = true
+		}
+		totalAmount += record.BonusAmount
+	}
+
+	return signedDayMap, len(signedDayMap), math.Round(totalAmount*100) / 100, nil
+}
+
+func (s *sBalance) grantSigninBonus(
+	ctx context.Context,
+	siteId int,
+	userId int,
+	amount float64,
+	dayNo int,
+	signDate string,
+) (string, error) {
+	if siteId <= 0 {
+		return "", fmt.Errorf("站点ID不能为空")
+	}
+	if userId <= 0 {
+		return "", fmt.Errorf("用户ID不能为空")
+	}
+	if amount <= 0 {
+		return "", fmt.Errorf("签到金额必须大于0")
+	}
+
+	// 兜底设置动态数据库组（避免无metadata时路由失败）
+	if ctx.Value("dynamic_db_group") == nil {
+		siteCode := registry.GetDBConfigManager().GetSiteCodeBySiteID(int64(siteId))
+		if siteCode != "" {
+			ctx = context.WithValue(ctx, "dynamic_db_group", "site_"+siteCode)
+		}
+	}
+
+	// 优先使用每日签到活动流水规则，未配置则回退红利规则
+	rule, err := dao.BalanceFlowRule.GetActiveRule(ctx, siteId, balanceConsts.RuleTypeDailySign)
+	if err != nil {
+		return "", fmt.Errorf("查询流水规则失败")
+	}
+	if rule == nil {
+		rule, err = dao.BalanceFlowRule.GetActiveRule(ctx, siteId, balanceConsts.RuleTypeBonus)
+		if err != nil {
+			return "", fmt.Errorf("查询流水规则失败")
+		}
+	}
+	if rule == nil {
+		return "", fmt.Errorf("未配置可用的流水规则")
+	}
+
+	var tradeNo string
+	now := gtime.Now()
+	amount = math.Round(amount*100) / 100
+
+	err = dao.BalanceUser.Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		var balanceUser *entity.BalanceUser
+		if err := dao.BalanceUser.Ctx(ctx).TX(tx).
+			Where("site_id", siteId).
+			Where("user_id", userId).
+			LockUpdate().
+			Scan(&balanceUser); err != nil {
+			return err
+		}
+		if balanceUser == nil || balanceUser.Id == 0 {
+			return fmt.Errorf("用户余额记录不存在")
+		}
+
+		todaySignedCount, err := dao.BalanceSigninReward.Ctx(ctx).TX(tx).
+			Where("site_id", siteId).
+			Where("user_id", userId).
+			Where("date", signDate).
+			Count()
+		if err != nil {
+			return err
+		}
+		if todaySignedCount > 0 {
+			return fmt.Errorf("今日已签到，请明日再来")
+		}
+
+		balanceOld := balanceUser.Balance
+		balanceNew := balanceOld + amount
+		tradeNo = util.GenerateTradeNo(ctx, balanceConsts.LOG_TYPE_BONUS)
+		remark := fmt.Sprintf("每日签到送彩金(Day %d)", dayNo)
+
+		if _, err := dao.BalanceUser.Ctx(ctx).TX(tx).
+			Where("id", balanceUser.Id).
+			Update(g.Map{
+				"balance":    balanceNew,
+				"updated_at": now,
+			}); err != nil {
+			return err
+		}
+
+		if _, err := dao.BalanceLog.Ctx(ctx).TX(tx).Insert(g.Map{
+			"site_id":      siteId,
+			"user_id":      userId,
+			"trade_type":   balanceConsts.LOG_TYPE_BONUS,
+			"trade_no":     tradeNo,
+			"money":        amount,
+			"actual_money": amount,
+			"fee":          0,
+			"status":       balanceConsts.StatusSuccess,
+			"remark":       remark,
+			"created_at":   now,
+			"updated_at":   now,
+		}); err != nil {
+			return err
+		}
+
+		if _, err := dao.BalanceChange.Ctx(ctx).TX(tx).Insert(g.Map{
+			"site_id":        siteId,
+			"trade_type":     balanceConsts.TradeTypeBonus,
+			"user_id":        userId,
+			"username":       balanceUser.Username,
+			"trade_no":       tradeNo,
+			"balance_old":    balanceOld,
+			"money":          amount,
+			"balance_new":    balanceNew,
+			"balance_frozen": balanceUser.BalanceFrozen,
+			"status":         balanceConsts.StatusSuccess,
+			"remark":         remark,
+			"created_at":     now,
+			"updated_at":     now,
+		}); err != nil {
+			return err
+		}
+
+		bonusResult, err := dao.BalanceLogBonus.Ctx(ctx).TX(tx).Insert(g.Map{
+			"site_id":              siteId,
+			"trade_type":           balanceConsts.BonusTradeTypeSign,
+			"user_id":              userId,
+			"username":             balanceUser.Username,
+			"trade_no":             tradeNo,
+			"activity_recharge_id": 0,
+			"money":                amount,
+			"fee":                  0,
+			"status":               balanceConsts.StatusSuccess,
+			"admin_id":             0,
+			"remark":               remark,
+			"created_at":           now,
+			"updated_at":           now,
+		})
+		if err != nil {
+			return err
+		}
+		bonusId, _ := bonusResult.LastInsertId()
+
+		if _, err := dao.BalanceSigninReward.Ctx(ctx).TX(tx).Insert(g.Map{
+			"site_id":      siteId,
+			"user_id":      userId,
+			"date":         signDate,
+			"day_no":       dayNo,
+			"bonus_amount": amount,
+			"trade_no":     tradeNo,
+			"created_at":   now,
+			"updated_at":   now,
+		}); err != nil {
+			if strings.Contains(strings.ToLower(err.Error()), "duplicate") {
+				return fmt.Errorf("今日已签到，请明日再来")
+			}
+			return err
+		}
+
+		flowMultiple := rule.FlowMultiple
+		expireDays := rule.ExpireDays
+		requiredFlow := amount * flowMultiple
+		var expireTime *gtime.Time
+		if expireDays > 0 {
+			expireTime = now.AddDate(0, 0, expireDays)
+		}
+
+		if _, err := dao.BalanceFlowRequirement.Ctx(ctx).TX(tx).Insert(g.Map{
+			"site_id":        siteId,
+			"user_id":        userId,
+			"username":       balanceUser.Username,
+			"source_type":    balanceConsts.SourceTypeDailySign,
+			"source_id":      bonusId,
+			"trade_no":       tradeNo,
+			"amount":         0,
+			"bonus_amount":   amount,
+			"flow_multiple":  flowMultiple,
+			"required_flow":  requiredFlow,
+			"completed_flow": 0,
+			"remaining_flow": requiredFlow,
+			"status":         1,
+			"progress":       0,
+			"start_time":     now,
+			"expire_time":    expireTime,
+			"complete_time":  nil,
+			"remark":         remark,
+			"admin_id":       0,
+			"created_at":     now,
+			"updated_at":     now,
+		}); err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return tradeNo, nil
 }
 
 func (s *sBalance) getUserCurrentAndNextVipGrade(ctx context.Context, siteId int, userId int) (vipGradeProgressInfo, *vipGradeProgressInfo, bool, error) {

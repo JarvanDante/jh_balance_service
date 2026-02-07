@@ -26,7 +26,7 @@ type BalanceLogRebateColumns struct {
 	UserId         string // 用户ID
 	Username       string // 会员用户名
 	TradeNo        string // 流水号
-	RebateDate     string // 返水日期
+	LastBetId      string // 注单记录游标ID
 	ValidBetAmount string // 有效投注总金额
 	Money          string // 返水金额
 	Fee            string // 手续费
@@ -43,7 +43,7 @@ var balanceLogRebateColumns = BalanceLogRebateColumns{
 	UserId:         "user_id",
 	Username:       "username",
 	TradeNo:        "trade_no",
-	RebateDate:     "rebate_date",
+	LastBetId:      "last_bet_id",
 	ValidBetAmount: "valid_bet_amount",
 	Money:          "money",
 	Fee:            "fee",

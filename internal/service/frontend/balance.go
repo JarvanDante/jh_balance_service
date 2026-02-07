@@ -30,6 +30,8 @@ type IBalance interface {
 	GetInviteBonusSummary(ctx context.Context, req *v1.GetInviteBonusSummaryReq) (res *v1.GetInviteBonusSummaryRes, err error)
 	GetValidReferralCount(ctx context.Context, req *v1.GetValidReferralCountReq) (res *v1.GetValidReferralCountRes, err error)
 	GetVipUpgradeProgress(ctx context.Context, req *v1.GetVipUpgradeProgressReq) (res *v1.GetVipUpgradeProgressRes, err error)
+	GetSigninActivityInfo(ctx context.Context, req *v1.GetSigninActivityInfoReq) (res *v1.GetSigninActivityInfoRes, err error)
+	ClaimSigninReward(ctx context.Context, req *v1.ClaimSigninRewardReq) (res *v1.ClaimSigninRewardRes, err error)
 	WashCodeRebate(ctx context.Context, req *v1.WashCodeRebateReq) (res *v1.WashCodeRebateRes, err error)
 }
 

@@ -17,7 +17,7 @@ type BalanceLogRebate struct {
 	UserId         any         // 用户ID
 	Username       any         // 会员用户名
 	TradeNo        any         // 流水号
-	RebateDate     *gtime.Time // 返水日期
+	LastBetId      any         // 注单记录游标ID
 	ValidBetAmount any         // 有效投注总金额
 	Money          any         // 返水金额
 	Fee            any         // 手续费

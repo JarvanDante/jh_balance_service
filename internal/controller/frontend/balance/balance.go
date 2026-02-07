@@ -226,6 +226,22 @@ func (c *Controller) GetVipUpgradeProgress(ctx context.Context, req *v1.GetVipUp
 	return frontend.Balance().GetVipUpgradeProgress(ctx, req)
 }
 
+// GetSigninActivityInfo 获取签到活动信息
+func (c *Controller) GetSigninActivityInfo(ctx context.Context, req *v1.GetSigninActivityInfoReq) (res *v1.GetSigninActivityInfoRes, err error) {
+	if req == nil {
+		req = &v1.GetSigninActivityInfoReq{}
+	}
+	return frontend.Balance().GetSigninActivityInfo(ctx, req)
+}
+
+// ClaimSigninReward 签到领取
+func (c *Controller) ClaimSigninReward(ctx context.Context, req *v1.ClaimSigninRewardReq) (res *v1.ClaimSigninRewardRes, err error) {
+	if req == nil {
+		req = &v1.ClaimSigninRewardReq{}
+	}
+	return frontend.Balance().ClaimSigninReward(ctx, req)
+}
+
 // WashCodeRebate 执行洗码返水
 func (c *Controller) WashCodeRebate(ctx context.Context, req *v1.WashCodeRebateReq) (res *v1.WashCodeRebateRes, err error) {
 	if req == nil {
