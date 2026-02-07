@@ -5,6 +5,8 @@
 package dao
 
 import (
+	"context"
+	"github.com/gogf/gf/v2/database/gdb"
 	"jh_balance_service/internal/dao/internal"
 )
 
@@ -16,7 +18,14 @@ type userReportTotalDao struct {
 
 var (
 	// UserReportTotal is a globally accessible object for table user_report_total operations.
-	UserReportTotal = userReportTotalDao{internal.NewUserReportTotalDao()}
+	UserReportTotal = userReportTotalDao{internal.NewUserReportTotalDao(DynamicDBHandler)}
 )
+
+// Ctx 重写Ctx方法，使用动态数据库连接
+func (d userReportTotalDao) Ctx(ctx context.Context) *gdb.Model {
+	// 使用辅助函数获取动态Model
+	originalModel := d.UserReportTotalDao.Ctx(ctx)
+	return GetDynamicModel(ctx, d.Table(), originalModel)
+}
 
 // Add your custom methods and functionality below.

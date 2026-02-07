@@ -9,4 +9,5 @@ const (
 	BonusTradeTypeInvite         = 5 // 邀请红利
 	BonusTradeTypeRegister       = 6 // 注册红利
 	BonusTradeTypeDeposit        = 7 // 充值送红利
+	BonusTradeTypeUpgrade        = 8 // 升级红利
 )
