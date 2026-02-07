@@ -49,6 +49,8 @@ service Balance {
     rpc GetInviteBonusSummary(GetInviteBonusSummaryReq) returns (GetInviteBonusSummaryRes) {}
     // 统计有效邀请人数（按充值总额）
     rpc GetValidReferralCount(GetValidReferralCountReq) returns (GetValidReferralCountRes) {}
+    // 执行洗码返水
+    rpc WashCodeRebate(WashCodeRebateReq) returns (WashCodeRebateRes) {}
 }
 
 
@@ -420,3 +422,18 @@ message GetValidReferralCountRes {
     int32 count = 1;            // 有效邀请人数
 }
 
+// 执行洗码返水请求
+message WashCodeRebateReq {
+}
+
+// 执行洗码返水响应
+message WashCodeRebateRes {
+    bool success = 1;               // 是否成功
+    string message = 2;             // 消息
+    string trade_no = 3;            // 流水号
+    double valid_bet_amount = 4;    // 本次洗码有效投注额度
+    double rebate_percent = 5;      // 当前等级电子洗码比例(%)
+    double rebate_amount = 6;       // 本次返水金额
+    string grade_name = 7;          // 当前用户等级名称
+    uint64 max_bet_id = 8;          // 本次洗码覆盖的最大注单ID
+}

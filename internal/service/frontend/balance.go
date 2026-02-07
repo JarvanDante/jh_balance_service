@@ -29,6 +29,7 @@ type IBalance interface {
 	GrantInviteBonus(ctx context.Context, req *v1.GrantInviteBonusReq) (res *v1.GrantInviteBonusRes, err error)
 	GetInviteBonusSummary(ctx context.Context, req *v1.GetInviteBonusSummaryReq) (res *v1.GetInviteBonusSummaryRes, err error)
 	GetValidReferralCount(ctx context.Context, req *v1.GetValidReferralCountReq) (res *v1.GetValidReferralCountRes, err error)
+	WashCodeRebate(ctx context.Context, req *v1.WashCodeRebateReq) (res *v1.WashCodeRebateRes, err error)
 }
 
 var localBalance IBalance

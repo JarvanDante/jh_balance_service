@@ -42,6 +42,7 @@ const (
 	Balance_GrantInviteBonus_FullMethodName        = "/frontend_balance.Balance/GrantInviteBonus"
 	Balance_GetInviteBonusSummary_FullMethodName   = "/frontend_balance.Balance/GetInviteBonusSummary"
 	Balance_GetValidReferralCount_FullMethodName   = "/frontend_balance.Balance/GetValidReferralCount"
+	Balance_WashCodeRebate_FullMethodName          = "/frontend_balance.Balance/WashCodeRebate"
 )
 
 // BalanceClient is the client API for Balance service.
@@ -92,6 +93,8 @@ type BalanceClient interface {
 	GetInviteBonusSummary(ctx context.Context, in *GetInviteBonusSummaryReq, opts ...grpc.CallOption) (*GetInviteBonusSummaryRes, error)
 	// 统计有效邀请人数（按充值总额）
 	GetValidReferralCount(ctx context.Context, in *GetValidReferralCountReq, opts ...grpc.CallOption) (*GetValidReferralCountRes, error)
+	// 执行洗码返水
+	WashCodeRebate(ctx context.Context, in *WashCodeRebateReq, opts ...grpc.CallOption) (*WashCodeRebateRes, error)
 }
 
 type balanceClient struct {
@@ -322,6 +325,16 @@ func (c *balanceClient) GetValidReferralCount(ctx context.Context, in *GetValidR
 	return out, nil
 }
 
+func (c *balanceClient) WashCodeRebate(ctx context.Context, in *WashCodeRebateReq, opts ...grpc.CallOption) (*WashCodeRebateRes, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WashCodeRebateRes)
+	err := c.cc.Invoke(ctx, Balance_WashCodeRebate_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BalanceServer is the server API for Balance service.
 // All implementations must embed UnimplementedBalanceServer
 // for forward compatibility.
@@ -370,6 +383,8 @@ type BalanceServer interface {
 	GetInviteBonusSummary(context.Context, *GetInviteBonusSummaryReq) (*GetInviteBonusSummaryRes, error)
 	// 统计有效邀请人数（按充值总额）
 	GetValidReferralCount(context.Context, *GetValidReferralCountReq) (*GetValidReferralCountRes, error)
+	// 执行洗码返水
+	WashCodeRebate(context.Context, *WashCodeRebateReq) (*WashCodeRebateRes, error)
 	mustEmbedUnimplementedBalanceServer()
 }
 
@@ -445,6 +460,9 @@ func (UnimplementedBalanceServer) GetInviteBonusSummary(context.Context, *GetInv
 }
 func (UnimplementedBalanceServer) GetValidReferralCount(context.Context, *GetValidReferralCountReq) (*GetValidReferralCountRes, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetValidReferralCount not implemented")
+}
+func (UnimplementedBalanceServer) WashCodeRebate(context.Context, *WashCodeRebateReq) (*WashCodeRebateRes, error) {
+	return nil, status.Error(codes.Unimplemented, "method WashCodeRebate not implemented")
 }
 func (UnimplementedBalanceServer) mustEmbedUnimplementedBalanceServer() {}
 func (UnimplementedBalanceServer) testEmbeddedByValue()                 {}
@@ -863,6 +881,24 @@ func _Balance_GetValidReferralCount_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Balance_WashCodeRebate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WashCodeRebateReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BalanceServer).WashCodeRebate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Balance_WashCodeRebate_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BalanceServer).WashCodeRebate(ctx, req.(*WashCodeRebateReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Balance_ServiceDesc is the grpc.ServiceDesc for Balance service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -957,6 +993,10 @@ var Balance_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetValidReferralCount",
 			Handler:    _Balance_GetValidReferralCount_Handler,
+		},
+		{
+			MethodName: "WashCodeRebate",
+			Handler:    _Balance_WashCodeRebate_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

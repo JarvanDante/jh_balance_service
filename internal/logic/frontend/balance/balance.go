@@ -3,6 +3,7 @@ package balance
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -3268,4 +3269,359 @@ func (s *sBalance) GetInviteBonusSummary(ctx context.Context, req *v1.GetInviteB
 		YesterdayAmount: gconv.Float64(yesterdayAmount),
 		TotalAmount:     gconv.Float64(totalAmount),
 	}, nil
+}
+
+// WashCodeRebate 执行洗码返水
+func (s *sBalance) WashCodeRebate(ctx context.Context, req *v1.WashCodeRebateReq) (*v1.WashCodeRebateRes, error) {
+	userId, ok := middleware.GetUserIdFromContext(ctx)
+	if !ok || userId == 0 {
+		return &v1.WashCodeRebateRes{
+			Success: false,
+			Message: "未登录",
+		}, nil
+	}
+
+	siteId, ok := middleware.GetSiteIdFromContext(ctx)
+	if !ok || siteId == 0 {
+		return &v1.WashCodeRebateRes{
+			Success: false,
+			Message: "未获取站点ID",
+		}, nil
+	}
+
+	siteCode, _ := middleware.GetSiteCodeFromContext(ctx)
+	if siteCode == "" {
+		siteCode = registry.GetDBConfigManager().GetSiteCodeBySiteID(int64(siteId))
+	}
+	if siteCode != "" && ctx.Value("dynamic_db_group") == nil {
+		ctx = context.WithValue(ctx, "dynamic_db_group", "site_"+siteCode)
+	}
+
+	lastBetId, err := s.getLastRebateBetCursor(ctx, int(siteId), int(userId))
+	if err != nil {
+		g.Log().Warningf(ctx, "查询上次洗码游标失败，按无历史处理: site_id=%d, user_id=%d, err=%v", siteId, userId, err)
+		lastBetId = 0
+	}
+
+	gameClient, gameConn, err := grpc_client.GetGameClient(ctx)
+	if err != nil {
+		g.Log().Errorf(ctx, "连接game服务失败: %v", err)
+		return &v1.WashCodeRebateRes{
+			Success: false,
+			Message: "连接游戏服务失败",
+		}, nil
+	}
+	defer gameConn.Close()
+
+	mdMap := map[string]string{
+		"site_id": gconv.String(siteId),
+		"user_id": gconv.String(userId),
+	}
+	if siteCode != "" {
+		mdMap["site_code"] = siteCode
+	}
+	if username := middleware.GetUsernameFromContext(ctx); username != "" {
+		mdMap["username"] = username
+	}
+	if currency := middleware.GetCurrencyFromContext(ctx); currency != "" {
+		mdMap["currency"] = currency
+	}
+	ctxWithMeta := metadata.NewOutgoingContext(ctx, metadata.New(mdMap))
+
+	quotaRes, err := gameClient.GetWashCodeQuota(ctxWithMeta, &gamev1.GetWashCodeQuotaReq{
+		LastBetId: lastBetId,
+	})
+	if err != nil {
+		g.Log().Errorf(ctx, "获取可洗码额度失败: site_id=%d, user_id=%d, err=%v", siteId, userId, err)
+		return &v1.WashCodeRebateRes{
+			Success: false,
+			Message: "获取可洗码额度失败",
+		}, nil
+	}
+	if quotaRes == nil || !quotaRes.GetSuccess() {
+		msg := "获取可洗码额度失败"
+		if quotaRes != nil && quotaRes.GetMessage() != "" {
+			msg = quotaRes.GetMessage()
+		}
+		return &v1.WashCodeRebateRes{
+			Success: false,
+			Message: msg,
+		}, nil
+	}
+
+	validBetAmount := quotaRes.GetValidBetAmount()
+	maxBetId := quotaRes.GetMaxBetId()
+	if validBetAmount <= 0 || maxBetId <= lastBetId {
+		return &v1.WashCodeRebateRes{
+			Success:        false,
+			Message:        "暂无可洗码额度",
+			ValidBetAmount: validBetAmount,
+			MaxBetId:       maxBetId,
+		}, nil
+	}
+
+	gradeName, rebatePercent, err := s.getUserEgameRebateConfig(ctx, int(siteId), int(userId))
+	if err != nil {
+		g.Log().Errorf(ctx, "获取用户等级返水比例失败: site_id=%d, user_id=%d, err=%v", siteId, userId, err)
+		return &v1.WashCodeRebateRes{
+			Success: false,
+			Message: "获取用户等级返水比例失败",
+		}, nil
+	}
+	if rebatePercent <= 0 {
+		return &v1.WashCodeRebateRes{
+			Success:        false,
+			Message:        "当前等级未配置电子游戏返水比例",
+			ValidBetAmount: validBetAmount,
+			RebatePercent:  rebatePercent,
+			GradeName:      gradeName,
+			MaxBetId:       maxBetId,
+		}, nil
+	}
+
+	rebateAmount := math.Round(validBetAmount*rebatePercent*100) / 10000
+	if rebateAmount <= 0 {
+		return &v1.WashCodeRebateRes{
+			Success:        false,
+			Message:        "可返水金额为0",
+			ValidBetAmount: validBetAmount,
+			RebatePercent:  rebatePercent,
+			GradeName:      gradeName,
+			MaxBetId:       maxBetId,
+		}, nil
+	}
+
+	var tradeNo string
+	err = dao.BalanceUser.Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		var balanceUser *entity.BalanceUser
+		if err := dao.BalanceUser.Ctx(ctx).TX(tx).
+			Where("site_id", siteId).
+			Where("user_id", userId).
+			LockUpdate().
+			Scan(&balanceUser); err != nil {
+			return err
+		}
+		if balanceUser == nil || balanceUser.Id == 0 {
+			return fmt.Errorf("用户余额记录不存在")
+		}
+
+		latestCursor, err := s.getLastRebateBetCursorWithTx(ctx, tx, int(siteId), int(userId))
+		if err != nil {
+			return err
+		}
+		if latestCursor != lastBetId {
+			return fmt.Errorf("洗码数据已更新，请重试")
+		}
+
+		now := gtime.Now()
+		balanceOld := balanceUser.Balance
+		balanceNew := balanceOld + rebateAmount
+		tradeNo = util.GenerateTradeNo(ctx, balanceConsts.LOG_TYPE_REBATE)
+
+		remark := "洗码返水"
+		if strings.TrimSpace(gradeName) != "" {
+			remark = fmt.Sprintf("洗码返水(%s)", strings.TrimSpace(gradeName))
+		}
+
+		if _, err := dao.BalanceUser.Ctx(ctx).TX(tx).
+			Where("id", balanceUser.Id).
+			Update(g.Map{
+				"balance":    balanceNew,
+				"updated_at": now,
+			}); err != nil {
+			return err
+		}
+
+		if _, err := dao.BalanceLog.Ctx(ctx).TX(tx).Insert(g.Map{
+			"site_id":      siteId,
+			"user_id":      userId,
+			"trade_type":   balanceConsts.LOG_TYPE_REBATE,
+			"trade_no":     tradeNo,
+			"money":        rebateAmount,
+			"actual_money": rebateAmount,
+			"fee":          0,
+			"status":       balanceConsts.StatusSuccess,
+			"remark":       remark,
+			"created_at":   now,
+			"updated_at":   now,
+		}); err != nil {
+			return err
+		}
+
+		if _, err := dao.BalanceChange.Ctx(ctx).TX(tx).Insert(g.Map{
+			"site_id":        siteId,
+			"trade_type":     balanceConsts.TradeTypeRebate,
+			"user_id":        userId,
+			"username":       balanceUser.Username,
+			"trade_no":       tradeNo,
+			"balance_old":    balanceOld,
+			"money":          rebateAmount,
+			"balance_new":    balanceNew,
+			"balance_frozen": balanceUser.BalanceFrozen,
+			"status":         balanceConsts.StatusSuccess,
+			"remark":         remark,
+			"created_at":     now,
+			"updated_at":     now,
+		}); err != nil {
+			return err
+		}
+
+		_, err = dao.BalanceLogRebate.Ctx(ctx).TX(tx).Insert(g.Map{
+			"site_id":          siteId,
+			"user_id":          userId,
+			"username":         balanceUser.Username,
+			"trade_no":         tradeNo,
+			"last_bet_id":      maxBetId,
+			"valid_bet_amount": validBetAmount,
+			"money":            rebateAmount,
+			"fee":              0,
+			"status":           balanceConsts.StatusSuccess,
+			"admin_id":         0,
+			"created_at":       now,
+			"updated_at":       now,
+		})
+		if err != nil {
+			_, fallbackErr := dao.BalanceLogRebate.Ctx(ctx).TX(tx).Insert(g.Map{
+				"site_id":          siteId,
+				"user_id":          userId,
+				"username":         balanceUser.Username,
+				"trade_no":         tradeNo,
+				"rebate_date":      now,
+				"valid_bet_amount": validBetAmount,
+				"money":            rebateAmount,
+				"fee":              0,
+				"status":           balanceConsts.StatusSuccess,
+				"admin_id":         0,
+				"created_at":       now,
+				"updated_at":       now,
+			})
+			if fallbackErr != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		g.Log().Errorf(ctx, "执行洗码返水失败: site_id=%d, user_id=%d, err=%v", siteId, userId, err)
+		return &v1.WashCodeRebateRes{
+			Success:        false,
+			Message:        err.Error(),
+			ValidBetAmount: validBetAmount,
+			RebatePercent:  rebatePercent,
+			GradeName:      gradeName,
+			MaxBetId:       maxBetId,
+		}, nil
+	}
+
+	return &v1.WashCodeRebateRes{
+		Success:        true,
+		Message:        "洗码返水成功",
+		TradeNo:        tradeNo,
+		ValidBetAmount: validBetAmount,
+		RebatePercent:  rebatePercent,
+		RebateAmount:   rebateAmount,
+		GradeName:      gradeName,
+		MaxBetId:       maxBetId,
+	}, nil
+}
+
+func (s *sBalance) getUserEgameRebateConfig(ctx context.Context, siteId int, userId int) (string, float64, error) {
+	userClient, userConn, err := grpc_client.GetUserClient(ctx)
+	if err != nil {
+		return "", 0, err
+	}
+	defer userConn.Close()
+
+	ctxWithMeta := metadata.AppendToOutgoingContext(ctx, "site_id", gconv.String(siteId))
+
+	userRes, err := userClient.GetUserBasicInfo(ctxWithMeta, &userv1.GetUserBasicInfoReq{
+		Id: int32(userId),
+	})
+	if err != nil {
+		return "", 0, err
+	}
+	if userRes == nil || userRes.User == nil {
+		return "", 0, fmt.Errorf("用户信息不存在")
+	}
+
+	gradeId := userRes.User.GetGradeId()
+	gradeName := strings.TrimSpace(userRes.User.GetGradeName())
+
+	gradesRes, err := userClient.GetUserGrades(ctxWithMeta, &userv1.GetUserGradesReq{
+		SiteId: int32(siteId),
+	})
+	if err != nil {
+		return "", 0, err
+	}
+	if gradesRes == nil || len(gradesRes.GetData()) == 0 {
+		return "", 0, fmt.Errorf("站点等级配置不存在")
+	}
+
+	for _, grade := range gradesRes.GetData() {
+		if grade.GetId() != gradeId {
+			continue
+		}
+		if strings.TrimSpace(grade.GetName()) != "" {
+			gradeName = strings.TrimSpace(grade.GetName())
+		}
+		return gradeName, grade.GetRebatePercentEgame(), nil
+	}
+
+	return gradeName, 0, fmt.Errorf("未找到用户等级配置")
+}
+
+func (s *sBalance) getLastRebateBetCursor(ctx context.Context, siteId int, userId int) (uint64, error) {
+	return s.getLastRebateBetCursorWithTx(ctx, nil, siteId, userId)
+}
+
+func (s *sBalance) getLastRebateBetCursorWithTx(ctx context.Context, tx gdb.TX, siteId int, userId int) (uint64, error) {
+	var row struct {
+		LastBetId uint64 `json:"last_bet_id"`
+	}
+
+	model := dao.BalanceLogRebate.Ctx(ctx)
+	if tx != nil {
+		model = model.TX(tx)
+	}
+	model = model.
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Where("status", balanceConsts.StatusSuccess).
+		Fields("last_bet_id").
+		OrderDesc("id").
+		Limit(1)
+
+	if tx != nil {
+		model = model.LockUpdate()
+	}
+
+	if err := model.Scan(&row); err != nil {
+		if isIgnorableRebateCursorErr(err) {
+			return 0, nil
+		}
+		return 0, err
+	}
+
+	return row.LastBetId, nil
+}
+
+func isIgnorableRebateCursorErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "last_bet_id") {
+		return true
+	}
+	if strings.Contains(msg, "unknown column") || strings.Contains(msg, "error 1054") {
+		return true
+	}
+	if strings.Contains(msg, "doesn't exist") || strings.Contains(msg, "error 1146") {
+		return true
+	}
+	if strings.Contains(msg, "no rows in result set") || strings.Contains(msg, "record not found") {
+		return true
+	}
+	return false
 }

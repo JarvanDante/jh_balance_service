@@ -830,6 +830,338 @@ func (x *RecallGameBalanceRes) GetGameName() string {
 	return ""
 }
 
+type GetUserBetHistoryReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	StartTime     string                 `protobuf:"bytes,1,opt,name=start_time,json=startTime,proto3" json:"start_time" dc:"开始时间 格式: 2006-01-02 15:04:05（默认当天开始）"` // 开始时间 格式: 2006-01-02 15:04:05（默认当天开始）
+	EndTime       string                 `protobuf:"bytes,2,opt,name=end_time,json=endTime,proto3" json:"end_time" dc:"结束时间 格式: 2006-01-02 15:04:05（默认当天结束）"`       // 结束时间 格式: 2006-01-02 15:04:05（默认当天结束）
+	Page          int32                  `protobuf:"varint,3,opt,name=page,proto3" json:"page" dc:"页码（默认1）"`                                                        // 页码（默认1）
+	Size          int32                  `protobuf:"varint,4,opt,name=size,proto3" json:"size" dc:"每页数量（默认20）"`                                                     // 每页数量（默认20）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUserBetHistoryReq) Reset() {
+	*x = GetUserBetHistoryReq{}
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUserBetHistoryReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUserBetHistoryReq) ProtoMessage() {}
+
+func (x *GetUserBetHistoryReq) ProtoReflect() protoreflect.Message {
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUserBetHistoryReq.ProtoReflect.Descriptor instead.
+func (*GetUserBetHistoryReq) Descriptor() ([]byte, []int) {
+	return file_grpc_game_frontend_v1_game_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *GetUserBetHistoryReq) GetStartTime() string {
+	if x != nil {
+		return x.StartTime
+	}
+	return ""
+}
+
+func (x *GetUserBetHistoryReq) GetEndTime() string {
+	if x != nil {
+		return x.EndTime
+	}
+	return ""
+}
+
+func (x *GetUserBetHistoryReq) GetPage() int32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *GetUserBetHistoryReq) GetSize() int32 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
+}
+
+type GetUserBetHistoryRes struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	List          []*UserBetHistoryItem  `protobuf:"bytes,1,rep,name=list,proto3" json:"list" dc:"历史投注列表"` // 历史投注列表
+	Total         int32                  `protobuf:"varint,2,opt,name=total,proto3" json:"total" dc:"总数"`  // 总数
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUserBetHistoryRes) Reset() {
+	*x = GetUserBetHistoryRes{}
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUserBetHistoryRes) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUserBetHistoryRes) ProtoMessage() {}
+
+func (x *GetUserBetHistoryRes) ProtoReflect() protoreflect.Message {
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUserBetHistoryRes.ProtoReflect.Descriptor instead.
+func (*GetUserBetHistoryRes) Descriptor() ([]byte, []int) {
+	return file_grpc_game_frontend_v1_game_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *GetUserBetHistoryRes) GetList() []*UserBetHistoryItem {
+	if x != nil {
+		return x.List
+	}
+	return nil
+}
+
+func (x *GetUserBetHistoryRes) GetTotal() int32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+type UserBetHistoryItem struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GameName      string                 `protobuf:"bytes,1,opt,name=game_name,json=gameName,proto3" json:"game_name" dc:"游戏名称"`                  // 游戏名称
+	ValidAmount   float64                `protobuf:"fixed64,2,opt,name=valid_amount,json=validAmount,proto3" json:"valid_amount" dc:"下注金额（有效投注）"` // 下注金额（有效投注）
+	BetTime       string                 `protobuf:"bytes,3,opt,name=bet_time,json=betTime,proto3" json:"bet_time" dc:"下注时间"`                     // 下注时间
+	WinAmount     float64                `protobuf:"fixed64,4,opt,name=win_amount,json=winAmount,proto3" json:"win_amount" dc:"赢取金额"`             // 赢取金额
+	Status        int32                  `protobuf:"varint,5,opt,name=status,proto3" json:"status" dc:"是否结算状态"`                                   // 是否结算状态
+	OrderNo       string                 `protobuf:"bytes,6,opt,name=order_no,json=orderNo,proto3" json:"order_no" dc:"订单号"`                      // 订单号
+	NetAmount     float64                `protobuf:"fixed64,7,opt,name=net_amount,json=netAmount,proto3" json:"net_amount" dc:"净输赢"`              // 净输赢
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UserBetHistoryItem) Reset() {
+	*x = UserBetHistoryItem{}
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserBetHistoryItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserBetHistoryItem) ProtoMessage() {}
+
+func (x *UserBetHistoryItem) ProtoReflect() protoreflect.Message {
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserBetHistoryItem.ProtoReflect.Descriptor instead.
+func (*UserBetHistoryItem) Descriptor() ([]byte, []int) {
+	return file_grpc_game_frontend_v1_game_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *UserBetHistoryItem) GetGameName() string {
+	if x != nil {
+		return x.GameName
+	}
+	return ""
+}
+
+func (x *UserBetHistoryItem) GetValidAmount() float64 {
+	if x != nil {
+		return x.ValidAmount
+	}
+	return 0
+}
+
+func (x *UserBetHistoryItem) GetBetTime() string {
+	if x != nil {
+		return x.BetTime
+	}
+	return ""
+}
+
+func (x *UserBetHistoryItem) GetWinAmount() float64 {
+	if x != nil {
+		return x.WinAmount
+	}
+	return 0
+}
+
+func (x *UserBetHistoryItem) GetStatus() int32 {
+	if x != nil {
+		return x.Status
+	}
+	return 0
+}
+
+func (x *UserBetHistoryItem) GetOrderNo() string {
+	if x != nil {
+		return x.OrderNo
+	}
+	return ""
+}
+
+func (x *UserBetHistoryItem) GetNetAmount() float64 {
+	if x != nil {
+		return x.NetAmount
+	}
+	return 0
+}
+
+type GetWashCodeQuotaReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	LastBetId     uint64                 `protobuf:"varint,1,opt,name=last_bet_id,json=lastBetId,proto3" json:"last_bet_id" dc:"上次洗码游标（可选，0=自动根据最近洗码时间）"` // 上次洗码游标（可选，0=自动根据最近洗码时间）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetWashCodeQuotaReq) Reset() {
+	*x = GetWashCodeQuotaReq{}
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWashCodeQuotaReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWashCodeQuotaReq) ProtoMessage() {}
+
+func (x *GetWashCodeQuotaReq) ProtoReflect() protoreflect.Message {
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWashCodeQuotaReq.ProtoReflect.Descriptor instead.
+func (*GetWashCodeQuotaReq) Descriptor() ([]byte, []int) {
+	return file_grpc_game_frontend_v1_game_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *GetWashCodeQuotaReq) GetLastBetId() uint64 {
+	if x != nil {
+		return x.LastBetId
+	}
+	return 0
+}
+
+type GetWashCodeQuotaRes struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Success        bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success" dc:"是否成功"`                                               // 是否成功
+	Message        string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message" dc:"消息"`                                                  // 消息
+	ValidBetAmount float64                `protobuf:"fixed64,3,opt,name=valid_bet_amount,json=validBetAmount,proto3" json:"valid_bet_amount" dc:"当前可洗码有效投注额度"` // 当前可洗码有效投注额度
+	MaxBetId       uint64                 `protobuf:"varint,4,opt,name=max_bet_id,json=maxBetId,proto3" json:"max_bet_id" dc:"本次统计区间最大注单ID"`                   // 本次统计区间最大注单ID
+	LastRebateTime string                 `protobuf:"bytes,5,opt,name=last_rebate_time,json=lastRebateTime,proto3" json:"last_rebate_time" dc:"最近一次洗码时间（无则空）"` // 最近一次洗码时间（无则空）
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetWashCodeQuotaRes) Reset() {
+	*x = GetWashCodeQuotaRes{}
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWashCodeQuotaRes) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWashCodeQuotaRes) ProtoMessage() {}
+
+func (x *GetWashCodeQuotaRes) ProtoReflect() protoreflect.Message {
+	mi := &file_grpc_game_frontend_v1_game_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWashCodeQuotaRes.ProtoReflect.Descriptor instead.
+func (*GetWashCodeQuotaRes) Descriptor() ([]byte, []int) {
+	return file_grpc_game_frontend_v1_game_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetWashCodeQuotaRes) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *GetWashCodeQuotaRes) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *GetWashCodeQuotaRes) GetValidBetAmount() float64 {
+	if x != nil {
+		return x.ValidBetAmount
+	}
+	return 0
+}
+
+func (x *GetWashCodeQuotaRes) GetMaxBetId() uint64 {
+	if x != nil {
+		return x.MaxBetId
+	}
+	return 0
+}
+
+func (x *GetWashCodeQuotaRes) GetLastRebateTime() string {
+	if x != nil {
+		return x.LastRebateTime
+	}
+	return ""
+}
+
 var File_grpc_game_frontend_v1_game_proto protoreflect.FileDescriptor
 
 const file_grpc_game_frontend_v1_game_proto_rawDesc = "" +
@@ -898,13 +1230,43 @@ const file_grpc_game_frontend_v1_game_proto_rawDesc = "" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12'\n" +
 	"\x0frecalled_amount\x18\x03 \x01(\x01R\x0erecalledAmount\x12\x17\n" +
 	"\agame_id\x18\x04 \x01(\x05R\x06gameId\x12\x1b\n" +
-	"\tgame_name\x18\x05 \x01(\tR\bgameName2\xa9\x03\n" +
+	"\tgame_name\x18\x05 \x01(\tR\bgameName\"x\n" +
+	"\x14GetUserBetHistoryReq\x12\x1d\n" +
+	"\n" +
+	"start_time\x18\x01 \x01(\tR\tstartTime\x12\x19\n" +
+	"\bend_time\x18\x02 \x01(\tR\aendTime\x12\x12\n" +
+	"\x04page\x18\x03 \x01(\x05R\x04page\x12\x12\n" +
+	"\x04size\x18\x04 \x01(\x05R\x04size\"`\n" +
+	"\x14GetUserBetHistoryRes\x122\n" +
+	"\x04list\x18\x01 \x03(\v2\x1e.front_game.UserBetHistoryItemR\x04list\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\x05R\x05total\"\xe0\x01\n" +
+	"\x12UserBetHistoryItem\x12\x1b\n" +
+	"\tgame_name\x18\x01 \x01(\tR\bgameName\x12!\n" +
+	"\fvalid_amount\x18\x02 \x01(\x01R\vvalidAmount\x12\x19\n" +
+	"\bbet_time\x18\x03 \x01(\tR\abetTime\x12\x1d\n" +
+	"\n" +
+	"win_amount\x18\x04 \x01(\x01R\twinAmount\x12\x16\n" +
+	"\x06status\x18\x05 \x01(\x05R\x06status\x12\x19\n" +
+	"\border_no\x18\x06 \x01(\tR\aorderNo\x12\x1d\n" +
+	"\n" +
+	"net_amount\x18\a \x01(\x01R\tnetAmount\"5\n" +
+	"\x13GetWashCodeQuotaReq\x12\x1e\n" +
+	"\vlast_bet_id\x18\x01 \x01(\x04R\tlastBetId\"\xbb\x01\n" +
+	"\x13GetWashCodeQuotaRes\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12(\n" +
+	"\x10valid_bet_amount\x18\x03 \x01(\x01R\x0evalidBetAmount\x12\x1c\n" +
+	"\n" +
+	"max_bet_id\x18\x04 \x01(\x04R\bmaxBetId\x12(\n" +
+	"\x10last_rebate_time\x18\x05 \x01(\tR\x0elastRebateTime2\xdc\x04\n" +
 	"\x04Game\x12P\n" +
 	"\x0eRedirectToGame\x12\x1d.front_game.RedirectToGameReq\x1a\x1d.front_game.RedirectToGameRes\"\x00\x12Y\n" +
 	"\x11GetGameCategories\x12 .front_game.GetGameCategoriesReq\x1a .front_game.GetGameCategoriesRes\"\x00\x12G\n" +
 	"\vGetGameList\x12\x1a.front_game.GetGameListReq\x1a\x1a.front_game.GetGameListRes\"\x00\x12P\n" +
 	"\x0eGetGameBalance\x12\x1d.front_game.GetGameBalanceReq\x1a\x1d.front_game.GetGameBalanceRes\"\x00\x12Y\n" +
-	"\x11RecallGameBalance\x12 .front_game.RecallGameBalanceReq\x1a .front_game.RecallGameBalanceRes\"\x00B.Z,jh_balance_service/api/grpc/game/frontend/v1b\x06proto3"
+	"\x11RecallGameBalance\x12 .front_game.RecallGameBalanceReq\x1a .front_game.RecallGameBalanceRes\"\x00\x12Y\n" +
+	"\x11GetUserBetHistory\x12 .front_game.GetUserBetHistoryReq\x1a .front_game.GetUserBetHistoryRes\"\x00\x12V\n" +
+	"\x10GetWashCodeQuota\x12\x1f.front_game.GetWashCodeQuotaReq\x1a\x1f.front_game.GetWashCodeQuotaRes\"\x00B&Z$jh_game_service/api/frontend/game/v1b\x06proto3"
 
 var (
 	file_grpc_game_frontend_v1_game_proto_rawDescOnce sync.Once
@@ -918,7 +1280,7 @@ func file_grpc_game_frontend_v1_game_proto_rawDescGZIP() []byte {
 	return file_grpc_game_frontend_v1_game_proto_rawDescData
 }
 
-var file_grpc_game_frontend_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_grpc_game_frontend_v1_game_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_grpc_game_frontend_v1_game_proto_goTypes = []any{
 	(*RedirectToGameReq)(nil),    // 0: front_game.RedirectToGameReq
 	(*RedirectToGameRes)(nil),    // 1: front_game.RedirectToGameRes
@@ -932,25 +1294,35 @@ var file_grpc_game_frontend_v1_game_proto_goTypes = []any{
 	(*GetGameBalanceRes)(nil),    // 9: front_game.GetGameBalanceRes
 	(*RecallGameBalanceReq)(nil), // 10: front_game.RecallGameBalanceReq
 	(*RecallGameBalanceRes)(nil), // 11: front_game.RecallGameBalanceRes
+	(*GetUserBetHistoryReq)(nil), // 12: front_game.GetUserBetHistoryReq
+	(*GetUserBetHistoryRes)(nil), // 13: front_game.GetUserBetHistoryRes
+	(*UserBetHistoryItem)(nil),   // 14: front_game.UserBetHistoryItem
+	(*GetWashCodeQuotaReq)(nil),  // 15: front_game.GetWashCodeQuotaReq
+	(*GetWashCodeQuotaRes)(nil),  // 16: front_game.GetWashCodeQuotaRes
 }
 var file_grpc_game_frontend_v1_game_proto_depIdxs = []int32{
 	4,  // 0: front_game.GetGameCategoriesRes.categories:type_name -> front_game.GameCategory
 	7,  // 1: front_game.GetGameListRes.list:type_name -> front_game.GameItem
-	0,  // 2: front_game.Game.RedirectToGame:input_type -> front_game.RedirectToGameReq
-	2,  // 3: front_game.Game.GetGameCategories:input_type -> front_game.GetGameCategoriesReq
-	5,  // 4: front_game.Game.GetGameList:input_type -> front_game.GetGameListReq
-	8,  // 5: front_game.Game.GetGameBalance:input_type -> front_game.GetGameBalanceReq
-	10, // 6: front_game.Game.RecallGameBalance:input_type -> front_game.RecallGameBalanceReq
-	1,  // 7: front_game.Game.RedirectToGame:output_type -> front_game.RedirectToGameRes
-	3,  // 8: front_game.Game.GetGameCategories:output_type -> front_game.GetGameCategoriesRes
-	6,  // 9: front_game.Game.GetGameList:output_type -> front_game.GetGameListRes
-	9,  // 10: front_game.Game.GetGameBalance:output_type -> front_game.GetGameBalanceRes
-	11, // 11: front_game.Game.RecallGameBalance:output_type -> front_game.RecallGameBalanceRes
-	7,  // [7:12] is the sub-list for method output_type
-	2,  // [2:7] is the sub-list for method input_type
-	2,  // [2:2] is the sub-list for extension type_name
-	2,  // [2:2] is the sub-list for extension extendee
-	0,  // [0:2] is the sub-list for field type_name
+	14, // 2: front_game.GetUserBetHistoryRes.list:type_name -> front_game.UserBetHistoryItem
+	0,  // 3: front_game.Game.RedirectToGame:input_type -> front_game.RedirectToGameReq
+	2,  // 4: front_game.Game.GetGameCategories:input_type -> front_game.GetGameCategoriesReq
+	5,  // 5: front_game.Game.GetGameList:input_type -> front_game.GetGameListReq
+	8,  // 6: front_game.Game.GetGameBalance:input_type -> front_game.GetGameBalanceReq
+	10, // 7: front_game.Game.RecallGameBalance:input_type -> front_game.RecallGameBalanceReq
+	12, // 8: front_game.Game.GetUserBetHistory:input_type -> front_game.GetUserBetHistoryReq
+	15, // 9: front_game.Game.GetWashCodeQuota:input_type -> front_game.GetWashCodeQuotaReq
+	1,  // 10: front_game.Game.RedirectToGame:output_type -> front_game.RedirectToGameRes
+	3,  // 11: front_game.Game.GetGameCategories:output_type -> front_game.GetGameCategoriesRes
+	6,  // 12: front_game.Game.GetGameList:output_type -> front_game.GetGameListRes
+	9,  // 13: front_game.Game.GetGameBalance:output_type -> front_game.GetGameBalanceRes
+	11, // 14: front_game.Game.RecallGameBalance:output_type -> front_game.RecallGameBalanceRes
+	13, // 15: front_game.Game.GetUserBetHistory:output_type -> front_game.GetUserBetHistoryRes
+	16, // 16: front_game.Game.GetWashCodeQuota:output_type -> front_game.GetWashCodeQuotaRes
+	10, // [10:17] is the sub-list for method output_type
+	3,  // [3:10] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_grpc_game_frontend_v1_game_proto_init() }
@@ -964,7 +1336,7 @@ func file_grpc_game_frontend_v1_game_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_grpc_game_frontend_v1_game_proto_rawDesc), len(file_grpc_game_frontend_v1_game_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

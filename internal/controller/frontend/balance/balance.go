@@ -217,3 +217,11 @@ func (c *Controller) GetInviteBonusSummary(ctx context.Context, req *v1.GetInvit
 func (c *Controller) GetValidReferralCount(ctx context.Context, req *v1.GetValidReferralCountReq) (res *v1.GetValidReferralCountRes, err error) {
 	return frontend.Balance().GetValidReferralCount(ctx, req)
 }
+
+// WashCodeRebate 执行洗码返水
+func (c *Controller) WashCodeRebate(ctx context.Context, req *v1.WashCodeRebateReq) (res *v1.WashCodeRebateRes, err error) {
+	if req == nil {
+		req = &v1.WashCodeRebateReq{}
+	}
+	return frontend.Balance().WashCodeRebate(ctx, req)
+}
