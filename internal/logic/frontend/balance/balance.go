@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"time"
 
@@ -3269,6 +3270,202 @@ func (s *sBalance) GetInviteBonusSummary(ctx context.Context, req *v1.GetInviteB
 		YesterdayAmount: gconv.Float64(yesterdayAmount),
 		TotalAmount:     gconv.Float64(totalAmount),
 	}, nil
+}
+
+type vipGradeProgressInfo struct {
+	Id           int32
+	Name         string
+	PaymentLimit float64
+	BetLimit     float64
+}
+
+// GetVipUpgradeProgress 获取当前用户VIP升级进度
+func (s *sBalance) GetVipUpgradeProgress(ctx context.Context, req *v1.GetVipUpgradeProgressReq) (*v1.GetVipUpgradeProgressRes, error) {
+	userId, ok := middleware.GetUserIdFromContext(ctx)
+	if !ok || userId == 0 {
+		return &v1.GetVipUpgradeProgressRes{
+			Success: false,
+			Message: "未登录",
+		}, nil
+	}
+
+	siteId, ok := middleware.GetSiteIdFromContext(ctx)
+	if !ok || siteId == 0 {
+		return &v1.GetVipUpgradeProgressRes{
+			Success: false,
+			Message: "未获取站点ID",
+		}, nil
+	}
+
+	siteCode, _ := middleware.GetSiteCodeFromContext(ctx)
+	if siteCode == "" {
+		siteCode = registry.GetDBConfigManager().GetSiteCodeBySiteID(int64(siteId))
+	}
+	if siteCode != "" && ctx.Value("dynamic_db_group") == nil {
+		ctx = context.WithValue(ctx, "dynamic_db_group", "site_"+siteCode)
+	}
+
+	depositAmount := 0.0
+	betAmount := 0.0
+	var reportTotal *entity.UserReportTotal
+	if err := dao.UserReportTotal.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Scan(&reportTotal); err != nil {
+		g.Log().Errorf(ctx, "查询用户累计统计失败: site_id=%d, user_id=%d, err=%v", siteId, userId, err)
+		return &v1.GetVipUpgradeProgressRes{
+			Success: false,
+			Message: "查询用户累计统计失败",
+		}, nil
+	}
+	if reportTotal != nil {
+		depositAmount = reportTotal.DepositAmount
+		betAmount = reportTotal.BetAmount
+	}
+
+	currentGrade, nextGrade, isMaxGrade, err := s.getUserCurrentAndNextVipGrade(ctx, int(siteId), int(userId))
+	if err != nil {
+		g.Log().Errorf(ctx, "查询用户等级进度失败: site_id=%d, user_id=%d, err=%v", siteId, userId, err)
+		return &v1.GetVipUpgradeProgressRes{
+			Success: false,
+			Message: "查询用户等级进度失败",
+		}, nil
+	}
+
+	if isMaxGrade || nextGrade == nil {
+		return &v1.GetVipUpgradeProgressRes{
+			Success:          true,
+			Message:          "已达到最高等级",
+			CurrentGradeId:   currentGrade.Id,
+			CurrentGradeName: currentGrade.Name,
+			DepositAmount:    depositAmount,
+			BetAmount:        betAmount,
+			DepositProgress:  100,
+			BetProgress:      100,
+			Progress:         100,
+			IsMaxGrade:       true,
+		}, nil
+	}
+
+	depositProgress := roundVipProgress(calcVipProgressPercent(depositAmount, nextGrade.PaymentLimit))
+	betProgress := roundVipProgress(calcVipProgressPercent(betAmount, nextGrade.BetLimit))
+	progress := roundVipProgress(math.Min(depositProgress, betProgress))
+
+	return &v1.GetVipUpgradeProgressRes{
+		Success:          true,
+		Message:          "获取成功",
+		CurrentGradeId:   currentGrade.Id,
+		CurrentGradeName: currentGrade.Name,
+		NextGradeId:      nextGrade.Id,
+		NextGradeName:    nextGrade.Name,
+		DepositAmount:    depositAmount,
+		BetAmount:        betAmount,
+		NextPaymentLimit: nextGrade.PaymentLimit,
+		NextBetLimit:     nextGrade.BetLimit,
+		DepositProgress:  depositProgress,
+		BetProgress:      betProgress,
+		Progress:         progress,
+		IsMaxGrade:       false,
+	}, nil
+}
+
+func calcVipProgressPercent(current, target float64) float64 {
+	if target <= 0 {
+		return 100
+	}
+	if current <= 0 {
+		return 0
+	}
+	progress := current / target * 100
+	if progress < 0 {
+		return 0
+	}
+	if progress > 100 {
+		return 100
+	}
+	return progress
+}
+
+func roundVipProgress(value float64) float64 {
+	return math.Round(value*100) / 100
+}
+
+func (s *sBalance) getUserCurrentAndNextVipGrade(ctx context.Context, siteId int, userId int) (vipGradeProgressInfo, *vipGradeProgressInfo, bool, error) {
+	userClient, userConn, err := grpc_client.GetUserClient(ctx)
+	if err != nil {
+		return vipGradeProgressInfo{}, nil, false, err
+	}
+	defer userConn.Close()
+
+	ctxWithMeta := metadata.AppendToOutgoingContext(ctx, "site_id", gconv.String(siteId))
+
+	userRes, err := userClient.GetUserBasicInfo(ctxWithMeta, &userv1.GetUserBasicInfoReq{
+		Id: int32(userId),
+	})
+	if err != nil {
+		return vipGradeProgressInfo{}, nil, false, err
+	}
+	if userRes == nil || userRes.User == nil {
+		return vipGradeProgressInfo{}, nil, false, fmt.Errorf("用户信息不存在")
+	}
+
+	current := vipGradeProgressInfo{
+		Id:   userRes.User.GetGradeId(),
+		Name: strings.TrimSpace(userRes.User.GetGradeName()),
+	}
+
+	gradesRes, err := userClient.GetUserGrades(ctxWithMeta, &userv1.GetUserGradesReq{
+		SiteId: int32(siteId),
+	})
+	if err != nil {
+		return vipGradeProgressInfo{}, nil, false, err
+	}
+	if gradesRes == nil || len(gradesRes.GetData()) == 0 {
+		return vipGradeProgressInfo{}, nil, false, fmt.Errorf("站点等级配置不存在")
+	}
+
+	grades := make([]vipGradeProgressInfo, 0, len(gradesRes.GetData()))
+	for _, grade := range gradesRes.GetData() {
+		if grade == nil || grade.GetId() <= 0 {
+			continue
+		}
+		grades = append(grades, vipGradeProgressInfo{
+			Id:           grade.GetId(),
+			Name:         strings.TrimSpace(grade.GetName()),
+			PaymentLimit: grade.GetPaymentLimit(),
+			BetLimit:     grade.GetBetLimit(),
+		})
+	}
+	if len(grades) == 0 {
+		return vipGradeProgressInfo{}, nil, false, fmt.Errorf("站点等级配置不存在")
+	}
+
+	sort.Slice(grades, func(i, j int) bool {
+		return grades[i].Id < grades[j].Id
+	})
+
+	var nextGrade *vipGradeProgressInfo
+	for i := range grades {
+		grade := grades[i]
+		if grade.Id == current.Id && grade.Name != "" {
+			current.Name = grade.Name
+		}
+		if grade.Id > current.Id {
+			next := grade
+			nextGrade = &next
+			break
+		}
+	}
+
+	if current.Name == "" && current.Id > 0 {
+		current.Name = fmt.Sprintf("VIP%d", current.Id)
+	}
+
+	if nextGrade == nil {
+		return current, nil, true, nil
+	}
+
+	return current, nextGrade, false, nil
 }
 
 // WashCodeRebate 执行洗码返水

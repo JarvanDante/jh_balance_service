@@ -49,6 +49,8 @@ service Balance {
     rpc GetInviteBonusSummary(GetInviteBonusSummaryReq) returns (GetInviteBonusSummaryRes) {}
     // 统计有效邀请人数（按充值总额）
     rpc GetValidReferralCount(GetValidReferralCountReq) returns (GetValidReferralCountRes) {}
+    // 获取VIP升级进度
+    rpc GetVipUpgradeProgress(GetVipUpgradeProgressReq) returns (GetVipUpgradeProgressRes) {}
     // 执行洗码返水
     rpc WashCodeRebate(WashCodeRebateReq) returns (WashCodeRebateRes) {}
 }
@@ -420,6 +422,28 @@ message GetValidReferralCountReq {
 // 统计有效邀请人数响应
 message GetValidReferralCountRes {
     int32 count = 1;            // 有效邀请人数
+}
+
+// 获取VIP升级进度请求
+message GetVipUpgradeProgressReq {
+}
+
+// 获取VIP升级进度响应
+message GetVipUpgradeProgressRes {
+    bool success = 1;               // 是否成功
+    string message = 2;             // 消息
+    int32 current_grade_id = 3;     // 当前等级ID
+    string current_grade_name = 4;  // 当前等级名称
+    int32 next_grade_id = 5;        // 下一等级ID
+    string next_grade_name = 6;     // 下一等级名称
+    double deposit_amount = 7;      // 当前累计充值金额
+    double bet_amount = 8;          // 当前累计有效投注金额
+    double next_payment_limit = 9;  // 下一等级充值门槛
+    double next_bet_limit = 10;     // 下一等级有效投注门槛
+    double deposit_progress = 11;   // 充值进度(0-100)
+    double bet_progress = 12;       // 投注进度(0-100)
+    double progress = 13;           // 综合进度(0-100, AND取较小值)
+    bool is_max_grade = 14;         // 是否已达最高等级
 }
 
 // 执行洗码返水请求

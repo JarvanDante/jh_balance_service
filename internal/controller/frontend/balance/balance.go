@@ -218,6 +218,14 @@ func (c *Controller) GetValidReferralCount(ctx context.Context, req *v1.GetValid
 	return frontend.Balance().GetValidReferralCount(ctx, req)
 }
 
+// GetVipUpgradeProgress 获取VIP升级进度
+func (c *Controller) GetVipUpgradeProgress(ctx context.Context, req *v1.GetVipUpgradeProgressReq) (res *v1.GetVipUpgradeProgressRes, err error) {
+	if req == nil {
+		req = &v1.GetVipUpgradeProgressReq{}
+	}
+	return frontend.Balance().GetVipUpgradeProgress(ctx, req)
+}
+
 // WashCodeRebate 执行洗码返水
 func (c *Controller) WashCodeRebate(ctx context.Context, req *v1.WashCodeRebateReq) (res *v1.WashCodeRebateRes, err error) {
 	if req == nil {
