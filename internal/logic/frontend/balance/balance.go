@@ -108,6 +108,8 @@ func (s *sBalance) InitBalanceUser(ctx context.Context, req *v1.InitBalanceUserR
 	// 如果已存在，返回成功
 	if existingBalance != nil {
 		g.Log().Infof(ctx, "用户余额已存在: site_id=%d, user_id=%d", req.SiteId, req.UserId)
+		// 用户可能在注册后才绑定手机号，补做一次注册送金判定（幂等）。
+		s.tryGrantRegisterBonus(ctx, req.SiteId, req.UserId)
 		return &v1.InitBalanceUserRes{
 			Success: true,
 			Message: "用户余额已存在",
@@ -171,6 +173,8 @@ func (s *sBalance) RefreshBalance(ctx context.Context, req *v1.RefreshBalanceReq
 	}
 
 	g.Log().Infof(ctx, "刷新用户余额: site_id=%d, user_id=%d", siteId, userId)
+	// 刷新余额时补做一次注册送金判定（幂等，不影响主流程）。
+	s.tryGrantRegisterBonus(ctx, int32(siteId), int32(userId))
 
 	// 查询用户最后一次成功进入游戏的game_id
 	lastGameRes, err := s.GetLastBalanceLogGame(ctx, &v1.GetLastBalanceLogGameReq{
@@ -2639,14 +2643,17 @@ func (s *sBalance) tryGrantRegisterBonus(ctx context.Context, siteId int32, user
 		return
 	}
 
-	var registerIP string
+	registerIP, _, mobile, err := getRegisterUserInfo(ctx, siteId, userId)
+	if err != nil {
+		g.Log().Warningf(ctx, "读取注册用户信息失败: %v", err)
+		return
+	}
+	if strings.TrimSpace(mobile) == "" {
+		g.Log().Infof(ctx, "用户未绑定手机号，跳过注册送彩金: user_id=%d", userId)
+		return
+	}
+
 	if cfg.LimitIp > 0 {
-		var err error
-		registerIP, _, err = getRegisterUserInfo(ctx, siteId, userId)
-		if err != nil {
-			g.Log().Warningf(ctx, "读取注册用户信息失败: %v", err)
-			return
-		}
 		if registerIP == "" {
 			g.Log().Warningf(ctx, "注册活动限制IP但未获取到注册IP，跳过发放: user_id=%d", userId)
 			return
@@ -3138,10 +3145,10 @@ func (s *sBalance) grantDepositBonus(ctx context.Context, siteId int, userId int
 	return tradeNo, nil
 }
 
-func getRegisterUserInfo(ctx context.Context, siteId int32, userId int32) (string, string, error) {
+func getRegisterUserInfo(ctx context.Context, siteId int32, userId int32) (string, string, string, error) {
 	userClient, userConn, err := grpc_client.GetUserClient(ctx)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	defer userConn.Close()
 
@@ -3150,15 +3157,16 @@ func getRegisterUserInfo(ctx context.Context, siteId int32, userId int32) (strin
 		Id: userId,
 	})
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	if res == nil || res.User == nil {
-		return "", "", fmt.Errorf("用户信息不存在")
+		return "", "", "", fmt.Errorf("用户信息不存在")
 	}
 
 	registerIP := strings.TrimSpace(res.User.RegisterIp)
 	deviceID := strings.TrimSpace(res.User.Device)
-	return registerIP, deviceID, nil
+	mobile := strings.TrimSpace(res.User.Mobile)
+	return registerIP, deviceID, mobile, nil
 }
 
 // GetValidReferralCount 统计有效邀请人数（按充值总额）
