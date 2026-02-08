@@ -2345,6 +2345,7 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 									"site_id":      paymentLog.SiteId,
 									"inviter_id":   incRes.InviterId,
 									"invitee_id":   paymentLog.UserId,
+									"date":         gtime.Now().Format("Y-m-d"),
 									"bonus_amount": bonusAmount,
 									"trade_no":     grantRes.TradeNo,
 									"created_at":   gtime.Now(),
@@ -2683,6 +2684,7 @@ func (s *sBalance) tryGrantRegisterBonus(ctx context.Context, siteId int32, user
 		"site_id":      siteId,
 		"user_id":      userId,
 		"register_ip":  registerIP,
+		"date":         gtime.Now().Format("Y-m-d"),
 		"bonus_amount": cfg.RewardAmount,
 		"trade_no":     tradeNo,
 		"created_at":   gtime.Now(),
@@ -2966,6 +2968,7 @@ func (s *sBalance) tryGrantDepositBonus(ctx context.Context, siteId int, userId 
 	if _, err := model.Data(g.Map{
 		"site_id":      siteId,
 		"user_id":      userId,
+		"date":         gtime.Now().Format("Y-m-d"),
 		"bonus_amount": bonusAmount,
 		"trade_no":     tradeNo,
 		"created_at":   gtime.Now(),

@@ -41,7 +41,7 @@ func getDepositActivityParams(ctx context.Context, siteId int) (*depositActivity
 		return nil, fmt.Errorf("siteId invalid")
 	}
 
-	cacheKey := fmt.Sprintf("site:%d:DEPOSIT", siteId)
+	cacheKey := fmt.Sprintf("site:%d:%s", siteId, activityCodeDeposit)
 	now := time.Now()
 	depositConfigCache.RLock()
 	if entry, ok := depositConfigCache.items[cacheKey]; ok && now.Before(entry.expiresAt) {
@@ -65,7 +65,7 @@ func getDepositActivityParams(ctx context.Context, siteId int) (*depositActivity
 
 	listRes, err := client.GetSiteActivityList(ctx, &sitev1.GetSiteActivityListReq{
 		SiteId: int32(siteId),
-		Code:   "DEPOSIT",
+		Code:   activityCodeDeposit,
 	})
 	if err != nil {
 		depositConfigCache.Lock()

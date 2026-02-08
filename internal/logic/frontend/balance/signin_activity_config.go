@@ -23,7 +23,7 @@ func getSigninActivity(ctx context.Context, siteId int) (*sitev1.SiteActivityInf
 
 	listRes, err := client.GetSiteActivityList(ctx, &sitev1.GetSiteActivityListReq{
 		SiteId: int32(siteId),
-		Code:   "SIGNIN",
+		Code:   activityCodeSignin,
 	})
 	if err != nil {
 		return nil, err

@@ -53,7 +53,7 @@ func getRegisterActivityParams(ctx context.Context, siteId int) (*registerActivi
 		return nil, fmt.Errorf("siteId invalid")
 	}
 
-	cacheKey := fmt.Sprintf("site:%d:REGISTER", siteId)
+	cacheKey := fmt.Sprintf("site:%d:%s", siteId, activityCodeRegister)
 	now := time.Now()
 	registerConfigCache.RLock()
 	if entry, ok := registerConfigCache.items[cacheKey]; ok && now.Before(entry.expiresAt) {
@@ -77,7 +77,7 @@ func getRegisterActivityParams(ctx context.Context, siteId int) (*registerActivi
 
 	listRes, err := client.GetSiteActivityList(ctx, &sitev1.GetSiteActivityListReq{
 		SiteId: int32(siteId),
-		Code:   "REGISTER",
+		Code:   activityCodeRegister,
 	})
 	if err != nil {
 		registerConfigCache.Lock()

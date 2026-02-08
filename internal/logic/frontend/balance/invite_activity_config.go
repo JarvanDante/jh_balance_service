@@ -40,7 +40,7 @@ func getInviteActivityParams(ctx context.Context, siteId int) (*inviteActivityPa
 		return nil, fmt.Errorf("siteId invalid")
 	}
 
-	cacheKey := fmt.Sprintf("site:%d:INVITE", siteId)
+	cacheKey := fmt.Sprintf("site:%d:%s", siteId, activityCodeInvite)
 	now := time.Now()
 	inviteConfigCache.RLock()
 	if entry, ok := inviteConfigCache.items[cacheKey]; ok && now.Before(entry.expiresAt) {
@@ -64,7 +64,7 @@ func getInviteActivityParams(ctx context.Context, siteId int) (*inviteActivityPa
 
 	res, err := client.GetInviteBonusConfig(ctx, &sitev1.GetInviteBonusConfigReq{
 		SiteId: int32(siteId),
-		Code:   "INVITE",
+		Code:   activityCodeInvite,
 	})
 	if err != nil {
 		inviteConfigCache.Lock()
