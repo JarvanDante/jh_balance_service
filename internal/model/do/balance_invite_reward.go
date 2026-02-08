@@ -16,6 +16,7 @@ type BalanceInviteReward struct {
 	SiteId      any         //
 	InviterId   any         //
 	InviteeId   any         //
+	Date        *gtime.Time // 邀请日期年月日
 	BonusAmount any         // 发送金额
 	TradeNo     any         // 最后触发订单号
 	CreatedAt   *gtime.Time //

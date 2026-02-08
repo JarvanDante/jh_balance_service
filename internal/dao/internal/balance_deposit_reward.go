@@ -24,6 +24,7 @@ type BalanceDepositRewardColumns struct {
 	Id          string //
 	SiteId      string //
 	UserId      string //
+	Date        string // 充值日期年月日
 	BonusAmount string // 发送金额
 	TradeNo     string // 发放流水号/订单号
 	CreatedAt   string //
@@ -35,6 +36,7 @@ var balanceDepositRewardColumns = BalanceDepositRewardColumns{
 	Id:          "id",
 	SiteId:      "site_id",
 	UserId:      "user_id",
+	Date:        "date",
 	BonusAmount: "bonus_amount",
 	TradeNo:     "trade_no",
 	CreatedAt:   "created_at",

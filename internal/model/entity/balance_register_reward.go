@@ -13,6 +13,7 @@ type BalanceRegisterReward struct {
 	Id          uint64      `json:"id"          orm:"id"           description:""`
 	SiteId      int         `json:"siteId"      orm:"site_id"      description:""`
 	UserId      int         `json:"userId"      orm:"user_id"      description:""`
+	Date        *gtime.Time `json:"date"        orm:"date"         description:"注册日期年月日"`
 	RegisterIp  string      `json:"registerIp"  orm:"register_ip"  description:"注册IP"`
 	DeviceId    string      `json:"deviceId"    orm:"device_id"    description:"设备ID"`
 	BonusAmount float64     `json:"bonusAmount" orm:"bonus_amount" description:""`

@@ -24,6 +24,7 @@ type BalanceRegisterRewardColumns struct {
 	Id          string //
 	SiteId      string //
 	UserId      string //
+	Date        string // 注册日期年月日
 	RegisterIp  string // 注册IP
 	DeviceId    string // 设备ID
 	BonusAmount string //
@@ -37,6 +38,7 @@ var balanceRegisterRewardColumns = BalanceRegisterRewardColumns{
 	Id:          "id",
 	SiteId:      "site_id",
 	UserId:      "user_id",
+	Date:        "date",
 	RegisterIp:  "register_ip",
 	DeviceId:    "device_id",
 	BonusAmount: "bonus_amount",

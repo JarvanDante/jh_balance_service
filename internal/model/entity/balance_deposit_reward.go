@@ -13,6 +13,7 @@ type BalanceDepositReward struct {
 	Id          uint64      `json:"id"          orm:"id"           description:""`
 	SiteId      int         `json:"siteId"      orm:"site_id"      description:""`
 	UserId      int         `json:"userId"      orm:"user_id"      description:""`
+	Date        *gtime.Time `json:"date"        orm:"date"         description:"充值日期年月日"`
 	BonusAmount float64     `json:"bonusAmount" orm:"bonus_amount" description:"发送金额"`
 	TradeNo     string      `json:"tradeNo"     orm:"trade_no"     description:"发放流水号/订单号"`
 	CreatedAt   *gtime.Time `json:"createdAt"   orm:"created_at"   description:""`

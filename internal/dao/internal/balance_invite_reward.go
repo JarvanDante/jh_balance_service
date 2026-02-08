@@ -25,6 +25,7 @@ type BalanceInviteRewardColumns struct {
 	SiteId      string //
 	InviterId   string //
 	InviteeId   string //
+	Date        string // 邀请日期年月日
 	BonusAmount string // 发送金额
 	TradeNo     string // 最后触发订单号
 	CreatedAt   string //
@@ -37,6 +38,7 @@ var balanceInviteRewardColumns = BalanceInviteRewardColumns{
 	SiteId:      "site_id",
 	InviterId:   "inviter_id",
 	InviteeId:   "invitee_id",
+	Date:        "date",
 	BonusAmount: "bonus_amount",
 	TradeNo:     "trade_no",
 	CreatedAt:   "created_at",
