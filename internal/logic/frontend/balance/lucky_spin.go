@@ -566,11 +566,81 @@ func (s *sBalance) GetLuckySpinRecentWinners(ctx context.Context, req *v1.GetLuc
 		})
 	}
 
+	list = s.appendLuckySpinRandomWinners(ctx, int(siteId), siteCode, int(limit), list)
+
 	return &v1.GetLuckySpinRecentWinnersRes{
 		Success: true,
 		Message: "获取成功",
 		List:    list,
 	}, nil
+}
+
+func (s *sBalance) appendLuckySpinRandomWinners(
+	ctx context.Context,
+	siteId int,
+	siteCode string,
+	limit int,
+	list []*v1.LuckySpinRecentWinnerItem,
+) []*v1.LuckySpinRecentWinnerItem {
+	if limit <= 0 {
+		return list
+	}
+	if len(list) >= limit {
+		return list
+	}
+
+	const maxExtra = 5
+	need := limit - len(list)
+	if need > maxExtra {
+		need = maxExtra
+	}
+	if need <= 0 {
+		return list
+	}
+
+	prizeCandidates := make([]*luckyPrizeConfig, 0, luckyWheelSegmentCount)
+	cfg, err := getLuckyActivityConfig(ctx, siteId)
+	if err == nil && cfg != nil {
+		activitySiteCode := cfg.SiteCode
+		if activitySiteCode == "" {
+			activitySiteCode = siteCode
+		}
+		if prizes, err := s.getLuckyPrizeConfigs(ctx, siteId, activitySiteCode, cfg.ActivityId); err == nil {
+			for _, prize := range prizes {
+				if prize != nil && prize.RewardAmount > 0 {
+					prizeCandidates = append(prizeCandidates, prize)
+				}
+			}
+		}
+	}
+
+	if len(prizeCandidates) == 0 {
+		prizeCandidates = []*luckyPrizeConfig{
+			{PrizeName: "₱2", RewardAmount: 2},
+			{PrizeName: "₱5", RewardAmount: 5},
+			{PrizeName: "₱8", RewardAmount: 8},
+			{PrizeName: "₱10", RewardAmount: 10},
+			{PrizeName: "₱20", RewardAmount: 20},
+			{PrizeName: "₱50", RewardAmount: 50},
+			{PrizeName: "₱88", RewardAmount: 88},
+		}
+	}
+
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for i := 0; i < need; i++ {
+		prize := prizeCandidates[r.Intn(len(prizeCandidates))]
+		mask := fmt.Sprintf("U***%03d", r.Intn(1000))
+		createdAt := gtime.Now().Add(-time.Duration(r.Intn(72*3600)) * time.Second)
+
+		list = append(list, &v1.LuckySpinRecentWinnerItem{
+			UserId:       0,
+			MaskName:     mask,
+			PrizeName:    strings.TrimSpace(prize.PrizeName),
+			RewardAmount: round2(prize.RewardAmount),
+			CreatedAt:    formatTime(createdAt),
+		})
+	}
+	return list
 }
 
 func (s *sBalance) getLuckyPrizeConfigs(ctx context.Context, siteId int, siteCode string, activityId int) ([]*luckyPrizeConfig, error) {
