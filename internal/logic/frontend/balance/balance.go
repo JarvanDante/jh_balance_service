@@ -2364,6 +2364,13 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 		s.tryGrantDepositBonus(ctx, paymentLog.SiteId, paymentLog.UserId, actualAmount, incRes)
 	}
 
+	// 充值成功发送系统消息（不影响主流程）
+	if actualAmount > 0 {
+		if err := util.SendUserMessage(ctx, paymentLog.SiteId, paymentLog.UserId, util.MessageEventDepositSystem, req.OrderSn, actualAmount, "", nil); err != nil {
+			g.Log().Warningf(ctx, "发送充值成功消息失败: site_id=%d, user_id=%d, order_sn=%s, err=%v", paymentLog.SiteId, paymentLog.UserId, req.OrderSn, err)
+		}
+	}
+
 	totalDuration := time.Since(startTime)
 	g.Log().Infof(ctx, "充值异步回调成功: order_sn=%s, amount=%.2f, 总耗时: %.2fms",
 		req.OrderSn, actualAmount, float64(totalDuration.Milliseconds()))
@@ -2607,6 +2614,10 @@ func (s *sBalance) GrantInviteBonus(ctx context.Context, req *v1.GrantInviteBonu
 		return &v1.GrantInviteBonusRes{Success: false, Message: err.Error()}, nil
 	}
 
+	if err := util.SendUserMessage(ctx, int(siteId), int(req.UserId), util.MessageEventInviteActivity, tradeNo, req.Amount, "", nil); err != nil {
+		g.Log().Warningf(ctx, "发送邀请活动消息失败: site_id=%d, user_id=%d, trade_no=%s, err=%v", siteId, req.UserId, tradeNo, err)
+	}
+
 	return &v1.GrantInviteBonusRes{
 		Success: true,
 		Message: "发放红利成功",
@@ -2690,6 +2701,10 @@ func (s *sBalance) tryGrantRegisterBonus(ctx context.Context, siteId int32, user
 		"created_at":   gtime.Now(),
 	}).Insert(); err != nil {
 		g.Log().Warningf(ctx, "记录注册送彩金失败: %v", err)
+	}
+
+	if err := util.SendUserMessage(ctx, int(siteId), int(userId), util.MessageEventRegisterActivity, tradeNo, cfg.RewardAmount, "", nil); err != nil {
+		g.Log().Warningf(ctx, "发送注册活动消息失败: site_id=%d, user_id=%d, trade_no=%s, err=%v", siteId, userId, tradeNo, err)
 	}
 }
 
@@ -2861,6 +2876,10 @@ func (s *sBalance) grantRegisterBonus(ctx context.Context, siteId int, userId in
 		return "", err
 	}
 
+	if err := util.SendUserMessage(ctx, int(siteId), int(userId), util.MessageEventSigninActivity, tradeNo, amount, "", nil); err != nil {
+		g.Log().Warningf(ctx, "发送签到活动消息失败: site_id=%d, user_id=%d, trade_no=%s, err=%v", siteId, userId, tradeNo, err)
+	}
+
 	return tradeNo, nil
 }
 
@@ -2974,6 +2993,10 @@ func (s *sBalance) tryGrantDepositBonus(ctx context.Context, siteId int, userId 
 		"created_at":   gtime.Now(),
 	}).Insert(); err != nil {
 		g.Log().Warningf(ctx, "记录充值送活动发放失败: %v", err)
+	}
+
+	if err := util.SendUserMessage(ctx, siteId, userId, util.MessageEventDepositActivity, tradeNo, bonusAmount, "", nil); err != nil {
+		g.Log().Warningf(ctx, "发送充值活动消息失败: site_id=%d, user_id=%d, trade_no=%s, err=%v", siteId, userId, tradeNo, err)
 	}
 }
 

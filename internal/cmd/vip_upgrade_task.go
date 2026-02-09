@@ -167,6 +167,11 @@ func runVipUpgradeForSite(ctx context.Context, dbManager *registry.DBConfigManag
 				g.Log().Errorf(ctx, "发放升级红利失败: site=%s, user_id=%d, err=%v", siteCode, userId, err)
 			}
 		}
+
+		bizId := fmt.Sprintf("VIP_%d_%d", userId, nextGrade.Id)
+		if err := util.SendUserMessage(balanceCtx, cfg.Base.SiteId, int(userId), util.MessageEventVipSystem, bizId, 0, nextGrade.Name, nil); err != nil {
+			g.Log().Warningf(ctx, "发送VIP升级消息失败: site=%s, user_id=%d, grade_id=%d, err=%v", siteCode, userId, nextGrade.Id, err)
+		}
 	}
 
 	return nil

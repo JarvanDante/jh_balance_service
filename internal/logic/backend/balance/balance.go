@@ -14,6 +14,7 @@ import (
 	"jh_balance_service/internal/model/entity"
 	"jh_balance_service/internal/service/backend"
 	"jh_balance_service/internal/tracing"
+	"jh_balance_service/internal/util"
 	"time"
 
 	"github.com/gogf/gf/v2/database/gdb"
@@ -803,6 +804,15 @@ func (s *sBalance) DealWithWithdraw(ctx context.Context, req *v1.DealWithWithdra
 			Success: false,
 			Message: fmt.Sprintf("处理提现失败: %v", err),
 		}, nil
+	}
+
+	// 提现审核成功发送消息（不影响主流程）
+	if result != nil && result.Success {
+		if req.Type == int32(withdrawReview.ReviewTypeApprove) || req.Type == int32(withdrawReview.ReviewTypeCompensate) {
+			if err := util.SendUserMessage(ctx, withdraw.SiteId, withdraw.UserId, util.MessageEventWithdrawSystem, withdraw.TradeNo, withdraw.Money, "", nil); err != nil {
+				g.Log().Warningf(ctx, "发送提现成功消息失败: site_id=%d, user_id=%d, trade_no=%s, err=%v", withdraw.SiteId, withdraw.UserId, withdraw.TradeNo, err)
+			}
+		}
 	}
 
 	return &v1.DealWithWithdrawRes{

@@ -392,6 +392,14 @@ func (s *sBalance) LuckySpin(ctx context.Context, req *v1.LuckySpinReq) (*v1.Luc
 		return &v1.LuckySpinRes{Success: false, Message: err.Error()}, nil
 	}
 
+	// 大转盘中奖发送消息（仅中奖金额大于0）
+	rewardAmount := round2(selectedPrize.RewardAmount)
+	if rewardAmount > 0 {
+		if err := util.SendUserMessage(ctx, int(siteId), int(userId), util.MessageEventLuckyActivity, tradeNo, rewardAmount, "", nil); err != nil {
+			g.Log().Warningf(ctx, "发送大转盘活动消息失败: site_id=%d, user_id=%d, trade_no=%s, err=%v", siteId, userId, tradeNo, err)
+		}
+	}
+
 	todaySpinCountRes, totalWon, err := s.getUserLuckySpinStats(ctx, int(siteId), int(userId))
 	if err != nil {
 		g.Log().Warningf(ctx, "抽奖后查询大转盘统计失败: site_id=%d, user_id=%d, err=%v", siteId, userId, err)
@@ -409,7 +417,7 @@ func (s *sBalance) LuckySpin(ctx context.Context, req *v1.LuckySpinReq) (*v1.Luc
 		TradeNo:        tradeNo,
 		SegmentNo:      selectedPrize.SegmentNo,
 		PrizeName:      selectedPrize.PrizeName,
-		RewardAmount:   round2(selectedPrize.RewardAmount),
+		RewardAmount:   rewardAmount,
 		FreeSpinsLeft:  freeSpinsLeft,
 		TodaySpinCount: todaySpinCountRes,
 		TotalWon:       round2(totalWon),
