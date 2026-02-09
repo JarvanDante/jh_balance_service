@@ -65,6 +65,10 @@ service Balance {
     rpc GetLuckySpinRecords(GetLuckySpinRecordsReq) returns (GetLuckySpinRecordsRes) {}
     // 获取大转盘最近中奖榜
     rpc GetLuckySpinRecentWinners(GetLuckySpinRecentWinnersReq) returns (GetLuckySpinRecentWinnersRes) {}
+    // 获取充值送活动最近中奖榜
+    rpc GetDepositBonusRecentWinners(GetDepositBonusRecentWinnersReq) returns (GetDepositBonusRecentWinnersRes) {}
+    // 获取注册送活动最近中奖榜
+    rpc GetRegisterBonusRecentWinners(GetRegisterBonusRecentWinnersReq) returns (GetRegisterBonusRecentWinnersRes) {}
 }
 
 
@@ -605,4 +609,45 @@ message GetLuckySpinRecentWinnersRes {
     bool success = 1;               // 是否成功
     string message = 2;             // 消息
     repeated LuckySpinRecentWinnerItem list = 3; // 最近中奖列表
+}
+
+// 充值送活动最近中奖项
+message DepositBonusRecentWinnerItem {
+    int32 user_id = 1;              // 用户ID
+    string mask_name = 2;           // 脱敏用户名
+    double deposit_amount = 3;      // 充值金额
+    double bonus_amount = 4;        // 红利金额
+    string created_at = 5;          // 发放时间
+}
+
+// 获取充值送活动最近中奖榜请求
+message GetDepositBonusRecentWinnersReq {
+    int32 limit = 1;                // 条数，默认20，最大100
+}
+
+// 获取充值送活动最近中奖榜响应
+message GetDepositBonusRecentWinnersRes {
+    bool success = 1;               // 是否成功
+    string message = 2;             // 消息
+    repeated DepositBonusRecentWinnerItem list = 3; // 最近中奖列表
+}
+
+// 注册送活动最近中奖项
+message RegisterBonusRecentWinnerItem {
+    int32 user_id = 1;              // 用户ID
+    string mask_name = 2;           // 脱敏用户名
+    double bonus_amount = 3;        // 红利金额
+    string created_at = 4;          // 发放时间
+}
+
+// 获取注册送活动最近中奖榜请求
+message GetRegisterBonusRecentWinnersReq {
+    int32 limit = 1;                // 条数，默认20，最大100
+}
+
+// 获取注册送活动最近中奖榜响应
+message GetRegisterBonusRecentWinnersRes {
+    bool success = 1;               // 是否成功
+    string message = 2;             // 消息
+    repeated RegisterBonusRecentWinnerItem list = 3; // 最近中奖列表
 }

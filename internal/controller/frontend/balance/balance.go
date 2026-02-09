@@ -281,3 +281,19 @@ func (c *Controller) GetLuckySpinRecentWinners(ctx context.Context, req *v1.GetL
 	}
 	return frontend.Balance().GetLuckySpinRecentWinners(ctx, req)
 }
+
+// GetDepositBonusRecentWinners 获取充值送活动最近中奖榜
+func (c *Controller) GetDepositBonusRecentWinners(ctx context.Context, req *v1.GetDepositBonusRecentWinnersReq) (res *v1.GetDepositBonusRecentWinnersRes, err error) {
+	if req == nil {
+		req = &v1.GetDepositBonusRecentWinnersReq{}
+	}
+	return frontend.Balance().GetDepositBonusRecentWinners(ctx, req)
+}
+
+// GetRegisterBonusRecentWinners 获取注册送活动最近中奖榜
+func (c *Controller) GetRegisterBonusRecentWinners(ctx context.Context, req *v1.GetRegisterBonusRecentWinnersReq) (res *v1.GetRegisterBonusRecentWinnersRes, err error) {
+	if req == nil {
+		req = &v1.GetRegisterBonusRecentWinnersReq{}
+	}
+	return frontend.Balance().GetRegisterBonusRecentWinners(ctx, req)
+}

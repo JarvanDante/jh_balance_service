@@ -37,6 +37,8 @@ type IBalance interface {
 	LuckySpin(ctx context.Context, req *v1.LuckySpinReq) (res *v1.LuckySpinRes, err error)
 	GetLuckySpinRecords(ctx context.Context, req *v1.GetLuckySpinRecordsReq) (res *v1.GetLuckySpinRecordsRes, err error)
 	GetLuckySpinRecentWinners(ctx context.Context, req *v1.GetLuckySpinRecentWinnersReq) (res *v1.GetLuckySpinRecentWinnersRes, err error)
+	GetDepositBonusRecentWinners(ctx context.Context, req *v1.GetDepositBonusRecentWinnersReq) (res *v1.GetDepositBonusRecentWinnersRes, err error)
+	GetRegisterBonusRecentWinners(ctx context.Context, req *v1.GetRegisterBonusRecentWinnersReq) (res *v1.GetRegisterBonusRecentWinnersRes, err error)
 }
 
 var localBalance IBalance
