@@ -5,4 +5,5 @@ const (
 	activityCodeDeposit  = "DEPOSIT"
 	activityCodeRegister = "REGISTER"
 	activityCodeSignin   = "SIGNIN"
+	activityCodeLucky    = "LUCKY"
 )

@@ -33,6 +33,10 @@ type IBalance interface {
 	GetSigninActivityInfo(ctx context.Context, req *v1.GetSigninActivityInfoReq) (res *v1.GetSigninActivityInfoRes, err error)
 	ClaimSigninReward(ctx context.Context, req *v1.ClaimSigninRewardReq) (res *v1.ClaimSigninRewardRes, err error)
 	WashCodeRebate(ctx context.Context, req *v1.WashCodeRebateReq) (res *v1.WashCodeRebateRes, err error)
+	GetLuckySpinInfo(ctx context.Context, req *v1.GetLuckySpinInfoReq) (res *v1.GetLuckySpinInfoRes, err error)
+	LuckySpin(ctx context.Context, req *v1.LuckySpinReq) (res *v1.LuckySpinRes, err error)
+	GetLuckySpinRecords(ctx context.Context, req *v1.GetLuckySpinRecordsReq) (res *v1.GetLuckySpinRecordsRes, err error)
+	GetLuckySpinRecentWinners(ctx context.Context, req *v1.GetLuckySpinRecentWinnersReq) (res *v1.GetLuckySpinRecentWinnersRes, err error)
 }
 
 var localBalance IBalance

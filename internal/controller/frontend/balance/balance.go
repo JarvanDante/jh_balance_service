@@ -249,3 +249,35 @@ func (c *Controller) WashCodeRebate(ctx context.Context, req *v1.WashCodeRebateR
 	}
 	return frontend.Balance().WashCodeRebate(ctx, req)
 }
+
+// GetLuckySpinInfo 获取大转盘活动信息
+func (c *Controller) GetLuckySpinInfo(ctx context.Context, req *v1.GetLuckySpinInfoReq) (res *v1.GetLuckySpinInfoRes, err error) {
+	if req == nil {
+		req = &v1.GetLuckySpinInfoReq{}
+	}
+	return frontend.Balance().GetLuckySpinInfo(ctx, req)
+}
+
+// LuckySpin 执行大转盘抽奖
+func (c *Controller) LuckySpin(ctx context.Context, req *v1.LuckySpinReq) (res *v1.LuckySpinRes, err error) {
+	if req == nil {
+		req = &v1.LuckySpinReq{}
+	}
+	return frontend.Balance().LuckySpin(ctx, req)
+}
+
+// GetLuckySpinRecords 获取我的大转盘中奖记录
+func (c *Controller) GetLuckySpinRecords(ctx context.Context, req *v1.GetLuckySpinRecordsReq) (res *v1.GetLuckySpinRecordsRes, err error) {
+	if req == nil {
+		req = &v1.GetLuckySpinRecordsReq{}
+	}
+	return frontend.Balance().GetLuckySpinRecords(ctx, req)
+}
+
+// GetLuckySpinRecentWinners 获取大转盘最近中奖榜
+func (c *Controller) GetLuckySpinRecentWinners(ctx context.Context, req *v1.GetLuckySpinRecentWinnersReq) (res *v1.GetLuckySpinRecentWinnersRes, err error) {
+	if req == nil {
+		req = &v1.GetLuckySpinRecentWinnersReq{}
+	}
+	return frontend.Balance().GetLuckySpinRecentWinners(ctx, req)
+}

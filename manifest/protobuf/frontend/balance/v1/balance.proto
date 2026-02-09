@@ -57,6 +57,14 @@ service Balance {
     rpc ClaimSigninReward(ClaimSigninRewardReq) returns (ClaimSigninRewardRes) {}
     // 执行洗码返水
     rpc WashCodeRebate(WashCodeRebateReq) returns (WashCodeRebateRes) {}
+    // 获取大转盘活动信息
+    rpc GetLuckySpinInfo(GetLuckySpinInfoReq) returns (GetLuckySpinInfoRes) {}
+    // 执行大转盘抽奖
+    rpc LuckySpin(LuckySpinReq) returns (LuckySpinRes) {}
+    // 获取我的大转盘中奖记录
+    rpc GetLuckySpinRecords(GetLuckySpinRecordsReq) returns (GetLuckySpinRecordsRes) {}
+    // 获取大转盘最近中奖榜
+    rpc GetLuckySpinRecentWinners(GetLuckySpinRecentWinnersReq) returns (GetLuckySpinRecentWinnersRes) {}
 }
 
 
@@ -506,4 +514,95 @@ message WashCodeRebateRes {
     double rebate_amount = 6;       // 本次返水金额
     string grade_name = 7;          // 当前用户等级名称
     uint64 max_bet_id = 8;          // 本次洗码覆盖的最大注单ID
+}
+
+// 大转盘奖项
+message LuckySpinPrizeItem {
+    int32 segment_no = 1;           // 扇区编号
+    string prize_name = 2;          // 奖项名称
+    double reward_amount = 3;       // 奖励金额
+    int32 weight = 4;               // 权重
+    int32 user_daily_win_limit = 5; // 单用户当日中奖次数上限(0不限)
+    int32 min_vip_level = 6;        // 最低VIP等级要求
+    string icon = 7;                // 奖项图标
+}
+
+// 获取大转盘活动信息请求
+message GetLuckySpinInfoReq {
+}
+
+// 获取大转盘活动信息响应
+message GetLuckySpinInfoRes {
+    bool success = 1;               // 是否成功
+    string message = 2;             // 消息
+    bool active = 3;                // 活动是否开启
+    int32 free_spins_per_day = 4;   // 每日免费次数
+    int32 free_spins_left = 5;      // 今日剩余免费次数
+    int32 today_spin_count = 6;     // 今日已抽奖次数
+    double jackpot_amount = 7;      // 奖池展示金额
+    double total_won = 8;           // 用户累计中奖金额
+    repeated LuckySpinPrizeItem prize_list = 9; // 奖项列表
+}
+
+// 执行大转盘抽奖请求
+message LuckySpinReq {
+}
+
+// 执行大转盘抽奖响应
+message LuckySpinRes {
+    bool success = 1;               // 是否成功
+    string message = 2;             // 消息
+    string trade_no = 3;            // 流水号
+    int32 segment_no = 4;           // 命中扇区
+    string prize_name = 5;          // 命中奖项名称
+    double reward_amount = 6;       // 命中奖励金额
+    int32 free_spins_left = 7;      // 今日剩余免费次数
+    int32 today_spin_count = 8;     // 今日已抽奖次数
+    double total_won = 9;           // 用户累计中奖金额
+}
+
+// 大转盘中奖记录项
+message LuckySpinRecordItem {
+    string trade_no = 1;            // 流水号
+    int32 segment_no = 2;           // 命中扇区
+    string prize_name = 3;          // 奖项名称
+    double reward_amount = 4;       // 奖励金额
+    string created_at = 5;          // 中奖时间
+}
+
+// 获取我的大转盘中奖记录请求
+message GetLuckySpinRecordsReq {
+    int32 page = 1;                 // 页码
+    int32 size = 2;                 // 每页数量
+}
+
+// 获取我的大转盘中奖记录响应
+message GetLuckySpinRecordsRes {
+    bool success = 1;               // 是否成功
+    string message = 2;             // 消息
+    repeated LuckySpinRecordItem list = 3; // 记录列表
+    int32 count = 4;                // 总记录数
+    int32 page = 5;                 // 当前页码
+    int32 size = 6;                 // 每页数量
+}
+
+// 大转盘最近中奖项
+message LuckySpinRecentWinnerItem {
+    int32 user_id = 1;              // 用户ID
+    string mask_name = 2;           // 脱敏用户名
+    string prize_name = 3;          // 奖项名称
+    double reward_amount = 4;       // 奖励金额
+    string created_at = 5;          // 中奖时间
+}
+
+// 获取大转盘最近中奖榜请求
+message GetLuckySpinRecentWinnersReq {
+    int32 limit = 1;                // 条数，默认20，最大100
+}
+
+// 获取大转盘最近中奖榜响应
+message GetLuckySpinRecentWinnersRes {
+    bool success = 1;               // 是否成功
+    string message = 2;             // 消息
+    repeated LuckySpinRecentWinnerItem list = 3; // 最近中奖列表
 }

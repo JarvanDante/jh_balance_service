@@ -5,6 +5,9 @@
 package dao
 
 import (
+	"context"
+
+	"github.com/gogf/gf/v2/database/gdb"
 	"jh_balance_service/internal/dao/internal"
 )
 
@@ -16,7 +19,14 @@ type balanceWheelRewardDao struct {
 
 var (
 	// BalanceWheelReward is a globally accessible object for table balance_wheel_reward operations.
-	BalanceWheelReward = balanceWheelRewardDao{internal.NewBalanceWheelRewardDao()}
+	BalanceWheelReward = balanceWheelRewardDao{internal.NewBalanceWheelRewardDao(DynamicDBHandler)}
 )
+
+// Ctx 重写Ctx方法，使用动态数据库连接
+func (d balanceWheelRewardDao) Ctx(ctx context.Context) *gdb.Model {
+	// 使用辅助函数获取动态Model
+	originalModel := d.BalanceWheelRewardDao.Ctx(ctx)
+	return GetDynamicModel(ctx, d.Table(), originalModel)
+}
 
 // Add your custom methods and functionality below.
