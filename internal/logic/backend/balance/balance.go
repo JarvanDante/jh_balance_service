@@ -10,6 +10,7 @@ import (
 	"jh_balance_service/internal/dao"
 	withdrawReview "jh_balance_service/internal/domain/withdraw_review"
 	"jh_balance_service/internal/grpc_client"
+	logic_mq_outbox "jh_balance_service/internal/logic/mq_outbox"
 	"jh_balance_service/internal/middleware"
 	"jh_balance_service/internal/model/entity"
 	"jh_balance_service/internal/service/backend"
@@ -890,6 +891,16 @@ func (s *sBalance) ConfirmPaymentOrder(ctx context.Context, req *v1.ConfirmPayme
 			})
 		if err != nil {
 			return fmt.Errorf("更新订单状态失败: %v", err)
+		}
+
+		var updatedPayment entity.BalanceLogPayment
+		if err := dao.BalanceLogPayment.Ctx(ctx).TX(tx).
+			Where("id", req.Id).
+			Scan(&updatedPayment); err != nil {
+			return fmt.Errorf("查询订单失败: %v", err)
+		}
+		if err := logic_mq_outbox.MqOutbox().CreateBalanceLogPaymentOutbox(ctx, tx, "", &updatedPayment); err != nil {
+			return fmt.Errorf("创建订单Outbox失败: %v", err)
 		}
 
 		// TODO: 调用用户服务更新余额

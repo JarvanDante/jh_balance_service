@@ -5,6 +5,7 @@ import (
 	"fmt"
 	balanceConsts "jh_balance_service/internal/consts/backend/balance"
 	"jh_balance_service/internal/dao"
+	logic_mq_outbox "jh_balance_service/internal/logic/mq_outbox"
 	"jh_balance_service/internal/model/entity"
 	"time"
 
@@ -82,6 +83,15 @@ func (d *WithdrawReviewDomain) ProcessWithdrawReview(tx gdb.TX, req *ReviewReque
 	err = dao.BalanceLog.UpdateByTradeNoWithTx(d.ctx, tx, withdraw.TradeNo, finalStatus, withdraw.Fee, message)
 	if err != nil {
 		return nil, fmt.Errorf("更新日志记录失败: %v", err)
+	}
+	var updatedLog entity.BalanceLog
+	if err := dao.BalanceLog.Ctx(d.ctx).TX(tx).
+		Where("trade_no", withdraw.TradeNo).
+		Scan(&updatedLog); err != nil {
+		return nil, fmt.Errorf("查询更新后的日志失败: %v", err)
+	}
+	if err := logic_mq_outbox.MqOutbox().CreateBalanceLogOutbox(d.ctx, tx, "", &updatedLog); err != nil {
+		return nil, fmt.Errorf("创建日志Outbox失败: %v", err)
 	}
 
 	// 6. 根据最终状态处理余额

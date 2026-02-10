@@ -27,6 +27,7 @@ import (
 	flow "jh_balance_service/internal/domain/flow"
 	"jh_balance_service/internal/domain/withdraw"
 	"jh_balance_service/internal/grpc_client"
+	logic_mq_outbox "jh_balance_service/internal/logic/mq_outbox"
 	"jh_balance_service/internal/middleware"
 	"jh_balance_service/internal/model/entity"
 	"jh_balance_service/internal/registry"
@@ -433,9 +434,15 @@ func (s *sBalance) transferToGame(ctx context.Context, req *v1.AdjustBalanceReq)
 			UpdatedAt: gtime.Now(),
 		}
 
-		_, err = dao.BalanceLog.Ctx(ctx).Insert(balanceLog)
+		result, err := dao.BalanceLog.Ctx(ctx).Insert(balanceLog)
 		if err != nil {
 			return fmt.Errorf("记录资金日志失败")
+		}
+		if id, err := result.LastInsertId(); err == nil {
+			balanceLog.Id = uint(id)
+		}
+		if err := logic_mq_outbox.MqOutbox().CreateBalanceLogOutbox(ctx, tx, "", balanceLog); err != nil {
+			return fmt.Errorf("记录资金日志Outbox失败: %w", err)
 		}
 
 		// 记录账变表（status=1待审核）
@@ -592,6 +599,15 @@ func (s *sBalance) UpdateTransferStatus(ctx context.Context, req *v1.UpdateTrans
 				"updated_at": gtime.Now(),
 			})
 		if err != nil {
+			return err
+		}
+		var updatedLog entity.BalanceLog
+		if err := dao.BalanceLog.Ctx(ctx).
+			Where("trade_no", orderNo).
+			Scan(&updatedLog); err != nil {
+			return err
+		}
+		if err := logic_mq_outbox.MqOutbox().CreateBalanceLogOutbox(ctx, tx, "", &updatedLog); err != nil {
 			return err
 		}
 
@@ -765,6 +781,15 @@ func (s *sBalance) CompensateBalance(ctx context.Context, req *v1.CompensateBala
 		if err != nil {
 			return err
 		}
+		var updatedLog entity.BalanceLog
+		if err := dao.BalanceLog.Ctx(ctx).
+			Where("trade_no", orderNo).
+			Scan(&updatedLog); err != nil {
+			return err
+		}
+		if err := logic_mq_outbox.MqOutbox().CreateBalanceLogOutbox(ctx, tx, "", &updatedLog); err != nil {
+			return err
+		}
 
 		// 更新账变表状态为失败
 		_, err = dao.BalanceChange.Ctx(ctx).
@@ -935,9 +960,15 @@ func (s *sBalance) transferFromGame(ctx context.Context, req *v1.AdjustBalanceRe
 			UpdatedAt: gtime.Now(),
 		}
 
-		_, err = dao.BalanceLog.Ctx(ctx).Insert(balanceLog)
+		result, err := dao.BalanceLog.Ctx(ctx).Insert(balanceLog)
 		if err != nil {
 			return fmt.Errorf("记录资金日志失败")
+		}
+		if id, err := result.LastInsertId(); err == nil {
+			balanceLog.Id = uint(id)
+		}
+		if err := logic_mq_outbox.MqOutbox().CreateBalanceLogOutbox(ctx, tx, "", balanceLog); err != nil {
+			return fmt.Errorf("记录资金日志Outbox失败: %w", err)
 		}
 
 		// 记录账变表（status=1待审核）
@@ -2153,6 +2184,15 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 			g.Log().Errorf(ctx, "更新充值记录失败: order_sn=%s, err=%v", req.OrderSn, err)
 			return err
 		}
+		var updatedLog entity.BalanceLog
+		if err := dao.BalanceLog.Ctx(ctx).TX(tx).
+			Where("trade_no", req.OrderSn).
+			Scan(&updatedLog); err != nil {
+			return err
+		}
+		if err := logic_mq_outbox.MqOutbox().CreateBalanceLogOutbox(ctx, tx, "", &updatedLog); err != nil {
+			return err
+		}
 
 		// 6.1.2 同时更新balance_log_payment表
 		_, err = dao.BalanceLogPayment.Ctx(ctx).TX(tx).
@@ -2167,6 +2207,15 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 
 		if err != nil {
 			g.Log().Errorf(ctx, "更新充值支付记录失败: order_sn=%s, err=%v", req.OrderSn, err)
+			return err
+		}
+		var updatedPayment entity.BalanceLogPayment
+		if err := dao.BalanceLogPayment.Ctx(ctx).TX(tx).
+			Where("trade_no", req.OrderSn).
+			Scan(&updatedPayment); err != nil {
+			return err
+		}
+		if err := logic_mq_outbox.MqOutbox().CreateBalanceLogPaymentOutbox(ctx, tx, "", &updatedPayment); err != nil {
 			return err
 		}
 
@@ -2515,7 +2564,7 @@ func (s *sBalance) GrantInviteBonus(ctx context.Context, req *v1.GrantInviteBonu
 		tradeNo = util.GenerateTradeNo(ctx, balanceConsts.LOG_TYPE_BONUS)
 
 		// 记录资金日志
-		if _, err := dao.BalanceLog.Ctx(ctx).TX(tx).Insert(g.Map{
+		balanceResult, err := dao.BalanceLog.Ctx(ctx).TX(tx).Insert(g.Map{
 			"site_id":      siteId,
 			"user_id":      req.UserId,
 			"trade_type":   balanceConsts.LOG_TYPE_BONUS,
@@ -2527,7 +2576,29 @@ func (s *sBalance) GrantInviteBonus(ctx context.Context, req *v1.GrantInviteBonu
 			"remark":       remark,
 			"created_at":   now,
 			"updated_at":   now,
-		}); err != nil {
+		})
+		if err != nil {
+			return err
+		}
+		id, err := balanceResult.LastInsertId()
+		if err != nil {
+			return err
+		}
+		balanceLog := &entity.BalanceLog{
+			Id:          uint(id),
+			SiteId:      int(siteId),
+			UserId:      int(req.UserId),
+			TradeType:   balanceConsts.LOG_TYPE_BONUS,
+			TradeNo:     tradeNo,
+			Money:       req.Amount,
+			ActualMoney: req.Amount,
+			Fee:         0,
+			Status:      balanceConsts.StatusSuccess,
+			Remark:      remark,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		}
+		if err := logic_mq_outbox.MqOutbox().CreateBalanceLogOutbox(ctx, tx, "", balanceLog); err != nil {
 			return err
 		}
 
@@ -2778,7 +2849,7 @@ func (s *sBalance) grantRegisterBonus(ctx context.Context, siteId int, userId in
 		remark := "注册送彩金"
 
 		// 记录资金日志
-		if _, err := dao.BalanceLog.Ctx(ctx).TX(tx).Insert(g.Map{
+		balanceResult, err := dao.BalanceLog.Ctx(ctx).TX(tx).Insert(g.Map{
 			"site_id":      siteId,
 			"user_id":      userId,
 			"trade_type":   balanceConsts.LOG_TYPE_BONUS,
@@ -2790,7 +2861,29 @@ func (s *sBalance) grantRegisterBonus(ctx context.Context, siteId int, userId in
 			"remark":       remark,
 			"created_at":   now,
 			"updated_at":   now,
-		}); err != nil {
+		})
+		if err != nil {
+			return err
+		}
+		id, err := balanceResult.LastInsertId()
+		if err != nil {
+			return err
+		}
+		balanceLog := &entity.BalanceLog{
+			Id:          uint(id),
+			SiteId:      int(siteId),
+			UserId:      int(userId),
+			TradeType:   balanceConsts.LOG_TYPE_BONUS,
+			TradeNo:     tradeNo,
+			Money:       amount,
+			ActualMoney: amount,
+			Fee:         0,
+			Status:      balanceConsts.StatusSuccess,
+			Remark:      remark,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		}
+		if err := logic_mq_outbox.MqOutbox().CreateBalanceLogOutbox(ctx, tx, "", balanceLog); err != nil {
 			return err
 		}
 
@@ -3070,7 +3163,7 @@ func (s *sBalance) grantDepositBonus(ctx context.Context, siteId int, userId int
 		remark := "充值送彩金"
 
 		// 记录资金日志
-		if _, err := dao.BalanceLog.Ctx(ctx).TX(tx).Insert(g.Map{
+		balanceResult, err := dao.BalanceLog.Ctx(ctx).TX(tx).Insert(g.Map{
 			"site_id":      siteId,
 			"user_id":      userId,
 			"trade_type":   balanceConsts.LOG_TYPE_BONUS,
@@ -3082,7 +3175,29 @@ func (s *sBalance) grantDepositBonus(ctx context.Context, siteId int, userId int
 			"remark":       remark,
 			"created_at":   now,
 			"updated_at":   now,
-		}); err != nil {
+		})
+		if err != nil {
+			return err
+		}
+		id, err := balanceResult.LastInsertId()
+		if err != nil {
+			return err
+		}
+		balanceLog := &entity.BalanceLog{
+			Id:          uint(id),
+			SiteId:      int(siteId),
+			UserId:      int(userId),
+			TradeType:   balanceConsts.LOG_TYPE_BONUS,
+			TradeNo:     tradeNo,
+			Money:       amount,
+			ActualMoney: amount,
+			Fee:         0,
+			Status:      balanceConsts.StatusSuccess,
+			Remark:      remark,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		}
+		if err := logic_mq_outbox.MqOutbox().CreateBalanceLogOutbox(ctx, tx, "", balanceLog); err != nil {
 			return err
 		}
 
@@ -3811,7 +3926,7 @@ func (s *sBalance) grantSigninBonus(
 			return err
 		}
 
-		if _, err := dao.BalanceLog.Ctx(ctx).TX(tx).Insert(g.Map{
+		balanceResult, err := dao.BalanceLog.Ctx(ctx).TX(tx).Insert(g.Map{
 			"site_id":      siteId,
 			"user_id":      userId,
 			"trade_type":   balanceConsts.LOG_TYPE_BONUS,
@@ -3823,7 +3938,29 @@ func (s *sBalance) grantSigninBonus(
 			"remark":       remark,
 			"created_at":   now,
 			"updated_at":   now,
-		}); err != nil {
+		})
+		if err != nil {
+			return err
+		}
+		id, err := balanceResult.LastInsertId()
+		if err != nil {
+			return err
+		}
+		balanceLog := &entity.BalanceLog{
+			Id:          uint(id),
+			SiteId:      int(siteId),
+			UserId:      int(userId),
+			TradeType:   balanceConsts.LOG_TYPE_BONUS,
+			TradeNo:     tradeNo,
+			Money:       amount,
+			ActualMoney: amount,
+			Fee:         0,
+			Status:      balanceConsts.StatusSuccess,
+			Remark:      remark,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		}
+		if err := logic_mq_outbox.MqOutbox().CreateBalanceLogOutbox(ctx, tx, "", balanceLog); err != nil {
 			return err
 		}
 
@@ -4163,7 +4300,7 @@ func (s *sBalance) WashCodeRebate(ctx context.Context, req *v1.WashCodeRebateReq
 			return err
 		}
 
-		if _, err := dao.BalanceLog.Ctx(ctx).TX(tx).Insert(g.Map{
+		balanceResult, err := dao.BalanceLog.Ctx(ctx).TX(tx).Insert(g.Map{
 			"site_id":      siteId,
 			"user_id":      userId,
 			"trade_type":   balanceConsts.LOG_TYPE_REBATE,
@@ -4175,7 +4312,29 @@ func (s *sBalance) WashCodeRebate(ctx context.Context, req *v1.WashCodeRebateReq
 			"remark":       remark,
 			"created_at":   now,
 			"updated_at":   now,
-		}); err != nil {
+		})
+		if err != nil {
+			return err
+		}
+		id, err := balanceResult.LastInsertId()
+		if err != nil {
+			return err
+		}
+		balanceLog := &entity.BalanceLog{
+			Id:          uint(id),
+			SiteId:      int(siteId),
+			UserId:      int(userId),
+			TradeType:   balanceConsts.LOG_TYPE_REBATE,
+			TradeNo:     tradeNo,
+			Money:       rebateAmount,
+			ActualMoney: rebateAmount,
+			Fee:         0,
+			Status:      balanceConsts.StatusSuccess,
+			Remark:      remark,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		}
+		if err := logic_mq_outbox.MqOutbox().CreateBalanceLogOutbox(ctx, tx, "", balanceLog); err != nil {
 			return err
 		}
 

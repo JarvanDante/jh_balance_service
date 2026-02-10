@@ -8,6 +8,7 @@ import (
 
 	balanceConsts "jh_balance_service/internal/consts/backend/balance"
 	"jh_balance_service/internal/dao"
+	logic_mq_outbox "jh_balance_service/internal/logic/mq_outbox"
 	"jh_balance_service/internal/model/entity"
 	"jh_balance_service/internal/util"
 )
@@ -161,13 +162,22 @@ func (d *WithdrawDomain) executeWithdrawTransaction(
 		}
 
 		// 6. 记录余额日志
-		if err := dao.BalanceLog.CreateWithdrawLog(ctx, &dao.CreateWithdrawLogParams{
+		if _, err := dao.BalanceLog.CreateWithdrawLog(ctx, &dao.CreateWithdrawLogParams{
 			SiteId:  req.SiteId,
 			UserId:  req.UserId,
 			TradeNo: tradeNo,
 			Money:   req.Money,
 		}); err != nil {
 			return gerror.Wrap(err, "记录余额日志失败")
+		}
+		var balanceLog entity.BalanceLog
+		if err := dao.BalanceLog.Ctx(ctx).
+			Where("trade_no", tradeNo).
+			Scan(&balanceLog); err != nil {
+			return gerror.Wrap(err, "查询余额日志失败")
+		}
+		if err := logic_mq_outbox.MqOutbox().CreateBalanceLogOutbox(ctx, nil, "", &balanceLog); err != nil {
+			return gerror.Wrap(err, "创建余额日志Outbox失败")
 		}
 
 		// 7. 记录账变

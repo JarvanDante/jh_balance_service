@@ -46,8 +46,8 @@ type CreateDepositOrderParams struct {
 }
 
 // CreateDepositOrder 创建充值订单记录
-func (d balanceLogPaymentDao) CreateDepositOrder(ctx context.Context, params *CreateDepositOrderParams) error {
-	_, err := d.Ctx(ctx).Insert(&entity.BalanceLogPayment{
+func (d balanceLogPaymentDao) CreateDepositOrder(ctx context.Context, params *CreateDepositOrderParams) (uint64, error) {
+	result, err := d.Ctx(ctx).Insert(&entity.BalanceLogPayment{
 		SiteId:           int(params.SiteId),
 		UserId:           int(params.UserId),
 		Username:         params.Username,
@@ -58,7 +58,14 @@ func (d balanceLogPaymentDao) CreateDepositOrder(ctx context.Context, params *Cr
 		CreatedAt:        gtime.Now(),
 		UpdatedAt:        gtime.Now(),
 	})
-	return err
+	if err != nil {
+		return 0, err
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return uint64(id), nil
 }
 
 // UpdateDepositOrderInfo 更新充值订单信息

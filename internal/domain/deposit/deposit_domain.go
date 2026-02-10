@@ -3,11 +3,14 @@ package deposit
 import (
 	"context"
 
+	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/os/gtime"
 
 	balanceConsts "jh_balance_service/internal/consts/backend/balance"
 	"jh_balance_service/internal/dao"
+	logic_mq_outbox "jh_balance_service/internal/logic/mq_outbox"
 	"jh_balance_service/internal/model/entity"
 	"jh_balance_service/internal/util"
 )
@@ -70,28 +73,87 @@ func (d *DepositDomain) CreateDepositOrder(ctx context.Context, req *CreateDepos
 	tradeNo := util.GenerateTradeNo(ctx, balanceConsts.LOG_TYPE_PAYMENT)
 	g.Log().Infof(ctx, "生成交易流水号: %s", tradeNo)
 
-	// 5. 创建充值订单记录
-	if err := dao.BalanceLogPayment.CreateDepositOrder(ctx, &dao.CreateDepositOrderParams{
-		SiteId:           req.SiteId,
-		UserId:           req.UserId,
-		Username:         req.Username,
-		TradeNo:          tradeNo,
-		Money:            req.Money,
-		PaymentAccountId: req.PaymentId,
-	}); err != nil {
-		return nil, gerror.Wrap(err, "创建充值订单失败")
-	}
+	// 5 & 6. 创建充值订单记录 + 资金日志，并写入Outbox（同一事务）
+	var (
+		paymentLog *entity.BalanceLogPayment
+		balanceLog *entity.BalanceLog
+	)
+	err = dao.BalanceLogPayment.Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		paymentResult, err := dao.BalanceLogPayment.Ctx(ctx).TX(tx).Insert(&entity.BalanceLogPayment{
+			SiteId:           int(req.SiteId),
+			UserId:           int(req.UserId),
+			Username:         req.Username,
+			TradeNo:          tradeNo,
+			Money:            req.Money,
+			PaymentAccountId: int(req.PaymentId),
+			Status:           balanceConsts.PaymentStatusUnpaid,
+			CreatedAt:        gtime.Now(),
+			UpdatedAt:        gtime.Now(),
+		})
+		if err != nil {
+			return gerror.Wrap(err, "创建充值订单失败")
+		}
+		paymentId, err := paymentResult.LastInsertId()
+		if err != nil {
+			return gerror.Wrap(err, "获取充值订单ID失败")
+		}
 
-	// 6. 创建支付日志记录
-	if err := dao.BalanceLog.CreateDepositLog(ctx, &dao.CreateDepositLogParams{
-		SiteId:    req.SiteId,
-		UserId:    req.UserId,
-		TradeNo:   tradeNo,
-		Money:     req.Money,
-		Gateway:   int64(sitePayment.Gateway),
-		TradeType: balanceConsts.LOG_TYPE_PAYMENT,
-	}); err != nil {
-		return nil, gerror.Wrap(err, "创建支付日志失败")
+		paymentLog = &entity.BalanceLogPayment{
+			Id:               uint64(paymentId),
+			SiteId:           int(req.SiteId),
+			UserId:           int(req.UserId),
+			Username:         req.Username,
+			TradeNo:          tradeNo,
+			Money:            req.Money,
+			PaymentAccountId: int(req.PaymentId),
+			Status:           balanceConsts.PaymentStatusUnpaid,
+			CreatedAt:        gtime.Now(),
+			UpdatedAt:        gtime.Now(),
+		}
+
+		balanceResult, err := dao.BalanceLog.Ctx(ctx).TX(tx).Insert(g.Map{
+			"site_id":    req.SiteId,
+			"user_id":    req.UserId,
+			"trade_type": balanceConsts.LOG_TYPE_PAYMENT,
+			"gateway":    sitePayment.Gateway,
+			"trade_no":   tradeNo,
+			"money":      req.Money,
+			"status":     balanceConsts.StatusPending,
+			"created_at": gtime.Now(),
+			"updated_at": gtime.Now(),
+		})
+		if err != nil {
+			return gerror.Wrap(err, "创建支付日志失败")
+		}
+		balanceLogId, err := balanceResult.LastInsertId()
+		if err != nil {
+			return gerror.Wrap(err, "获取支付日志ID失败")
+		}
+
+		balanceLog = &entity.BalanceLog{
+			Id:        uint(balanceLogId),
+			SiteId:    int(req.SiteId),
+			UserId:    int(req.UserId),
+			TradeType: balanceConsts.LOG_TYPE_PAYMENT,
+			Gateway:   int(sitePayment.Gateway),
+			TradeNo:   tradeNo,
+			Money:     req.Money,
+			Status:    balanceConsts.StatusPending,
+			CreatedAt: gtime.Now(),
+			UpdatedAt: gtime.Now(),
+		}
+
+		if err := logic_mq_outbox.MqOutbox().CreateBalanceLogPaymentOutbox(ctx, tx, "", paymentLog); err != nil {
+			return gerror.Wrap(err, "创建充值订单Outbox失败")
+		}
+		if err := logic_mq_outbox.MqOutbox().CreateBalanceLogOutbox(ctx, tx, "", balanceLog); err != nil {
+			return gerror.Wrap(err, "创建资金日志Outbox失败")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	g.Log().Infof(ctx, "充值订单创建成功: trade_no=%s", tradeNo)
@@ -115,5 +177,17 @@ func (d *DepositDomain) validateDepositRange(amount, min, max float64) error {
 
 // UpdateDepositOrderInfo 更新充值订单信息
 func (d *DepositDomain) UpdateDepositOrderInfo(ctx context.Context, tradeNo, sysTradeNo, channelCardNo, channelName, imageUrl string) error {
-	return dao.BalanceLogPayment.UpdateDepositOrderInfo(ctx, tradeNo, sysTradeNo, channelCardNo, channelName, imageUrl)
+	if err := dao.BalanceLogPayment.UpdateDepositOrderInfo(ctx, tradeNo, sysTradeNo, channelCardNo, channelName, imageUrl); err != nil {
+		return err
+	}
+	var updatedPayment entity.BalanceLogPayment
+	if err := dao.BalanceLogPayment.Ctx(ctx).
+		Where("trade_no", tradeNo).
+		Scan(&updatedPayment); err != nil {
+		return err
+	}
+	if err := logic_mq_outbox.MqOutbox().CreateBalanceLogPaymentOutbox(ctx, nil, "", &updatedPayment); err != nil {
+		return err
+	}
+	return nil
 }

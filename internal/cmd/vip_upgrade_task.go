@@ -14,6 +14,7 @@ import (
 	balanceConsts "jh_balance_service/internal/consts/backend/balance"
 	"jh_balance_service/internal/dao"
 	"jh_balance_service/internal/grpc_client"
+	logic_mq_outbox "jh_balance_service/internal/logic/mq_outbox"
 	"jh_balance_service/internal/model/entity"
 	"jh_balance_service/internal/registry"
 	"jh_balance_service/internal/util"
@@ -549,7 +550,7 @@ func grantVipUpgradeBonus(ctx context.Context, siteId int, userId int64, amount 
 			remark = fmt.Sprintf("升级%s礼金", strings.TrimSpace(gradeName))
 		}
 
-		if _, err := dao.BalanceLog.Ctx(ctx).TX(tx).Insert(g.Map{
+		balanceResult, err := dao.BalanceLog.Ctx(ctx).TX(tx).Insert(g.Map{
 			"site_id":      siteId,
 			"user_id":      userId,
 			"trade_type":   balanceConsts.LOG_TYPE_BONUS,
@@ -561,7 +562,29 @@ func grantVipUpgradeBonus(ctx context.Context, siteId int, userId int64, amount 
 			"remark":       remark,
 			"created_at":   now,
 			"updated_at":   now,
-		}); err != nil {
+		})
+		if err != nil {
+			return err
+		}
+		id, err := balanceResult.LastInsertId()
+		if err != nil {
+			return err
+		}
+		balanceLog := &entity.BalanceLog{
+			Id:          uint(id),
+			SiteId:      int(siteId),
+			UserId:      int(userId),
+			TradeType:   balanceConsts.LOG_TYPE_BONUS,
+			TradeNo:     tradeNo,
+			Money:       amount,
+			ActualMoney: amount,
+			Fee:         0,
+			Status:      balanceConsts.StatusSuccess,
+			Remark:      remark,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		}
+		if err := logic_mq_outbox.MqOutbox().CreateBalanceLogOutbox(ctx, tx, "", balanceLog); err != nil {
 			return err
 		}
 

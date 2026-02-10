@@ -48,8 +48,8 @@ type CreateWithdrawLogParams struct {
 }
 
 // CreateWithdrawLog 创建提现日志
-func (d balanceLogDao) CreateWithdrawLog(ctx context.Context, params *CreateWithdrawLogParams) error {
-	_, err := d.Ctx(ctx).Insert(g.Map{
+func (d balanceLogDao) CreateWithdrawLog(ctx context.Context, params *CreateWithdrawLogParams) (uint64, error) {
+	result, err := d.Ctx(ctx).Insert(g.Map{
 		"site_id":    params.SiteId,
 		"user_id":    params.UserId,
 		"trade_type": balanceConsts.LOG_TYPE_WITHDRAW,
@@ -60,7 +60,14 @@ func (d balanceLogDao) CreateWithdrawLog(ctx context.Context, params *CreateWith
 		"created_at": gtime.Now(),
 		"updated_at": gtime.Now(),
 	})
-	return err
+	if err != nil {
+		return 0, err
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return uint64(id), nil
 }
 
 // CreateDepositLogParams 创建充值日志参数
@@ -74,8 +81,8 @@ type CreateDepositLogParams struct {
 }
 
 // CreateDepositLog 创建充值日志
-func (d balanceLogDao) CreateDepositLog(ctx context.Context, params *CreateDepositLogParams) error {
-	_, err := d.Ctx(ctx).Insert(g.Map{
+func (d balanceLogDao) CreateDepositLog(ctx context.Context, params *CreateDepositLogParams) (uint64, error) {
+	result, err := d.Ctx(ctx).Insert(g.Map{
 		"site_id":    params.SiteId,
 		"user_id":    params.UserId,
 		"trade_type": params.TradeType,
@@ -86,7 +93,14 @@ func (d balanceLogDao) CreateDepositLog(ctx context.Context, params *CreateDepos
 		"created_at": gtime.Now(),
 		"updated_at": gtime.Now(),
 	})
-	return err
+	if err != nil {
+		return 0, err
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return uint64(id), nil
 }
 
 // UpdateByTradeNoWithTx 根据交易号更新日志记录（支持事务）
