@@ -21,6 +21,31 @@ func (*Controller) GetBalanceChanges(ctx context.Context, req *v1.GetBalanceChan
 	return backend.Balance().GetBalanceChanges(ctx, req)
 }
 
+// GetLuckyBonusRecords 获取大转盘活动发放记录
+func (*Controller) GetLuckyBonusRecords(ctx context.Context, req *v1.GetLuckyBonusRecordsReq) (res *v1.GetLuckyBonusRecordsRes, err error) {
+	return backend.Balance().GetLuckyBonusRecords(ctx, req)
+}
+
+// GetDepositBonusRecords 获取充值送活动发放记录
+func (*Controller) GetDepositBonusRecords(ctx context.Context, req *v1.GetDepositBonusRecordsReq) (res *v1.GetDepositBonusRecordsRes, err error) {
+	return backend.Balance().GetDepositBonusRecords(ctx, req)
+}
+
+// GetRegisterBonusRecords 获取注册送活动发放记录
+func (*Controller) GetRegisterBonusRecords(ctx context.Context, req *v1.GetRegisterBonusRecordsReq) (res *v1.GetRegisterBonusRecordsRes, err error) {
+	return backend.Balance().GetRegisterBonusRecords(ctx, req)
+}
+
+// GetInviteBonusRecords 获取邀请朋友活动发放记录
+func (*Controller) GetInviteBonusRecords(ctx context.Context, req *v1.GetInviteBonusRecordsReq) (res *v1.GetInviteBonusRecordsRes, err error) {
+	return backend.Balance().GetInviteBonusRecords(ctx, req)
+}
+
+// GetSigninBonusRecords 获取每日签到活动发放记录
+func (*Controller) GetSigninBonusRecords(ctx context.Context, req *v1.GetSigninBonusRecordsReq) (res *v1.GetSigninBonusRecordsRes, err error) {
+	return backend.Balance().GetSigninBonusRecords(ctx, req)
+}
+
 // GetRechargePayments 获取充值记录
 func (*Controller) GetRechargePayments(ctx context.Context, req *v1.GetRechargePaymentsReq) (res *v1.GetRechargePaymentsRes, err error) {
 	return backend.Balance().GetRechargePayments(ctx, req)

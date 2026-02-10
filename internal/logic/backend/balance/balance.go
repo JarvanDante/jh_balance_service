@@ -15,6 +15,7 @@ import (
 	"jh_balance_service/internal/service/backend"
 	"jh_balance_service/internal/tracing"
 	"jh_balance_service/internal/util"
+	"strings"
 	"time"
 
 	"github.com/gogf/gf/v2/database/gdb"
@@ -121,6 +122,550 @@ func (s *sBalance) GetBalanceChanges(ctx context.Context, req *v1.GetBalanceChan
 		List:  list,
 		Count: int32(count),
 	}, nil
+}
+
+// GetLuckyBonusRecords 获取大转盘活动发放记录
+func (s *sBalance) GetLuckyBonusRecords(ctx context.Context, req *v1.GetLuckyBonusRecordsReq) (*v1.GetLuckyBonusRecordsRes, error) {
+	if req == nil {
+		return nil, fmt.Errorf("请求参数不能为空")
+	}
+
+	ctx, span := tracing.StartSpan(ctx, "balance.GetLuckyBonusRecords", trace.WithAttributes(
+		attribute.String("method", "GetLuckyBonusRecords"),
+		attribute.Int("page", int(req.Page)),
+		attribute.Int("size", int(req.Size)),
+	))
+	defer span.End()
+
+	page := req.Page
+	size := req.Size
+	if page <= 0 {
+		page = 1
+	}
+	if size <= 0 {
+		size = 50
+	}
+
+	siteId := req.SiteId
+	if siteId <= 0 {
+		if ctxSiteId, ok := middleware.GetSiteIdFromContext(ctx); ok {
+			siteId = int32(ctxSiteId)
+		}
+	}
+
+	filterUserId := req.UserId
+	if req.Username != "" {
+		userId, err := s.getUserIdByUsername(ctx, int(siteId), req.Username)
+		if err != nil {
+			g.Log().Warningf(ctx, "查询用户失败: %v", err)
+			return nil, fmt.Errorf("查询用户失败: %v", err)
+		}
+		if userId == 0 {
+			return &v1.GetLuckyBonusRecordsRes{List: []*v1.LuckyBonusRecord{}, Count: 0}, nil
+		}
+		if filterUserId > 0 && filterUserId != int32(userId) {
+			return &v1.GetLuckyBonusRecordsRes{List: []*v1.LuckyBonusRecord{}, Count: 0}, nil
+		}
+		filterUserId = int32(userId)
+	}
+
+	model := dao.BalanceWheelReward.Ctx(ctx)
+	if siteId > 0 {
+		model = model.Where("site_id", siteId)
+	}
+	if filterUserId > 0 {
+		model = model.Where("user_id", filterUserId)
+	}
+	if req.TradeNo != "" {
+		model = model.Where("trade_no", req.TradeNo)
+	}
+	if req.StartTime != "" {
+		model = model.Where("created_at >= ?", req.StartTime)
+	}
+	if req.EndTime != "" {
+		model = model.Where("created_at <= ?", req.EndTime)
+	}
+
+	count, err := model.Count()
+	if err != nil {
+		g.Log().Errorf(ctx, "查询大转盘活动发放记录总数失败: %v", err)
+		return nil, fmt.Errorf("查询活动发放记录总数失败: %v", err)
+	}
+
+	var records []*entity.BalanceWheelReward
+	err = model.Order("created_at DESC").Page(int(page), int(size)).Scan(&records)
+	if err != nil {
+		g.Log().Errorf(ctx, "查询大转盘活动发放记录失败: %v", err)
+		return nil, fmt.Errorf("查询活动发放记录失败: %v", err)
+	}
+
+	userIds := make([]int, 0, len(records))
+	for _, record := range records {
+		if record.UserId > 0 {
+			userIds = append(userIds, record.UserId)
+		}
+	}
+	userMap, err := s.getUsernamesByIds(ctx, int(siteId), userIds)
+	if err != nil {
+		g.Log().Warningf(ctx, "查询用户名失败: %v", err)
+		userMap = map[int]string{}
+	}
+
+	list := make([]*v1.LuckyBonusRecord, 0, len(records))
+	for _, record := range records {
+		list = append(list, &v1.LuckyBonusRecord{
+			Id:           int64(record.Id),
+			UserId:       int32(record.UserId),
+			Username:     userMap[record.UserId],
+			Date:         formatDate(record.Date),
+			SegmentNo:    int32(record.SegmentNo),
+			PrizeName:    record.PrizeName,
+			RewardAmount: record.RewardAmount,
+			TradeNo:      record.TradeNo,
+			CreatedAt:    formatDateTime(record.CreatedAt),
+		})
+	}
+
+	return &v1.GetLuckyBonusRecordsRes{List: list, Count: int32(count)}, nil
+}
+
+// GetDepositBonusRecords 获取充值送活动发放记录
+func (s *sBalance) GetDepositBonusRecords(ctx context.Context, req *v1.GetDepositBonusRecordsReq) (*v1.GetDepositBonusRecordsRes, error) {
+	if req == nil {
+		return nil, fmt.Errorf("请求参数不能为空")
+	}
+
+	ctx, span := tracing.StartSpan(ctx, "balance.GetDepositBonusRecords", trace.WithAttributes(
+		attribute.String("method", "GetDepositBonusRecords"),
+		attribute.Int("page", int(req.Page)),
+		attribute.Int("size", int(req.Size)),
+	))
+	defer span.End()
+
+	page := req.Page
+	size := req.Size
+	if page <= 0 {
+		page = 1
+	}
+	if size <= 0 {
+		size = 50
+	}
+
+	siteId := req.SiteId
+	if siteId <= 0 {
+		if ctxSiteId, ok := middleware.GetSiteIdFromContext(ctx); ok {
+			siteId = int32(ctxSiteId)
+		}
+	}
+
+	filterUserId := req.UserId
+	if req.Username != "" {
+		userId, err := s.getUserIdByUsername(ctx, int(siteId), req.Username)
+		if err != nil {
+			g.Log().Warningf(ctx, "查询用户失败: %v", err)
+			return nil, fmt.Errorf("查询用户失败: %v", err)
+		}
+		if userId == 0 {
+			return &v1.GetDepositBonusRecordsRes{List: []*v1.DepositBonusRecord{}, Count: 0}, nil
+		}
+		if filterUserId > 0 && filterUserId != int32(userId) {
+			return &v1.GetDepositBonusRecordsRes{List: []*v1.DepositBonusRecord{}, Count: 0}, nil
+		}
+		filterUserId = int32(userId)
+	}
+
+	model := dao.BalanceDepositReward.Ctx(ctx)
+	if siteId > 0 {
+		model = model.Where("site_id", siteId)
+	}
+	if filterUserId > 0 {
+		model = model.Where("user_id", filterUserId)
+	}
+	if req.TradeNo != "" {
+		model = model.Where("trade_no", req.TradeNo)
+	}
+	if req.StartTime != "" {
+		model = model.Where("created_at >= ?", req.StartTime)
+	}
+	if req.EndTime != "" {
+		model = model.Where("created_at <= ?", req.EndTime)
+	}
+
+	count, err := model.Count()
+	if err != nil {
+		g.Log().Errorf(ctx, "查询充值送活动发放记录总数失败: %v", err)
+		return nil, fmt.Errorf("查询活动发放记录总数失败: %v", err)
+	}
+
+	var records []*entity.BalanceDepositReward
+	err = model.Order("created_at DESC").Page(int(page), int(size)).Scan(&records)
+	if err != nil {
+		g.Log().Errorf(ctx, "查询充值送活动发放记录失败: %v", err)
+		return nil, fmt.Errorf("查询活动发放记录失败: %v", err)
+	}
+
+	userIds := make([]int, 0, len(records))
+	for _, record := range records {
+		if record.UserId > 0 {
+			userIds = append(userIds, record.UserId)
+		}
+	}
+	userMap, err := s.getUsernamesByIds(ctx, int(siteId), userIds)
+	if err != nil {
+		g.Log().Warningf(ctx, "查询用户名失败: %v", err)
+		userMap = map[int]string{}
+	}
+
+	list := make([]*v1.DepositBonusRecord, 0, len(records))
+	for _, record := range records {
+		list = append(list, &v1.DepositBonusRecord{
+			Id:          int64(record.Id),
+			UserId:      int32(record.UserId),
+			Username:    userMap[record.UserId],
+			Date:        formatDate(record.Date),
+			BonusAmount: record.BonusAmount,
+			TradeNo:     record.TradeNo,
+			CreatedAt:   formatDateTime(record.CreatedAt),
+		})
+	}
+
+	return &v1.GetDepositBonusRecordsRes{List: list, Count: int32(count)}, nil
+}
+
+// GetRegisterBonusRecords 获取注册送活动发放记录
+func (s *sBalance) GetRegisterBonusRecords(ctx context.Context, req *v1.GetRegisterBonusRecordsReq) (*v1.GetRegisterBonusRecordsRes, error) {
+	if req == nil {
+		return nil, fmt.Errorf("请求参数不能为空")
+	}
+
+	ctx, span := tracing.StartSpan(ctx, "balance.GetRegisterBonusRecords", trace.WithAttributes(
+		attribute.String("method", "GetRegisterBonusRecords"),
+		attribute.Int("page", int(req.Page)),
+		attribute.Int("size", int(req.Size)),
+	))
+	defer span.End()
+
+	page := req.Page
+	size := req.Size
+	if page <= 0 {
+		page = 1
+	}
+	if size <= 0 {
+		size = 50
+	}
+
+	siteId := req.SiteId
+	if siteId <= 0 {
+		if ctxSiteId, ok := middleware.GetSiteIdFromContext(ctx); ok {
+			siteId = int32(ctxSiteId)
+		}
+	}
+
+	filterUserId := req.UserId
+	if req.Username != "" {
+		userId, err := s.getUserIdByUsername(ctx, int(siteId), req.Username)
+		if err != nil {
+			g.Log().Warningf(ctx, "查询用户失败: %v", err)
+			return nil, fmt.Errorf("查询用户失败: %v", err)
+		}
+		if userId == 0 {
+			return &v1.GetRegisterBonusRecordsRes{List: []*v1.RegisterBonusRecord{}, Count: 0}, nil
+		}
+		if filterUserId > 0 && filterUserId != int32(userId) {
+			return &v1.GetRegisterBonusRecordsRes{List: []*v1.RegisterBonusRecord{}, Count: 0}, nil
+		}
+		filterUserId = int32(userId)
+	}
+
+	model := dao.BalanceRegisterReward.Ctx(ctx)
+	if siteId > 0 {
+		model = model.Where("site_id", siteId)
+	}
+	if filterUserId > 0 {
+		model = model.Where("user_id", filterUserId)
+	}
+	if req.TradeNo != "" {
+		model = model.Where("trade_no", req.TradeNo)
+	}
+	if req.StartTime != "" {
+		model = model.Where("created_at >= ?", req.StartTime)
+	}
+	if req.EndTime != "" {
+		model = model.Where("created_at <= ?", req.EndTime)
+	}
+
+	count, err := model.Count()
+	if err != nil {
+		g.Log().Errorf(ctx, "查询注册送活动发放记录总数失败: %v", err)
+		return nil, fmt.Errorf("查询活动发放记录总数失败: %v", err)
+	}
+
+	var records []*entity.BalanceRegisterReward
+	err = model.Order("created_at DESC").Page(int(page), int(size)).Scan(&records)
+	if err != nil {
+		g.Log().Errorf(ctx, "查询注册送活动发放记录失败: %v", err)
+		return nil, fmt.Errorf("查询活动发放记录失败: %v", err)
+	}
+
+	userIds := make([]int, 0, len(records))
+	for _, record := range records {
+		if record.UserId > 0 {
+			userIds = append(userIds, record.UserId)
+		}
+	}
+	userMap, err := s.getUsernamesByIds(ctx, int(siteId), userIds)
+	if err != nil {
+		g.Log().Warningf(ctx, "查询用户名失败: %v", err)
+		userMap = map[int]string{}
+	}
+
+	list := make([]*v1.RegisterBonusRecord, 0, len(records))
+	for _, record := range records {
+		list = append(list, &v1.RegisterBonusRecord{
+			Id:          int64(record.Id),
+			UserId:      int32(record.UserId),
+			Username:    userMap[record.UserId],
+			Date:        formatDate(record.Date),
+			BonusAmount: record.BonusAmount,
+			TradeNo:     record.TradeNo,
+			RegisterIp:  record.RegisterIp,
+			DeviceId:    record.DeviceId,
+			CreatedAt:   formatDateTime(record.CreatedAt),
+		})
+	}
+
+	return &v1.GetRegisterBonusRecordsRes{List: list, Count: int32(count)}, nil
+}
+
+// GetInviteBonusRecords 获取邀请朋友活动发放记录
+func (s *sBalance) GetInviteBonusRecords(ctx context.Context, req *v1.GetInviteBonusRecordsReq) (*v1.GetInviteBonusRecordsRes, error) {
+	if req == nil {
+		return nil, fmt.Errorf("请求参数不能为空")
+	}
+
+	ctx, span := tracing.StartSpan(ctx, "balance.GetInviteBonusRecords", trace.WithAttributes(
+		attribute.String("method", "GetInviteBonusRecords"),
+		attribute.Int("page", int(req.Page)),
+		attribute.Int("size", int(req.Size)),
+	))
+	defer span.End()
+
+	page := req.Page
+	size := req.Size
+	if page <= 0 {
+		page = 1
+	}
+	if size <= 0 {
+		size = 50
+	}
+
+	siteId := req.SiteId
+	if siteId <= 0 {
+		if ctxSiteId, ok := middleware.GetSiteIdFromContext(ctx); ok {
+			siteId = int32(ctxSiteId)
+		}
+	}
+
+	filterInviterId := req.InviterId
+	if req.InviterUsername != "" {
+		userId, err := s.getUserIdByUsername(ctx, int(siteId), req.InviterUsername)
+		if err != nil {
+			g.Log().Warningf(ctx, "查询邀请人失败: %v", err)
+			return nil, fmt.Errorf("查询邀请人失败: %v", err)
+		}
+		if userId == 0 {
+			return &v1.GetInviteBonusRecordsRes{List: []*v1.InviteBonusRecord{}, Count: 0}, nil
+		}
+		if filterInviterId > 0 && filterInviterId != int32(userId) {
+			return &v1.GetInviteBonusRecordsRes{List: []*v1.InviteBonusRecord{}, Count: 0}, nil
+		}
+		filterInviterId = int32(userId)
+	}
+
+	filterInviteeId := req.InviteeId
+	if req.InviteeUsername != "" {
+		userId, err := s.getUserIdByUsername(ctx, int(siteId), req.InviteeUsername)
+		if err != nil {
+			g.Log().Warningf(ctx, "查询被邀请人失败: %v", err)
+			return nil, fmt.Errorf("查询被邀请人失败: %v", err)
+		}
+		if userId == 0 {
+			return &v1.GetInviteBonusRecordsRes{List: []*v1.InviteBonusRecord{}, Count: 0}, nil
+		}
+		if filterInviteeId > 0 && filterInviteeId != int32(userId) {
+			return &v1.GetInviteBonusRecordsRes{List: []*v1.InviteBonusRecord{}, Count: 0}, nil
+		}
+		filterInviteeId = int32(userId)
+	}
+
+	model := dao.BalanceInviteReward.Ctx(ctx)
+	if siteId > 0 {
+		model = model.Where("site_id", siteId)
+	}
+	if filterInviterId > 0 {
+		model = model.Where("inviter_id", filterInviterId)
+	}
+	if filterInviteeId > 0 {
+		model = model.Where("invitee_id", filterInviteeId)
+	}
+	if req.TradeNo != "" {
+		model = model.Where("trade_no", req.TradeNo)
+	}
+	if req.StartTime != "" {
+		model = model.Where("created_at >= ?", req.StartTime)
+	}
+	if req.EndTime != "" {
+		model = model.Where("created_at <= ?", req.EndTime)
+	}
+
+	count, err := model.Count()
+	if err != nil {
+		g.Log().Errorf(ctx, "查询邀请朋友活动发放记录总数失败: %v", err)
+		return nil, fmt.Errorf("查询活动发放记录总数失败: %v", err)
+	}
+
+	var records []*entity.BalanceInviteReward
+	err = model.Order("created_at DESC").Page(int(page), int(size)).Scan(&records)
+	if err != nil {
+		g.Log().Errorf(ctx, "查询邀请朋友活动发放记录失败: %v", err)
+		return nil, fmt.Errorf("查询活动发放记录失败: %v", err)
+	}
+
+	userIds := make([]int, 0, len(records)*2)
+	for _, record := range records {
+		if record.InviterId > 0 {
+			userIds = append(userIds, record.InviterId)
+		}
+		if record.InviteeId > 0 {
+			userIds = append(userIds, record.InviteeId)
+		}
+	}
+	userMap, err := s.getUsernamesByIds(ctx, int(siteId), userIds)
+	if err != nil {
+		g.Log().Warningf(ctx, "查询用户名失败: %v", err)
+		userMap = map[int]string{}
+	}
+
+	list := make([]*v1.InviteBonusRecord, 0, len(records))
+	for _, record := range records {
+		list = append(list, &v1.InviteBonusRecord{
+			Id:          int64(record.Id),
+			InviterId:   int32(record.InviterId),
+			InviterName: userMap[record.InviterId],
+			InviteeId:   int32(record.InviteeId),
+			InviteeName: userMap[record.InviteeId],
+			Date:        formatDate(record.Date),
+			BonusAmount: record.BonusAmount,
+			TradeNo:     record.TradeNo,
+			CreatedAt:   formatDateTime(record.CreatedAt),
+		})
+	}
+
+	return &v1.GetInviteBonusRecordsRes{List: list, Count: int32(count)}, nil
+}
+
+// GetSigninBonusRecords 获取每日签到活动发放记录
+func (s *sBalance) GetSigninBonusRecords(ctx context.Context, req *v1.GetSigninBonusRecordsReq) (*v1.GetSigninBonusRecordsRes, error) {
+	if req == nil {
+		return nil, fmt.Errorf("请求参数不能为空")
+	}
+
+	ctx, span := tracing.StartSpan(ctx, "balance.GetSigninBonusRecords", trace.WithAttributes(
+		attribute.String("method", "GetSigninBonusRecords"),
+		attribute.Int("page", int(req.Page)),
+		attribute.Int("size", int(req.Size)),
+	))
+	defer span.End()
+
+	page := req.Page
+	size := req.Size
+	if page <= 0 {
+		page = 1
+	}
+	if size <= 0 {
+		size = 50
+	}
+
+	siteId := req.SiteId
+	if siteId <= 0 {
+		if ctxSiteId, ok := middleware.GetSiteIdFromContext(ctx); ok {
+			siteId = int32(ctxSiteId)
+		}
+	}
+
+	filterUserId := req.UserId
+	if req.Username != "" {
+		userId, err := s.getUserIdByUsername(ctx, int(siteId), req.Username)
+		if err != nil {
+			g.Log().Warningf(ctx, "查询用户失败: %v", err)
+			return nil, fmt.Errorf("查询用户失败: %v", err)
+		}
+		if userId == 0 {
+			return &v1.GetSigninBonusRecordsRes{List: []*v1.SigninBonusRecord{}, Count: 0}, nil
+		}
+		if filterUserId > 0 && filterUserId != int32(userId) {
+			return &v1.GetSigninBonusRecordsRes{List: []*v1.SigninBonusRecord{}, Count: 0}, nil
+		}
+		filterUserId = int32(userId)
+	}
+
+	model := dao.BalanceSigninReward.Ctx(ctx)
+	if siteId > 0 {
+		model = model.Where("site_id", siteId)
+	}
+	if filterUserId > 0 {
+		model = model.Where("user_id", filterUserId)
+	}
+	if req.TradeNo != "" {
+		model = model.Where("trade_no", req.TradeNo)
+	}
+	if req.StartTime != "" {
+		model = model.Where("created_at >= ?", req.StartTime)
+	}
+	if req.EndTime != "" {
+		model = model.Where("created_at <= ?", req.EndTime)
+	}
+
+	count, err := model.Count()
+	if err != nil {
+		g.Log().Errorf(ctx, "查询每日签到活动发放记录总数失败: %v", err)
+		return nil, fmt.Errorf("查询活动发放记录总数失败: %v", err)
+	}
+
+	var records []*entity.BalanceSigninReward
+	err = model.Order("created_at DESC").Page(int(page), int(size)).Scan(&records)
+	if err != nil {
+		g.Log().Errorf(ctx, "查询每日签到活动发放记录失败: %v", err)
+		return nil, fmt.Errorf("查询活动发放记录失败: %v", err)
+	}
+
+	userIds := make([]int, 0, len(records))
+	for _, record := range records {
+		if record.UserId > 0 {
+			userIds = append(userIds, record.UserId)
+		}
+	}
+	userMap, err := s.getUsernamesByIds(ctx, int(siteId), userIds)
+	if err != nil {
+		g.Log().Warningf(ctx, "查询用户名失败: %v", err)
+		userMap = map[int]string{}
+	}
+
+	list := make([]*v1.SigninBonusRecord, 0, len(records))
+	for _, record := range records {
+		list = append(list, &v1.SigninBonusRecord{
+			Id:          int64(record.Id),
+			UserId:      int32(record.UserId),
+			Username:    userMap[record.UserId],
+			Date:        formatDate(record.Date),
+			DayNo:       int32(record.DayNo),
+			BonusAmount: record.BonusAmount,
+			TradeNo:     record.TradeNo,
+			CreatedAt:   formatDateTime(record.CreatedAt),
+		})
+	}
+
+	return &v1.GetSigninBonusRecordsRes{List: list, Count: int32(count)}, nil
 }
 
 // GetRechargePayments 获取充值记录
@@ -1855,4 +2400,89 @@ func (s *sBalance) UpdateSiteWithdraw(ctx context.Context, req *v1.UpdateSiteWit
 		Success: true,
 		Message: "更新成功",
 	}, nil
+}
+
+func (s *sBalance) getUserIdByUsername(ctx context.Context, siteId int, username string) (int, error) {
+	if username == "" {
+		return 0, nil
+	}
+
+	model := dao.BalanceUser.Ctx(ctx).Fields("user_id").Where("username", username)
+	if siteId > 0 {
+		model = model.Where("site_id", siteId)
+	}
+
+	var user entity.BalanceUser
+	if err := model.Scan(&user); err != nil {
+		if isRecordNotFoundErr(err) {
+			return 0, nil
+		}
+		return 0, err
+	}
+
+	return user.UserId, nil
+}
+
+func isRecordNotFoundErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "no rows in result set") || strings.Contains(msg, "record not found")
+}
+
+func (s *sBalance) getUsernamesByIds(ctx context.Context, siteId int, userIds []int) (map[int]string, error) {
+	result := make(map[int]string)
+	if len(userIds) == 0 {
+		return result, nil
+	}
+
+	unique := make(map[int]struct{}, len(userIds))
+	ids := make([]int, 0, len(userIds))
+	for _, id := range userIds {
+		if id <= 0 {
+			continue
+		}
+		if _, exists := unique[id]; exists {
+			continue
+		}
+		unique[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		return result, nil
+	}
+
+	model := dao.BalanceUser.Ctx(ctx).Fields("user_id, username").WhereIn("user_id", ids)
+	if siteId > 0 {
+		model = model.Where("site_id", siteId)
+	}
+
+	var rows []struct {
+		UserId   int    `json:"user_id"`
+		Username string `json:"username"`
+	}
+	if err := model.Scan(&rows); err != nil {
+		return nil, err
+	}
+
+	for _, row := range rows {
+		result[row.UserId] = row.Username
+	}
+
+	return result, nil
+}
+
+func formatDate(value *gtime.Time) string {
+	if value == nil {
+		return ""
+	}
+	return value.Format("2006-01-02")
+}
+
+func formatDateTime(value *gtime.Time) string {
+	if value == nil {
+		return ""
+	}
+	return value.Format("2006-01-02 15:04:05")
 }

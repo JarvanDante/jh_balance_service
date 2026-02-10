@@ -8,6 +8,11 @@ import (
 type (
 	IBalance interface {
 		GetBalanceChanges(ctx context.Context, req *v1.GetBalanceChangesReq) (*v1.GetBalanceChangesRes, error)
+		GetLuckyBonusRecords(ctx context.Context, req *v1.GetLuckyBonusRecordsReq) (*v1.GetLuckyBonusRecordsRes, error)
+		GetDepositBonusRecords(ctx context.Context, req *v1.GetDepositBonusRecordsReq) (*v1.GetDepositBonusRecordsRes, error)
+		GetRegisterBonusRecords(ctx context.Context, req *v1.GetRegisterBonusRecordsReq) (*v1.GetRegisterBonusRecordsRes, error)
+		GetInviteBonusRecords(ctx context.Context, req *v1.GetInviteBonusRecordsReq) (*v1.GetInviteBonusRecordsRes, error)
+		GetSigninBonusRecords(ctx context.Context, req *v1.GetSigninBonusRecordsReq) (*v1.GetSigninBonusRecordsRes, error)
 		GetChangeList(ctx context.Context, req *v1.GetChangeListReq) (*v1.GetChangeListRes, error)
 		GetRechargePayments(ctx context.Context, req *v1.GetRechargePaymentsReq) (*v1.GetRechargePaymentsRes, error)
 		GetRechargeManuals(ctx context.Context, req *v1.GetRechargeManualsReq) (*v1.GetRechargeManualsRes, error)

@@ -8,6 +8,13 @@ service Balance {
     // 账变记录相关
     rpc GetBalanceChanges(GetBalanceChangesReq) returns (GetBalanceChangesRes) {}
     
+    // 活动彩金发放记录
+    rpc GetLuckyBonusRecords(GetLuckyBonusRecordsReq) returns (GetLuckyBonusRecordsRes) {}
+    rpc GetDepositBonusRecords(GetDepositBonusRecordsReq) returns (GetDepositBonusRecordsRes) {}
+    rpc GetRegisterBonusRecords(GetRegisterBonusRecordsReq) returns (GetRegisterBonusRecordsRes) {}
+    rpc GetInviteBonusRecords(GetInviteBonusRecordsReq) returns (GetInviteBonusRecordsRes) {}
+    rpc GetSigninBonusRecords(GetSigninBonusRecordsReq) returns (GetSigninBonusRecordsRes) {}
+    
     // 交易类型选项
     rpc GetChangeList(GetChangeListReq) returns (GetChangeListRes) {}
     
@@ -108,6 +115,160 @@ message BalanceChangeInfo {
 // 获取账变记录响应
 message GetBalanceChangesRes {
     repeated BalanceChangeInfo list = 1; // 账变记录列表
+    int32 count = 2;                     // 总数量
+}
+
+// 获取大转盘活动发放记录请求
+message GetLuckyBonusRecordsReq {
+    int32 user_id = 1;     // 用户ID (可选)
+    string username = 2;   // 用户名 (可选)
+    string trade_no = 3;   // 流水号 (可选)
+    string start_time = 4; // 开始时间 (可选)
+    string end_time = 5;   // 结束时间 (可选)
+    int32 page = 6;        // 页码
+    int32 size = 7;        // 每页数量
+    int32 site_id = 8;     // 站点ID (可选)
+}
+
+// 大转盘活动发放记录
+message LuckyBonusRecord {
+    int64 id = 1;           // ID
+    int32 user_id = 2;      // 用户ID
+    string username = 3;    // 用户名
+    string date = 4;        // 活动日期(yyyy-mm-dd)
+    int32 segment_no = 5;   // 大转盘扇区
+    string prize_name = 6;  // 大转盘奖项
+    double reward_amount = 7; // 发放金额
+    string trade_no = 8;    // 发放流水号/订单号
+    string created_at = 9;  // 发放时间
+}
+
+// 获取大转盘活动发放记录响应
+message GetLuckyBonusRecordsRes {
+    repeated LuckyBonusRecord list = 1; // 发放记录列表
+    int32 count = 2;                    // 总数量
+}
+
+// 获取充值送活动发放记录请求
+message GetDepositBonusRecordsReq {
+    int32 user_id = 1;     // 用户ID (可选)
+    string username = 2;   // 用户名 (可选)
+    string trade_no = 3;   // 流水号 (可选)
+    string start_time = 4; // 开始时间 (可选)
+    string end_time = 5;   // 结束时间 (可选)
+    int32 page = 6;        // 页码
+    int32 size = 7;        // 每页数量
+    int32 site_id = 8;     // 站点ID (可选)
+}
+
+// 充值送活动发放记录
+message DepositBonusRecord {
+    int64 id = 1;          // ID
+    int32 user_id = 2;     // 用户ID
+    string username = 3;   // 用户名
+    string date = 4;       // 活动日期(yyyy-mm-dd)
+    double bonus_amount = 5; // 发放金额
+    string trade_no = 6;   // 发放流水号/订单号
+    string created_at = 7; // 发放时间
+}
+
+// 获取充值送活动发放记录响应
+message GetDepositBonusRecordsRes {
+    repeated DepositBonusRecord list = 1; // 发放记录列表
+    int32 count = 2;                      // 总数量
+}
+
+// 获取注册送活动发放记录请求
+message GetRegisterBonusRecordsReq {
+    int32 user_id = 1;     // 用户ID (可选)
+    string username = 2;   // 用户名 (可选)
+    string trade_no = 3;   // 流水号 (可选)
+    string start_time = 4; // 开始时间 (可选)
+    string end_time = 5;   // 结束时间 (可选)
+    int32 page = 6;        // 页码
+    int32 size = 7;        // 每页数量
+    int32 site_id = 8;     // 站点ID (可选)
+}
+
+// 注册送活动发放记录
+message RegisterBonusRecord {
+    int64 id = 1;          // ID
+    int32 user_id = 2;     // 用户ID
+    string username = 3;   // 用户名
+    string date = 4;       // 活动日期(yyyy-mm-dd)
+    double bonus_amount = 5; // 发放金额
+    string trade_no = 6;   // 发放流水号/订单号
+    string register_ip = 7; // 注册IP
+    string device_id = 8;  // 设备ID
+    string created_at = 9; // 发放时间
+}
+
+// 获取注册送活动发放记录响应
+message GetRegisterBonusRecordsRes {
+    repeated RegisterBonusRecord list = 1; // 发放记录列表
+    int32 count = 2;                       // 总数量
+}
+
+// 获取邀请朋友活动发放记录请求
+message GetInviteBonusRecordsReq {
+    int32 inviter_id = 1;        // 邀请人ID (可选)
+    string inviter_username = 2; // 邀请人用户名 (可选)
+    int32 invitee_id = 3;        // 被邀请人ID (可选)
+    string invitee_username = 4; // 被邀请人用户名 (可选)
+    string trade_no = 5;         // 流水号 (可选)
+    string start_time = 6;       // 开始时间 (可选)
+    string end_time = 7;         // 结束时间 (可选)
+    int32 page = 8;              // 页码
+    int32 size = 9;              // 每页数量
+    int32 site_id = 10;          // 站点ID (可选)
+}
+
+// 邀请朋友活动发放记录
+message InviteBonusRecord {
+    int64 id = 1;           // ID
+    int32 inviter_id = 2;   // 邀请人ID
+    string inviter_name = 3; // 邀请人用户名
+    int32 invitee_id = 4;   // 被邀请人ID
+    string invitee_name = 5; // 被邀请人用户名
+    string date = 6;        // 活动日期(yyyy-mm-dd)
+    double bonus_amount = 7; // 发放金额
+    string trade_no = 8;    // 发放流水号/订单号
+    string created_at = 9;  // 发放时间
+}
+
+// 获取邀请朋友活动发放记录响应
+message GetInviteBonusRecordsRes {
+    repeated InviteBonusRecord list = 1; // 发放记录列表
+    int32 count = 2;                     // 总数量
+}
+
+// 获取每日签到活动发放记录请求
+message GetSigninBonusRecordsReq {
+    int32 user_id = 1;     // 用户ID (可选)
+    string username = 2;   // 用户名 (可选)
+    string trade_no = 3;   // 流水号 (可选)
+    string start_time = 4; // 开始时间 (可选)
+    string end_time = 5;   // 结束时间 (可选)
+    int32 page = 6;        // 页码
+    int32 size = 7;        // 每页数量
+    int32 site_id = 8;     // 站点ID (可选)
+}
+
+// 每日签到活动发放记录
+message SigninBonusRecord {
+    int64 id = 1;          // ID
+    int32 user_id = 2;     // 用户ID
+    string username = 3;   // 用户名
+    string date = 4;       // 活动日期(yyyy-mm-dd)
+    int32 day_no = 5;      // 签到日号(1-31)
+    double bonus_amount = 6; // 发放金额
+    string trade_no = 7;   // 发放流水号/订单号
+    string created_at = 8; // 发放时间
+}
+
+// 获取每日签到活动发放记录响应
+message GetSigninBonusRecordsRes {
+    repeated SigninBonusRecord list = 1; // 发放记录列表
     int32 count = 2;                     // 总数量
 }
 
