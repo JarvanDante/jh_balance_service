@@ -1809,7 +1809,7 @@ func (s *sBalance) GetBalanceLog(ctx context.Context, req *v1.GetBalanceLogReq) 
 		item := &v1.BalanceLogItem{
 			TradeNo: log.TradeNo,
 			Money:   log.Money,
-			Remark:  log.Remark,
+			Remark:  util.TranslateBalanceRemark(log.Remark),
 			Type:    s.getFrontTypeByType(log.TradeType),
 			Symbol:  s.getSymbol(log.TradeType),
 			Status:  int32(log.Status),

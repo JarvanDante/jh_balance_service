@@ -97,3 +97,131 @@ func randIntString(min, max int64, width int) string {
 	v := nBig.Int64() + min
 	return fmt.Sprintf("%0*d", width, v)
 }
+
+var balanceRemarkTranslations = map[string]string{
+	"提现审核中":     "Withdrawal under review",
+	"（已确认）成功":   "(Confirmed) Success",
+	"（已确认）金额补偿": "(Confirmed) Balance compensation",
+	"（已确认）转出失败": "(Confirmed) Transfer out failed",
+	"异步确认在线支付":  "Async confirmation of online payment",
+	"充值流水要求":    "Deposit turnover requirement",
+	"邀请红利":      "Invitation bonus",
+	"邀请充值红利":    "Invitation deposit bonus",
+	"注册送彩金":     "Registration bonus",
+	"充值送彩金":     "Deposit bonus",
+	"洗码返水":      "Wash code rebate",
+	"成功":        "Success",
+	"失败":        "Failed",
+	"在线充值":      "Online deposit",
+	"转账汇款":      "Transfer",
+	"手动充值":      "Manual deposit",
+	"会员提现":      "Member withdrawal",
+	"手动提现":      "Manual withdrawal",
+	"手动加款":      "Manual credit",
+	"手动扣款":      "Manual debit",
+	"红利":        "Bonus",
+	"返水":        "Rebate",
+	"转入":        "Transfer in",
+	"转出":        "Transfer out",
+	"游戏直接加款":    "Game direct credit",
+	"游戏直接扣款":    "Game direct debit",
+	"积分":        "Points",
+	"未知":        "Unknown",
+	"提现确认成功":    "Withdrawal confirmed successfully",
+	"提现已拒绝":     "Withdrawal rejected",
+}
+
+// TranslateBalanceRemark 将余额日志备注中的中文翻译为英文（若已为英文则原样返回）
+func TranslateBalanceRemark(remark string) string {
+	if remark == "" {
+		return remark
+	}
+	if !containsChinese(remark) {
+		return remark
+	}
+
+	trimmed := strings.TrimSpace(remark)
+	if v, ok := balanceRemarkTranslations[trimmed]; ok {
+		return v
+	}
+
+	if strings.HasPrefix(trimmed, "（未确认）中心账户 -> ") {
+		return "(Unconfirmed) Main account -> " + strings.TrimPrefix(trimmed, "（未确认）中心账户 -> ")
+	}
+	if strings.HasPrefix(trimmed, "中心账户 -> ") {
+		return "Main account -> " + strings.TrimPrefix(trimmed, "中心账户 -> ")
+	}
+	if strings.HasPrefix(trimmed, "（未确认）") && strings.HasSuffix(trimmed, " -> 中心账户") {
+		rest := strings.TrimPrefix(trimmed, "（未确认）")
+		return "(Unconfirmed) " + strings.TrimSuffix(rest, " -> 中心账户") + " -> Main account"
+	}
+	if strings.HasSuffix(trimmed, " -> 中心账户") {
+		return strings.TrimSuffix(trimmed, " -> 中心账户") + " -> Main account"
+	}
+
+	if strings.HasPrefix(trimmed, "大转盘中奖[") && strings.HasSuffix(trimmed, "]") {
+		inner := strings.TrimSuffix(strings.TrimPrefix(trimmed, "大转盘中奖["), "]")
+		return "Lucky spin winner [" + inner + "]"
+	}
+	if strings.HasPrefix(trimmed, "每日签到送彩金(") && strings.HasSuffix(trimmed, ")") {
+		inner := strings.TrimSuffix(strings.TrimPrefix(trimmed, "每日签到送彩金("), ")")
+		return "Daily sign-in bonus (" + inner + ")"
+	}
+	if strings.HasPrefix(trimmed, "洗码返水(") && strings.HasSuffix(trimmed, ")") {
+		inner := strings.TrimSuffix(strings.TrimPrefix(trimmed, "洗码返水("), ")")
+		return "Wash code rebate (" + strings.TrimSpace(inner) + ")"
+	}
+	if strings.HasPrefix(trimmed, "升级") && strings.HasSuffix(trimmed, "礼金") {
+		inner := strings.TrimSuffix(strings.TrimPrefix(trimmed, "升级"), "礼金")
+		inner = strings.TrimSpace(inner)
+		if inner != "" {
+			return "Upgrade " + inner + " bonus"
+		}
+	}
+
+	if strings.HasPrefix(trimmed, "（已确认）") {
+		rest := strings.TrimPrefix(trimmed, "（已确认）")
+		translated := TranslateBalanceRemark(rest)
+		if translated == rest {
+			return "(Confirmed) " + rest
+		}
+		return "(Confirmed) " + translated
+	}
+	if strings.HasPrefix(trimmed, "（未确认）") {
+		rest := strings.TrimPrefix(trimmed, "（未确认）")
+		translated := TranslateBalanceRemark(rest)
+		if translated == rest {
+			return "(Unconfirmed) " + rest
+		}
+		return "(Unconfirmed) " + translated
+	}
+
+	// 兜底：去除中文，保证不返回任何中文
+	cleaned := removeChinese(remark)
+	cleaned = strings.TrimSpace(cleaned)
+	if cleaned == "" {
+		return "Remark unavailable"
+	}
+	return cleaned
+}
+
+func containsChinese(s string) bool {
+	for _, r := range s {
+		if r >= '\u4e00' && r <= '\u9fff' {
+			return true
+		}
+	}
+	return false
+}
+
+func removeChinese(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		if r >= '\u4e00' && r <= '\u9fff' {
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
