@@ -103,7 +103,7 @@ var balanceRemarkTranslations = map[string]string{
 	"（已确认）成功":   "(Confirmed) Success",
 	"（已确认）金额补偿": "(Confirmed) Balance compensation",
 	"（已确认）转出失败": "(Confirmed) Transfer out failed",
-	"异步确认在线支付":  "Async confirmation of online payment",
+	"异步确认在线支付":  "Payment confirmed successfully",
 	"充值流水要求":    "Deposit turnover requirement",
 	"邀请红利":      "Invitation bonus",
 	"邀请充值红利":    "Invitation deposit bonus",

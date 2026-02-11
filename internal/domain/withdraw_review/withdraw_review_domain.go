@@ -7,6 +7,7 @@ import (
 	"jh_balance_service/internal/dao"
 	logic_mq_outbox "jh_balance_service/internal/logic/mq_outbox"
 	"jh_balance_service/internal/model/entity"
+	"strings"
 	"time"
 
 	"github.com/gogf/gf/v2/database/gdb"
@@ -66,6 +67,12 @@ func (d *WithdrawReviewDomain) ProcessWithdrawReview(tx gdb.TX, req *ReviewReque
 
 	// 2. 确定最终状态和消息
 	finalStatus, message := d.determineFinalStatus(req.Type)
+	if req.Type == ReviewTypeReject {
+		remark := strings.TrimSpace(req.Remark)
+		if remark != "" {
+			message = remark
+		}
+	}
 
 	// 3. 查询用户余额
 	balanceUser, err := dao.BalanceUser.GetByUserIdWithTx(d.ctx, tx, int64(withdraw.SiteId), int64(withdraw.UserId))
