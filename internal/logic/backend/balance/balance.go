@@ -50,7 +50,10 @@ func (s *sBalance) GetBalanceChanges(ctx context.Context, req *v1.GetBalanceChan
 	))
 	defer span.End()
 
-	siteId := 1
+	siteId := int32(1)
+	if ctxSiteId, ok := middleware.GetSiteIdFromContext(ctx); ok {
+		siteId = int32(ctxSiteId)
+	}
 	page := req.Page
 	size := req.Size
 	if page <= 0 {
@@ -683,7 +686,10 @@ func (s *sBalance) GetRechargePayments(ctx context.Context, req *v1.GetRechargeP
 	))
 	defer span.End()
 
-	siteId := 1
+	siteId := int32(1)
+	if ctxSiteId, ok := middleware.GetSiteIdFromContext(ctx); ok {
+		siteId = int32(ctxSiteId)
+	}
 	page := req.Page
 	size := req.Size
 	if page <= 0 {
@@ -782,7 +788,10 @@ func (s *sBalance) GetRechargeManuals(ctx context.Context, req *v1.GetRechargeMa
 	))
 	defer span.End()
 
-	siteId := 1
+	siteId := int32(1)
+	if ctxSiteId, ok := middleware.GetSiteIdFromContext(ctx); ok {
+		siteId = int32(ctxSiteId)
+	}
 	page := req.Page
 	size := req.Size
 	if page <= 0 {
@@ -936,7 +945,10 @@ func (s *sBalance) GetWithdraws(ctx context.Context, req *v1.GetWithdrawsReq) (*
 	))
 	defer span.End()
 
-	siteId := 1
+	siteId := int32(1)
+	if ctxSiteId, ok := middleware.GetSiteIdFromContext(ctx); ok {
+		siteId = int32(ctxSiteId)
+	}
 	page := req.Page
 	size := req.Size
 	if page <= 0 {
