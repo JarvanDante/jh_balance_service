@@ -3728,33 +3728,33 @@ func (s *sBalance) ClaimSigninReward(ctx context.Context, req *v1.ClaimSigninRew
 	}
 
 	minRechargeAmount, minValidBetAmount := parseSigninClaimThreshold(activity)
+	todayRechargeAmount := 0.0
+	todayValidBetAmount := 0.0
 	if minRechargeAmount > 0 {
-		todayRechargeAmount, err := s.getTodayRechargeAmount(ctx, int(siteId), int(userId), now)
+		amount, err := s.getTodayRechargeAmount(ctx, int(siteId), int(userId), now)
 		if err != nil {
 			g.Log().Errorf(ctx, "查询今日充值金额失败: site_id=%d, user_id=%d, err=%v", siteId, userId, err)
 			return &v1.ClaimSigninRewardRes{Success: false, Message: "查询今日充值金额失败", DayNo: int32(dayNo)}, nil
 		}
-		if todayRechargeAmount+0.000001 < minRechargeAmount {
-			return &v1.ClaimSigninRewardRes{
-				Success: false,
-				Message: fmt.Sprintf("今日充值需达到 %.2f 才可领取", minRechargeAmount),
-				DayNo:   int32(dayNo),
-			}, nil
-		}
+		todayRechargeAmount = amount
 	}
 	if minValidBetAmount > 0 {
-		todayValidBetAmount, err := s.getTodayValidBetAmount(ctx, int(siteId), int(userId), siteCode, now)
+		amount, err := s.getTodayValidBetAmount(ctx, int(siteId), int(userId), siteCode, now)
 		if err != nil {
 			g.Log().Errorf(ctx, "查询今日有效投注失败: site_id=%d, user_id=%d, err=%v", siteId, userId, err)
 			return &v1.ClaimSigninRewardRes{Success: false, Message: "查询今日有效投注失败", DayNo: int32(dayNo)}, nil
 		}
-		if todayValidBetAmount+0.000001 < minValidBetAmount {
-			return &v1.ClaimSigninRewardRes{
-				Success: false,
-				Message: fmt.Sprintf("今日有效投注需达到 %.2f 才可领取", minValidBetAmount),
-				DayNo:   int32(dayNo),
-			}, nil
-		}
+		todayValidBetAmount = amount
+	}
+
+	rechargeOk := minRechargeAmount <= 0 || todayRechargeAmount+0.000001 >= minRechargeAmount
+	validBetOk := minValidBetAmount <= 0 || todayValidBetAmount+0.000001 >= minValidBetAmount
+	if !rechargeOk || !validBetOk {
+		return &v1.ClaimSigninRewardRes{
+			Success: false,
+			Message: fmt.Sprintf("必须满足最小充值：%.2f 和最小投注：%.2f", minRechargeAmount, minValidBetAmount),
+			DayNo:   int32(dayNo),
+		}, nil
 	}
 
 	tradeNo, err := s.grantSigninBonus(ctx, int(siteId), int(userId), rewardAmount, dayNo, signDate)
