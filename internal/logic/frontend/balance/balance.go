@@ -2342,7 +2342,7 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 				msg = incRes.Message
 			}
 			g.Log().Warningf(ctx, "IncreasePayTimes 返回失败: %s", msg)
-		} else if incRes.InviterId > 0 {
+		} else if incRes.InviterId > 0 && false { // Invite 活动下线，临时关闭充值触发邀请奖励
 			model := dao.GetDynamicModel(ctx, "balance_invite_reward", g.DB().Model("balance_invite_reward").Safe().Ctx(ctx))
 			count, err := model.Where("site_id", paymentLog.SiteId).Where("invitee_id", paymentLog.UserId).Count()
 			if err != nil {
