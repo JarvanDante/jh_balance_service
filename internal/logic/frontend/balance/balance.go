@@ -17,6 +17,7 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	v1 "jh_balance_service/api/frontend/balance/v1"
+	gamebackendv1 "jh_balance_service/api/grpc/game/backend/v1"
 	gamev1 "jh_balance_service/api/grpc/game/frontend/v1"
 	sitev1 "jh_balance_service/api/grpc/site/backend/v1"
 	userv1 "jh_balance_service/api/grpc/user/backend/v1"
@@ -3726,6 +3727,36 @@ func (s *sBalance) ClaimSigninReward(ctx context.Context, req *v1.ClaimSigninRew
 		}, nil
 	}
 
+	minRechargeAmount, minValidBetAmount := parseSigninClaimThreshold(activity)
+	if minRechargeAmount > 0 {
+		todayRechargeAmount, err := s.getTodayRechargeAmount(ctx, int(siteId), int(userId), now)
+		if err != nil {
+			g.Log().Errorf(ctx, "查询今日充值金额失败: site_id=%d, user_id=%d, err=%v", siteId, userId, err)
+			return &v1.ClaimSigninRewardRes{Success: false, Message: "查询今日充值金额失败", DayNo: int32(dayNo)}, nil
+		}
+		if todayRechargeAmount+0.000001 < minRechargeAmount {
+			return &v1.ClaimSigninRewardRes{
+				Success: false,
+				Message: fmt.Sprintf("今日充值需达到 %.2f 才可领取", minRechargeAmount),
+				DayNo:   int32(dayNo),
+			}, nil
+		}
+	}
+	if minValidBetAmount > 0 {
+		todayValidBetAmount, err := s.getTodayValidBetAmount(ctx, int(siteId), int(userId), siteCode, now)
+		if err != nil {
+			g.Log().Errorf(ctx, "查询今日有效投注失败: site_id=%d, user_id=%d, err=%v", siteId, userId, err)
+			return &v1.ClaimSigninRewardRes{Success: false, Message: "查询今日有效投注失败", DayNo: int32(dayNo)}, nil
+		}
+		if todayValidBetAmount+0.000001 < minValidBetAmount {
+			return &v1.ClaimSigninRewardRes{
+				Success: false,
+				Message: fmt.Sprintf("今日有效投注需达到 %.2f 才可领取", minValidBetAmount),
+				DayNo:   int32(dayNo),
+			}, nil
+		}
+	}
+
 	tradeNo, err := s.grantSigninBonus(ctx, int(siteId), int(userId), rewardAmount, dayNo, signDate)
 	if err != nil {
 		g.Log().Errorf(ctx, "执行签到发放失败: site_id=%d, user_id=%d, sign_date=%s, err=%v",
@@ -3754,6 +3785,74 @@ func (s *sBalance) ClaimSigninReward(ctx context.Context, req *v1.ClaimSigninRew
 		SignedDays:   int32(signedDays),
 		SignedAmount: signedAmount,
 	}, nil
+}
+
+func (s *sBalance) getTodayRechargeAmount(ctx context.Context, siteId int, userId int, now time.Time) (float64, error) {
+	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	end := start.Add(24 * time.Hour)
+
+	var row struct {
+		TotalAmount float64 `json:"total_amount"`
+	}
+	if err := dao.BalanceChange.Ctx(ctx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		Where("trade_type", balanceConsts.TradeTypeRecharge).
+		Where("status", balanceConsts.StatusSuccess).
+		Where("created_at >= ?", gtime.NewFromTime(start)).
+		Where("created_at < ?", gtime.NewFromTime(end)).
+		Fields("COALESCE(SUM(money),0) AS total_amount").
+		Scan(&row); err != nil {
+		return 0, err
+	}
+	return math.Round(row.TotalAmount*100) / 100, nil
+}
+
+func (s *sBalance) getTodayValidBetAmount(ctx context.Context, siteId int, userId int, siteCode string, now time.Time) (float64, error) {
+	gameClient, gameConn, err := grpc_client.GetGameBackendClient(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer gameConn.Close()
+
+	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).Format("2006-01-02 15:04:05")
+	end := now.Format("2006-01-02 15:04:05")
+
+	mdMap := map[string]string{
+		"site_id": gconv.String(siteId),
+		"user_id": gconv.String(userId),
+	}
+	if siteCode != "" {
+		mdMap["site_code"] = siteCode
+	}
+	if username := middleware.GetUsernameFromContext(ctx); username != "" {
+		mdMap["username"] = username
+	}
+	ctxWithMeta := metadata.NewOutgoingContext(ctx, metadata.New(mdMap))
+
+	res, err := gameClient.GetUserBetStats(ctxWithMeta, &gamebackendv1.GetUserBetStatsReq{
+		SiteId:    int32(siteId),
+		SiteCode:  siteCode,
+		UserId:    int64(userId),
+		StartTime: start,
+		EndTime:   end,
+	})
+	if err != nil {
+		return 0, err
+	}
+	if res == nil || !res.GetSuccess() || res.GetStats() == nil {
+		msg := "获取用户投注统计失败"
+		if res != nil && res.GetMessage() != "" {
+			msg = res.GetMessage()
+		}
+		return 0, fmt.Errorf(msg)
+	}
+
+	valid := gconv.Float64(res.GetStats().GetValidAmount())
+	if valid < 0 {
+		valid = 0
+	}
+	return math.Round(valid*100) / 100, nil
 }
 
 func (s *sBalance) getSigninDayRewards(ctx context.Context, siteId int, activityId int) (map[int]float64, error) {

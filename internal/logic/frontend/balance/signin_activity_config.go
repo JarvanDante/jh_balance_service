@@ -2,11 +2,14 @@ package balance
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	sitev1 "jh_balance_service/api/grpc/site/backend/v1"
 	"jh_balance_service/internal/grpc_client"
+
+	"github.com/gogf/gf/v2/util/gconv"
 )
 
 // getSigninActivity 获取当前站点有效的签到活动配置（全局编码 SIGNIN）。
@@ -51,4 +54,27 @@ func getSigninActivity(ctx context.Context, siteId int) (*sitev1.SiteActivityInf
 	}
 
 	return nil, nil
+}
+
+func parseSigninClaimThreshold(activity *sitev1.SiteActivityInfo) (minRechargeAmount float64, minValidBetAmount float64) {
+	if activity == nil || activity.GetFixedParams() == "" {
+		return 0, 0
+	}
+
+	params := map[string]interface{}{}
+	if err := json.Unmarshal([]byte(activity.GetFixedParams()), &params); err != nil {
+		return 0, 0
+	}
+
+	minRechargeAmount = gconv.Float64(params["min_recharge_amount"])
+	if minRechargeAmount < 0 {
+		minRechargeAmount = 0
+	}
+
+	minValidBetAmount = gconv.Float64(params["min_valid_bet_amount"])
+	if minValidBetAmount < 0 {
+		minValidBetAmount = 0
+	}
+
+	return minRechargeAmount, minValidBetAmount
 }
