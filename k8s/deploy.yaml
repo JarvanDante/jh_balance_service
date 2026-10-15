@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jh-balance-service
+  namespace: jh-test
+  labels:
+    app: jh-balance-service
+    env: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jh-balance-service
+  template:
+    metadata:
+      labels:
+        app: jh-balance-service
+        env: test
+    spec:
+      containers:
+        - name: jh-balance-service
+          image: jh_balance_service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: grpc
+              containerPort: 8003
+          readinessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 15
+            periodSeconds: 10
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jh-balance-service
+  namespace: jh-prod
+  labels:
+    app: jh-balance-service
+    env: prod
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: jh-balance-service
+  template:
+    metadata:
+      labels:
+        app: jh-balance-service
+        env: prod
+    spec:
+      containers:
+        - name: jh-balance-service
+          image: jh_balance_service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: grpc
+              containerPort: 8003
+          readinessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 15
+            periodSeconds: 10

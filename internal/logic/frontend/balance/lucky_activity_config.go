@@ -25,6 +25,7 @@ func getLuckyActivityConfig(ctx context.Context, siteId int) (*luckyActivityConf
 		return nil, fmt.Errorf("siteId invalid")
 	}
 
+	ctx = grpc_client.WithSiteContext(ctx, siteId)
 	client, conn, err := grpc_client.GetSiteClient(ctx)
 	if err != nil {
 		return nil, err

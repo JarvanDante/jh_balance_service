@@ -50,6 +50,7 @@ func getDepositActivityParams(ctx context.Context, siteId int) (*depositActivity
 	}
 	depositConfigCache.RUnlock()
 
+	ctx = grpc_client.WithSiteContext(ctx, siteId)
 	client, conn, err := grpc_client.GetSiteClient(ctx)
 	if err != nil {
 		depositConfigCache.Lock()

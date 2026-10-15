@@ -679,6 +679,7 @@ func (s *sBalance) getLuckyPrizeConfigs(ctx context.Context, siteId int, siteCod
 		return nil, fmt.Errorf("大转盘参数无效")
 	}
 
+	ctx = grpc_client.WithSiteContext(ctx, siteId)
 	client, conn, err := grpc_client.GetSiteClient(ctx)
 	if err != nil {
 		return nil, err

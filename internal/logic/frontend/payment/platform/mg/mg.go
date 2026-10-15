@@ -180,6 +180,55 @@ func (p *MGPlatform) HandleCallback(ctx context.Context, data map[string]interfa
 	return result, nil
 }
 
+// VerifyCallback 是供外部（如资金回调处理逻辑）直接调用的回调验签入口，
+// 内部复用与下单一致的 MD5 签名算法。
+func VerifyCallback(ctx context.Context, params map[string]string, sign, secretKey string) bool {
+	p := &MGPlatform{}
+	return p.VerifyCallbackSign(ctx, params, sign, secretKey)
+}
+
+// VerifyCallbackSign 校验回调签名。
+//
+// 使用与下单/查单一致的签名算法（generateSign：过滤空值 -> key 升序 -> key=value& 拼接
+// -> 追加 &key=<secretKey> -> MD5 大写）对回调参数重新计算签名，并与回调携带的 sign 比对。
+//
+// secretKey 为对应站点支付渠道的 MD5 密钥（site_payment.md5_key），由调用方从订单归属的
+// 支付配置中读取传入。
+//
+// params 为参与签名的回调原始参数（不含 sign 本身）。
+//
+// 注意（TODO）：MG 平台回调「参与签名的字段集合」需以对方接入文档为准确认。当前实现按
+// generateSign 的通用规则对「除 sign 外的全部回调参数」做签名校验；若上游网关在转发时丢弃了
+// 部分回调字段（当前 gRPC DepositCallbackReq 仅透传 trade_status/order_sn/actual_amount/sign），
+// 则应在网关侧补齐原始回调参数后再校验，或改为按文档指定的字段子集校验。
+// 在字段集合未最终确认前，此函数遵循 fail-closed：签名不匹配一律拒绝。
+func (p *MGPlatform) VerifyCallbackSign(ctx context.Context, params map[string]string, sign, secretKey string) bool {
+	if secretKey == "" {
+		g.Log().Errorf(ctx, "MG VerifyCallbackSign 密钥为空，拒绝回调")
+		return false
+	}
+	if sign == "" {
+		g.Log().Errorf(ctx, "MG VerifyCallbackSign 回调未携带签名，拒绝回调")
+		return false
+	}
+
+	// 拷贝参数并剔除 sign 字段（sign 不参与签名计算）
+	toSign := make(map[string]string, len(params))
+	for k, v := range params {
+		if k == "sign" {
+			continue
+		}
+		toSign[k] = v
+	}
+
+	expected := p.generateSign(toSign, secretKey)
+	if !strings.EqualFold(expected, sign) {
+		g.Log().Errorf(ctx, "MG VerifyCallbackSign 签名不匹配: expected=%s, got=%s, params=%+v", expected, sign, toSign)
+		return false
+	}
+	return true
+}
+
 // MatchOrder 支付匹配(提交银行流水号)
 func (p *MGPlatform) MatchOrder(ctx context.Context, params *payment.MatchParams) error {
 	g.Log().Infof(ctx, "MG MatchOrder 开始: sysTradeNo=%s, bankSerial=%s", params.SysTradeNo, params.BankSerial)

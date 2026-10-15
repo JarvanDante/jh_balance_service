@@ -139,18 +139,29 @@ func processOutboxBatch(ctx context.Context, db gdb.DB, siteCode string) (int, e
 			continue
 		}
 
-		if err := mq.PublishRaw(ctx, item.Exchange, item.RoutingKey, []byte(item.Payload)); err != nil {
-			_ = markOutboxFailed(ctx, db, item.Id, item.RetryCount+1, err.Error())
-			continue
-		}
-
-		if _, err := db.Model("mq_outbox").
+		// 乐观占用：在投递前用 CAS 抢占该记录（status 0/2 -> 1）。
+		// 只有 rowsAffected==1 的实例才拥有投递权，其它实例（或已被处理的记录）rowsAffected==0，跳过。
+		// 这保证多实例部署下同一条 outbox 不会被重复投递，且单实例行为不变。
+		claimRes, err := db.Model("mq_outbox").
 			Where("id", item.Id).
+			WhereIn("status", []int{0, 2}).
 			Data(g.Map{
 				"status":     1,
 				"updated_at": now,
-			}).Update(); err != nil {
-			g.Log().Warningf(ctx, "更新Outbox状态失败: id=%d, err=%v", item.Id, err)
+			}).Update()
+		if err != nil {
+			g.Log().Warningf(ctx, "占用Outbox记录失败: id=%d, err=%v", item.Id, err)
+			continue
+		}
+		if affected, _ := claimRes.RowsAffected(); affected != 1 {
+			// 已被其它实例抢占或状态已变更，跳过
+			continue
+		}
+
+		if err := mq.PublishRaw(ctx, item.Exchange, item.RoutingKey, []byte(item.Payload)); err != nil {
+			// 投递失败：回退为失败状态并安排重试（本实例已持有占用权，重置安全）
+			_ = markOutboxFailed(ctx, db, item.Id, item.RetryCount+1, err.Error())
+			continue
 		}
 	}
 

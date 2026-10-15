@@ -18,6 +18,7 @@ func getSigninActivity(ctx context.Context, siteId int) (*sitev1.SiteActivityInf
 		return nil, fmt.Errorf("siteId invalid")
 	}
 
+	ctx = grpc_client.WithSiteContext(ctx, siteId)
 	client, conn, err := grpc_client.GetSiteClient(ctx)
 	if err != nil {
 		return nil, err

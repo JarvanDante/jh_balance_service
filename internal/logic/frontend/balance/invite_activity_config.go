@@ -49,6 +49,7 @@ func getInviteActivityParams(ctx context.Context, siteId int) (*inviteActivityPa
 	}
 	inviteConfigCache.RUnlock()
 
+	ctx = grpc_client.WithSiteContext(ctx, siteId)
 	client, conn, err := grpc_client.GetSiteClient(ctx)
 	if err != nil {
 		inviteConfigCache.Lock()

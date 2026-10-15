@@ -70,14 +70,14 @@ clickhouse:
   port: 9000 # ClickHouse原生协议端口（9000）
   database: "game_analytics" # 数据库名称
   username: "default" # 用户名
-  password: "375445" # 密码
+  password: "123456" # 密码
 
 # Redis 配置
 redis:
   default:
     address: redis:6379
     db: 1
-    pass: 375445
+    pass: 654321
 
 # Database.
 database:
@@ -86,9 +86,20 @@ database:
     stdout: true
 
   default:
-    link: "mysql:root:375445@tcp(mysql:3306)/jh_balance?parseTime=true&loc=Local" # 容器内直接访问MySQL
+    link: "mysql:root:654321@tcp(mysql:3306)/jh_balance?parseTime=true&loc=Local" # 容器内直接访问MySQL
     debug: true
 
 # RabbitMQ 配置
 rabbitmq:
   url: "amqp://admin:admin123@rabbitmq:5672/" # RabbitMQ连接地址
+
+# 支付配置
+payment:
+  mg:
+    # MG 充值回调验签开关。
+    # ⚠️ 默认 false：当前网关仅透传 trade_status/order_sn/actual_amount 三个字段，
+    #    若 MG 平台实际参与签名的字段集合与此不同，开启后所有真实回调都会验签失败，
+    #    导致「用户已付款但不入账」。金额比对(actual_amount<=订单金额)始终生效，与本开关无关。
+    # ✅ 启用前置条件：核对 MG 接入文档确认签名字段集合，必要时在网关侧补齐原始回调参数，
+    #    联调确认真实回调能通过验签后再改为 true。开启后 B1（回调可伪造入账）才算真正闭环。
+    verifyCallback: false

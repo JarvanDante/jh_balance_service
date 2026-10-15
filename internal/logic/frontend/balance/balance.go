@@ -2,8 +2,10 @@ package balance
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -28,6 +30,7 @@ import (
 	flow "jh_balance_service/internal/domain/flow"
 	"jh_balance_service/internal/domain/withdraw"
 	"jh_balance_service/internal/grpc_client"
+	"jh_balance_service/internal/logic/frontend/payment/platform/mg"
 	logic_mq_outbox "jh_balance_service/internal/logic/mq_outbox"
 	"jh_balance_service/internal/middleware"
 	"jh_balance_service/internal/model/entity"
@@ -37,6 +40,12 @@ import (
 )
 
 type sBalance struct{}
+
+// 充值回调事务内的幂等哨兵错误：用于在事务内提前中止入账，但对外不视为处理失败。
+var (
+	errDepositAlreadyDone   = errors.New("deposit order already succeeded")
+	errDepositAlreadyFailed = errors.New("deposit order already failed")
+)
 
 func New() *sBalance {
 	return &sBalance{}
@@ -1686,13 +1695,14 @@ func (m *MGPayment) CreateOrder(ctx context.Context, params *PaymentOrderParams)
 
 	// TODO: 实际调用 MG 支付接口
 	// 这里返回模拟数据
+	channelCardNo := "09678682672"
 	return &PaymentOrderResult{
 		Code:          200,
 		OrderSn:       params.TradeNo,
 		SysTradeNo:    fmt.Sprintf("sys_%s", uuid.New().String()),
-		ChannelCardNo: "09678682672",
+		ChannelCardNo: channelCardNo,
 		ChannelName:   "KBZ",
-		ImageUrl:      "http://localhost:19000/uploads/jh/2026/02/2026-02-01 01.40.28_1769881256.jpg",
+		ImageUrl:      fmt.Sprintf("https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=%s", url.QueryEscape(channelCardNo)),
 		Result:        "ok",
 	}, nil
 }
@@ -2044,6 +2054,75 @@ func (s *sBalance) getChangeType(tradeType int) int32 {
 }
 
 // recordCallbackFailure 记录回调失败日志（同步）
+// verifyDepositCallback 充值回调安全校验：金额比对 + 回调验签。
+//
+// 校验项：
+//  1. 金额比对：回调携带的 actual_amount 必须与本地订单金额一致（允许分厘级浮点误差），
+//     防止伪造更大金额入账。
+//  2. 回调验签：使用订单归属支付渠道的 MD5 密钥（site_payment.md5_key），按与下单一致的
+//     签名算法重算并与回调 sign 比对。
+//
+// 由配置开关 payment.mg.verifyCallback 控制（默认 true）。fail-closed：任一校验不通过返回 false。
+//
+// 说明：当前上游 gRPC DepositCallbackReq 仅透传 trade_status/order_sn/actual_amount/sign 四个字段，
+// 因此签名校验也只能基于这四个字段（不含 sign）重算。若 MG 平台实际签名字段集合与此不同，
+// 需在网关侧补齐原始回调参数后再校验（见 mg.VerifyCallbackSign 的 TODO）。
+func (s *sBalance) verifyDepositCallback(ctx context.Context, req *v1.DepositCallbackReq, paymentLog *entity.BalanceLog) bool {
+	// 1. 金额比对（防止伪造金额）：回调金额不得大于订单金额；允许 0.01 的浮点误差。
+	if req.ActualAmount <= 0 {
+		g.Log().Errorf(ctx, "充值回调金额非法: order_sn=%s, actual_amount=%.4f", req.OrderSn, req.ActualAmount)
+		return false
+	}
+	if req.ActualAmount > paymentLog.Money+0.01 {
+		g.Log().Errorf(ctx, "充值回调金额大于订单金额，拒绝: order_sn=%s, callback=%.4f, order=%.4f",
+			req.OrderSn, req.ActualAmount, paymentLog.Money)
+		return false
+	}
+
+	// 2. 是否启用验签（默认启用）
+	verifyEnabled := true
+	if v, err := g.Cfg().Get(ctx, "payment.mg.verifyCallback"); err == nil && !v.IsNil() {
+		verifyEnabled = v.Bool()
+	}
+	if !verifyEnabled {
+		g.Log().Warningf(ctx, "充值回调验签已被配置关闭(payment.mg.verifyCallback=false)，仅做金额比对: order_sn=%s", req.OrderSn)
+		return true
+	}
+
+	// 3. 读取订单归属支付渠道的密钥（site_payment.md5_key）
+	var payLog *entity.BalanceLogPayment
+	if err := dao.BalanceLogPayment.Ctx(ctx).Where("trade_no", req.OrderSn).Scan(&payLog); err != nil || payLog == nil {
+		g.Log().Errorf(ctx, "充值回调验签: 查询支付订单失败, order_sn=%s, err=%v", req.OrderSn, err)
+		return false
+	}
+
+	sitePayment, err := dao.SitePayment.GetByPaymentId(ctx, int64(payLog.SiteId), int64(payLog.PaymentId))
+	if err != nil || sitePayment == nil {
+		g.Log().Errorf(ctx, "充值回调验签: 查询支付渠道配置失败, order_sn=%s, payment_id=%d, err=%v",
+			req.OrderSn, payLog.PaymentId, err)
+		return false
+	}
+
+	// 4. 按支付渠道分派验签（当前仅 MG）
+	switch strings.ToUpper(sitePayment.Code) {
+	case "MG":
+		params := map[string]string{
+			"trade_status":  req.TradeStatus,
+			"order_sn":      req.OrderSn,
+			"actual_amount": fmt.Sprintf("%.2f", req.ActualAmount),
+		}
+		if !mg.VerifyCallback(ctx, params, req.Sign, sitePayment.Md5Key) {
+			g.Log().Errorf(ctx, "充值回调验签失败: order_sn=%s, code=%s", req.OrderSn, sitePayment.Code)
+			return false
+		}
+		return true
+	default:
+		// 未知渠道：无法验签，fail-closed 拒绝
+		g.Log().Errorf(ctx, "充值回调验签: 未知支付渠道，拒绝, order_sn=%s, code=%s", req.OrderSn, sitePayment.Code)
+		return false
+	}
+}
+
 func (s *sBalance) recordCallbackFailure(ctx context.Context, siteId int, callbackType int, stage string, reason string, req *v1.DepositCallbackReq, err error) {
 	// 准备请求数据JSON
 	requestData := gconv.String(g.Map{
@@ -2125,6 +2204,15 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 	duration1 := time.Since(startTime)
 	g.Log().Infof(ctx, "第1阶段-查找订单，总耗时: %.2fms", float64(duration1.Milliseconds()))
 
+	// 2.5 回调验签 + 金额比对（安全校验，防止伪造回调伪造入账）
+	if !s.verifyDepositCallback(ctx, req, paymentLog) {
+		s.recordCallbackFailure(ctx, paymentLog.SiteId, 1, "verify_callback", "回调验签或金额比对失败", req, nil)
+		return &v1.DepositCallbackRes{
+			Success: false,
+			Message: "回调校验失败",
+		}, nil
+	}
+
 	// 3. 检查订单状态
 	if paymentLog.Status == balanceConsts.StatusSuccess {
 		g.Log().Warningf(ctx, "充值订单已完成: order_sn=%s, 当前状态为:存款成功", req.OrderSn)
@@ -2157,6 +2245,39 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 
 	// 6. 开始事务处理 - 使用 Ctx(ctx) 保持动态数据库路由
 	err = dao.BalanceLog.Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		// 6.-2 先锁定用户余额行，串行化同一用户的并发充值回调
+		// （事务外的订单状态判断存在竞态：两个并发回调可能同时通过 :2129 的判断而双入账，
+		//   这里在事务内加行锁 + 复查订单状态，实现真正的幂等）
+		var lockedBalanceUser *entity.BalanceUser
+		if err := dao.BalanceUser.Ctx(ctx).TX(tx).
+			Where("site_id", paymentLog.SiteId).
+			Where("user_id", paymentLog.UserId).
+			LockUpdate().
+			Scan(&lockedBalanceUser); err != nil || lockedBalanceUser == nil {
+			g.Log().Errorf(ctx, "获取用户余额失败(幂等锁): user_id=%d, err=%v", paymentLog.UserId, err)
+			return gerror.New("获取用户余额失败")
+		}
+
+		// 6.-1 持锁后复查订单状态，若已成功/已失败则直接幂等返回，避免重复入账
+		var currentLog *entity.BalanceLog
+		if err := dao.BalanceLog.Ctx(ctx).TX(tx).
+			Where("trade_no", req.OrderSn).
+			LockUpdate().
+			Scan(&currentLog); err != nil {
+			return err
+		}
+		if currentLog == nil {
+			return gerror.New("订单不存在")
+		}
+		if currentLog.Status == balanceConsts.StatusSuccess {
+			g.Log().Warningf(ctx, "充值订单已完成(事务内复查): order_sn=%s，跳过入账", req.OrderSn)
+			return errDepositAlreadyDone
+		}
+		if currentLog.Status == balanceConsts.StatusFail {
+			g.Log().Warningf(ctx, "充值订单已失败(事务内复查): order_sn=%s，跳过入账", req.OrderSn)
+			return errDepositAlreadyFailed
+		}
+
 		// 6.0 更新在线支付充值记录状态
 		_, err := dao.BalanceLogPayment.Ctx(ctx).TX(tx).
 			Where("trade_no", req.OrderSn).
@@ -2310,6 +2431,20 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 		return nil
 	})
 
+	// 事务内复查发现订单已处理：幂等返回，不视为失败、不重复入账
+	if errors.Is(err, errDepositAlreadyDone) {
+		return &v1.DepositCallbackRes{
+			Success: true,
+			Message: "订单已完成",
+		}, nil
+	}
+	if errors.Is(err, errDepositAlreadyFailed) {
+		return &v1.DepositCallbackRes{
+			Success: false,
+			Message: "订单已失败",
+		}, nil
+	}
+
 	if err != nil {
 		g.Log().Errorf(ctx, "充值回调事务处理失败: order_sn=%s, err=%v", req.OrderSn, err)
 		s.recordCallbackFailure(ctx, paymentLog.SiteId, 1, "transaction", "数据库事务失败", req, err)
@@ -2380,28 +2515,46 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 						} else {
 							g.Log().Infof(ctx, "满足邀请红利条件，准备发放: inviter_id=%d, invitee_id=%d, amount=%.2f",
 								incRes.InviterId, paymentLog.UserId, bonusAmount)
-							grantRes, err := s.GrantInviteBonus(ctx, &v1.GrantInviteBonusReq{
-								SiteId: int32(paymentLog.SiteId),
-								UserId: int32(incRes.InviterId),
-								Amount: bonusAmount,
-								Remark: "邀请充值红利",
-							})
-							if err != nil {
-								g.Log().Warningf(ctx, "发放邀请红利失败: %v", err)
-							} else if grantRes != nil && !grantRes.Success {
-								g.Log().Warningf(ctx, "发放邀请红利失败: %s", grantRes.Message)
+							// 原子占位：先以 InsertIgnore 抢占「站点+被邀请人」唯一记录，依赖
+							// balance_invite_reward 的 uk_site_invitee 唯一索引保证仅触发一次；
+							// rowsAffected==0 说明已发放/正在发放，跳过，避免重复入账。
+							claimRes, claimErr := model.Data(g.Map{
+								"site_id":      paymentLog.SiteId,
+								"inviter_id":   incRes.InviterId,
+								"invitee_id":   paymentLog.UserId,
+								"date":         gtime.Now().Format("Y-m-d"),
+								"bonus_amount": bonusAmount,
+								"trade_no":     "",
+								"created_at":   gtime.Now(),
+							}).InsertIgnore()
+							if claimErr != nil {
+								g.Log().Warningf(ctx, "占位邀请红利记录失败: %v", claimErr)
+							} else if affected, _ := claimRes.RowsAffected(); affected == 0 {
+								g.Log().Infof(ctx, "邀请红利已发放（唯一键判重），跳过: invitee_id=%d", paymentLog.UserId)
 							} else {
-								_, err = model.Data(g.Map{
-									"site_id":      paymentLog.SiteId,
-									"inviter_id":   incRes.InviterId,
-									"invitee_id":   paymentLog.UserId,
-									"date":         gtime.Now().Format("Y-m-d"),
-									"bonus_amount": bonusAmount,
-									"trade_no":     grantRes.TradeNo,
-									"created_at":   gtime.Now(),
-								}).Insert()
-								if err != nil {
-									g.Log().Warningf(ctx, "记录邀请红利发放失败: %v", err)
+								grantRes, err := s.GrantInviteBonus(ctx, &v1.GrantInviteBonusReq{
+									SiteId: int32(paymentLog.SiteId),
+									UserId: int32(incRes.InviterId),
+									Amount: bonusAmount,
+									Remark: "邀请充值红利",
+								})
+								if err != nil || (grantRes != nil && !grantRes.Success) {
+									if err != nil {
+										g.Log().Warningf(ctx, "发放邀请红利失败: %v", err)
+									} else {
+										g.Log().Warningf(ctx, "发放邀请红利失败: %s", grantRes.Message)
+									}
+									// 发放失败：回滚占位记录，允许后续重试
+									if _, delErr := model.Where("site_id", paymentLog.SiteId).Where("invitee_id", paymentLog.UserId).Where("trade_no", "").Delete(); delErr != nil {
+										g.Log().Warningf(ctx, "回滚邀请红利占位记录失败: invitee_id=%d, err=%v", paymentLog.UserId, delErr)
+									}
+								} else {
+									if _, err = model.Where("site_id", paymentLog.SiteId).Where("invitee_id", paymentLog.UserId).Data(g.Map{
+										"trade_no":   grantRes.TradeNo,
+										"updated_at": gtime.Now(),
+									}).Update(); err != nil {
+										g.Log().Warningf(ctx, "回填邀请红利发放流水号失败: %v", err)
+									}
 								}
 							}
 						}
@@ -2757,22 +2910,41 @@ func (s *sBalance) tryGrantRegisterBonus(ctx context.Context, siteId int32, user
 		g.Log().Infof(ctx, "注册活动设备限制已配置(limit_device=%d)，当前仅启用IP限制", cfg.LimitDevice)
 	}
 
-	tradeNo, err := s.grantRegisterBonus(ctx, int(siteId), userId, cfg.RewardAmount)
-	if err != nil {
-		g.Log().Warningf(ctx, "发放注册送彩金失败: %v", err)
-		return
-	}
-
-	if _, err := model.Data(g.Map{
+	// 原子占位：先以 InsertIgnore 抢占「站点+用户」唯一记录，依赖 balance_register_reward
+	// 的 uk_site_user 唯一索引保证同一用户仅能发放一次；rowsAffected==0 说明已被发放/正在发放，跳过。
+	claimRes, err := model.Data(g.Map{
 		"site_id":      siteId,
 		"user_id":      userId,
 		"register_ip":  registerIP,
 		"date":         gtime.Now().Format("Y-m-d"),
 		"bonus_amount": cfg.RewardAmount,
-		"trade_no":     tradeNo,
+		"trade_no":     "",
 		"created_at":   gtime.Now(),
-	}).Insert(); err != nil {
-		g.Log().Warningf(ctx, "记录注册送彩金失败: %v", err)
+	}).InsertIgnore()
+	if err != nil {
+		g.Log().Warningf(ctx, "占位注册送彩金记录失败: %v", err)
+		return
+	}
+	if affected, _ := claimRes.RowsAffected(); affected == 0 {
+		g.Log().Infof(ctx, "注册送彩金已发放（唯一键判重），跳过: user_id=%d", userId)
+		return
+	}
+
+	tradeNo, err := s.grantRegisterBonus(ctx, int(siteId), userId, cfg.RewardAmount)
+	if err != nil {
+		g.Log().Warningf(ctx, "发放注册送彩金失败: %v", err)
+		// 发放失败：回滚占位记录，允许后续重试
+		if _, delErr := model.Where("site_id", siteId).Where("user_id", userId).Where("trade_no", "").Delete(); delErr != nil {
+			g.Log().Warningf(ctx, "回滚注册送彩金占位记录失败: user_id=%d, err=%v", userId, delErr)
+		}
+		return
+	}
+
+	if _, err := model.Where("site_id", siteId).Where("user_id", userId).Data(g.Map{
+		"trade_no":   tradeNo,
+		"updated_at": gtime.Now(),
+	}).Update(); err != nil {
+		g.Log().Warningf(ctx, "回填注册送彩金发放流水号失败: user_id=%d, err=%v", userId, err)
 	}
 
 	if err := util.SendUserMessage(ctx, int(siteId), int(userId), util.MessageEventRegisterActivity, tradeNo, cfg.RewardAmount, "", nil); err != nil {
@@ -3072,21 +3244,41 @@ func (s *sBalance) tryGrantDepositBonus(ctx context.Context, siteId int, userId 
 		return
 	}
 
-	tradeNo, err := s.grantDepositBonus(ctx, siteId, int32(userId), bonusAmount)
-	if err != nil {
-		g.Log().Warningf(ctx, "发放充值送活动失败: %v", err)
-		return
-	}
-
-	if _, err := model.Data(g.Map{
+	// 原子占位：先以 InsertIgnore 抢占「站点+用户」唯一记录，依赖 balance_deposit_reward
+	// 的 uk_site_user 唯一索引保证同一用户仅能发放一次；rowsAffected==0 说明已被发放/正在发放，跳过。
+	// 这样即使前面的 count() 判重在并发下失效，也不会重复发放。
+	claimRes, err := model.Data(g.Map{
 		"site_id":      siteId,
 		"user_id":      userId,
 		"date":         gtime.Now().Format("Y-m-d"),
 		"bonus_amount": bonusAmount,
-		"trade_no":     tradeNo,
+		"trade_no":     "",
 		"created_at":   gtime.Now(),
-	}).Insert(); err != nil {
-		g.Log().Warningf(ctx, "记录充值送活动发放失败: %v", err)
+	}).InsertIgnore()
+	if err != nil {
+		g.Log().Warningf(ctx, "占位充值送活动发放记录失败: %v", err)
+		return
+	}
+	if affected, _ := claimRes.RowsAffected(); affected == 0 {
+		g.Log().Infof(ctx, "充值送活动已发放（唯一键判重），跳过: user_id=%d", userId)
+		return
+	}
+
+	tradeNo, err := s.grantDepositBonus(ctx, siteId, int32(userId), bonusAmount)
+	if err != nil {
+		g.Log().Warningf(ctx, "发放充值送活动失败: %v", err)
+		// 发放失败：回滚占位记录，允许后续重试
+		if _, delErr := model.Where("site_id", siteId).Where("user_id", userId).Where("trade_no", "").Delete(); delErr != nil {
+			g.Log().Warningf(ctx, "回滚充值送活动占位记录失败: user_id=%d, err=%v", userId, delErr)
+		}
+		return
+	}
+
+	if _, err := model.Where("site_id", siteId).Where("user_id", userId).Data(g.Map{
+		"trade_no":   tradeNo,
+		"updated_at": gtime.Now(),
+	}).Update(); err != nil {
+		g.Log().Warningf(ctx, "回填充值送活动发放流水号失败: user_id=%d, err=%v", userId, err)
 	}
 
 	if err := util.SendUserMessage(ctx, siteId, userId, util.MessageEventDepositActivity, tradeNo, bonusAmount, "", nil); err != nil {
@@ -3864,6 +4056,7 @@ func (s *sBalance) getSigninDayRewards(ctx context.Context, siteId int, activity
 		return rewardMap, nil
 	}
 
+	ctx = grpc_client.WithSiteContext(ctx, siteId)
 	client, conn, err := grpc_client.GetSiteClient(ctx)
 	if err != nil {
 		return nil, err

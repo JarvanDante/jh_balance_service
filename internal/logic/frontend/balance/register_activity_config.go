@@ -62,6 +62,7 @@ func getRegisterActivityParams(ctx context.Context, siteId int) (*registerActivi
 	}
 	registerConfigCache.RUnlock()
 
+	ctx = grpc_client.WithSiteContext(ctx, siteId)
 	client, conn, err := grpc_client.GetSiteClient(ctx)
 	if err != nil {
 		registerConfigCache.Lock()

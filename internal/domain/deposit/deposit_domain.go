@@ -176,18 +176,31 @@ func (d *DepositDomain) validateDepositRange(amount, min, max float64) error {
 }
 
 // UpdateDepositOrderInfo 更新充值订单信息
+// 业务写与 outbox 写必须落在同一事务，避免出现「订单已更新但 outbox 未写入」或
+// 「outbox 写入后订单更新回滚」导致的数据/消息不一致。
 func (d *DepositDomain) UpdateDepositOrderInfo(ctx context.Context, tradeNo, sysTradeNo, channelCardNo, channelName, imageUrl string) error {
-	if err := dao.BalanceLogPayment.UpdateDepositOrderInfo(ctx, tradeNo, sysTradeNo, channelCardNo, channelName, imageUrl); err != nil {
-		return err
-	}
-	var updatedPayment entity.BalanceLogPayment
-	if err := dao.BalanceLogPayment.Ctx(ctx).
-		Where("trade_no", tradeNo).
-		Scan(&updatedPayment); err != nil {
-		return err
-	}
-	if err := logic_mq_outbox.MqOutbox().CreateBalanceLogPaymentOutbox(ctx, nil, "", &updatedPayment); err != nil {
-		return err
-	}
-	return nil
+	return dao.BalanceLogPayment.Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		if _, err := dao.BalanceLogPayment.Ctx(ctx).TX(tx).
+			Where("trade_no", tradeNo).
+			Update(g.Map{
+				"sys_trade_no":    sysTradeNo,
+				"channel_card_no": channelCardNo,
+				"channel_name":    channelName,
+				"image_url":       imageUrl,
+				"updated_at":      gtime.Now(),
+			}); err != nil {
+			return err
+		}
+
+		var updatedPayment entity.BalanceLogPayment
+		if err := dao.BalanceLogPayment.Ctx(ctx).TX(tx).
+			Where("trade_no", tradeNo).
+			Scan(&updatedPayment); err != nil {
+			return err
+		}
+		if err := logic_mq_outbox.MqOutbox().CreateBalanceLogPaymentOutbox(ctx, tx, "", &updatedPayment); err != nil {
+			return err
+		}
+		return nil
+	})
 }

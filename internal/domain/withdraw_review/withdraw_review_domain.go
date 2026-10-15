@@ -74,8 +74,10 @@ func (d *WithdrawReviewDomain) ProcessWithdrawReview(tx gdb.TX, req *ReviewReque
 		}
 	}
 
-	// 3. 查询用户余额
-	balanceUser, err := dao.BalanceUser.GetByUserIdWithTx(d.ctx, tx, int64(withdraw.SiteId), int64(withdraw.UserId))
+	// 3. 查询用户余额（加行锁 FOR UPDATE）
+	// 提现失败/成功处理会基于此余额做「绝对值写回」，必须持行锁读，避免与其它入账/出账
+	// 并发时发生丢失更新。
+	balanceUser, err := dao.BalanceUser.GetByUserIdWithTxLock(d.ctx, tx, int64(withdraw.SiteId), int64(withdraw.UserId))
 	if err != nil {
 		return nil, fmt.Errorf("查找用户余额记录失败: %v", err)
 	}

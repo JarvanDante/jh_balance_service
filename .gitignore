@@ -12,6 +12,8 @@ log/
 composer.lock
 gitpush.sh
 pkg/
+/jh_balance_service
+/jh_balance_service.orig
 bin/
 cbuild
 */.DS_Store

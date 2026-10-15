@@ -59,6 +59,21 @@ func (d balanceUserDao) GetByUserIdWithTx(ctx context.Context, tx gdb.TX, siteId
 	return &balanceUser, nil
 }
 
+// GetByUserIdWithTxLock 根据用户ID查询余额（支持事务 + 行锁 FOR UPDATE）
+// 用于「读取余额 -> 计算绝对值 -> 写回」的场景，避免并发丢失更新。
+func (d balanceUserDao) GetByUserIdWithTxLock(ctx context.Context, tx gdb.TX, siteId, userId int64) (*entity.BalanceUser, error) {
+	var balanceUser entity.BalanceUser
+	err := d.Ctx(ctx).TX(tx).
+		Where("site_id", siteId).
+		Where("user_id", userId).
+		LockUpdate().
+		Scan(&balanceUser)
+	if err != nil {
+		return nil, err
+	}
+	return &balanceUser, nil
+}
+
 // FreezeBalance 冻结余额（从 balance 转到 balance_frozen）
 func (d balanceUserDao) FreezeBalance(ctx context.Context, siteId, userId int64, amount float64) error {
 	_, err := d.Ctx(ctx).

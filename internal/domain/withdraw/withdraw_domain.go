@@ -3,6 +3,7 @@ package withdraw
 import (
 	"context"
 
+	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 
@@ -119,7 +120,7 @@ func (d *WithdrawDomain) executeWithdrawTransaction(
 	userBank *entity.UserBank,
 	siteWithdraw *entity.SiteWithdraw,
 ) error {
-	return dao.BalanceUser.Transaction(ctx, func(ctx context.Context) error {
+	return dao.BalanceUser.Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
 		// 1. 查询并锁定用户余额
 		balanceUser, err := dao.BalanceUser.GetByUserIdWithLock(ctx, req.SiteId, req.UserId)
 		if err != nil {
@@ -176,7 +177,7 @@ func (d *WithdrawDomain) executeWithdrawTransaction(
 			Scan(&balanceLog); err != nil {
 			return gerror.Wrap(err, "查询余额日志失败")
 		}
-		if err := logic_mq_outbox.MqOutbox().CreateBalanceLogOutbox(ctx, nil, "", &balanceLog); err != nil {
+		if err := logic_mq_outbox.MqOutbox().CreateBalanceLogOutbox(ctx, tx, "", &balanceLog); err != nil {
 			return gerror.Wrap(err, "创建余额日志Outbox失败")
 		}
 

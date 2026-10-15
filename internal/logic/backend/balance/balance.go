@@ -1559,9 +1559,10 @@ func (s *sBalance) ManualUserBalance(ctx context.Context, req *v1.ManualUserBala
 
 	// 开启事务 - 使用 Ctx(ctx) 保持动态数据库路由
 	err := dao.BalanceUser.Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
-		// 查询用户当前余额
+		// 查询用户当前余额（加行锁 FOR UPDATE）
+		// 后续基于该余额做「绝对值 ±money 写回」，必须持行锁读，避免并发丢失更新。
 		var balance entity.BalanceUser
-		err := dao.BalanceUser.Ctx(ctx).TX(tx).Where("site_id = ? AND user_id = ?", siteId, req.UserId).Scan(&balance)
+		err := dao.BalanceUser.Ctx(ctx).TX(tx).Where("site_id = ? AND user_id = ?", siteId, req.UserId).LockUpdate().Scan(&balance)
 		if err != nil {
 			return fmt.Errorf("查询用户余额失败: %v", err)
 		}
