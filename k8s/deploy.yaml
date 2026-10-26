@@ -71,3 +71,78 @@ spec:
               port: grpc
             initialDelaySeconds: 15
             periodSeconds: 10
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jh-balance-outbox-relay
+  namespace: jh-prod
+  labels:
+    app: jh-balance-outbox-relay
+    env: prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jh-balance-outbox-relay
+  template:
+    metadata:
+      labels:
+        app: jh-balance-outbox-relay
+        env: prod
+    spec:
+      containers:
+        - name: outbox-relay
+          image: jh_balance_service:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/app/jh_balance_service", "outbox-relay"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jh-balance-mq-consumer
+  namespace: jh-prod
+  labels:
+    app: jh-balance-mq-consumer
+    env: prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jh-balance-mq-consumer
+  template:
+    metadata:
+      labels:
+        app: jh-balance-mq-consumer
+        env: prod
+    spec:
+      containers:
+        - name: mq-consumer
+          image: jh_balance_service:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/app/jh_balance_service", "mq-consumer"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jh-balance-flow-consumer
+  namespace: jh-prod
+  labels:
+    app: jh-balance-flow-consumer
+    env: prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jh-balance-flow-consumer
+  template:
+    metadata:
+      labels:
+        app: jh-balance-flow-consumer
+        env: prod
+    spec:
+      containers:
+        - name: flow-consumer
+          image: jh_balance_service:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/app/jh_balance_service", "flow-consumer"]
