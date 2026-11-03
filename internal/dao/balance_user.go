@@ -75,8 +75,8 @@ func (d balanceUserDao) GetByUserIdWithTxLock(ctx context.Context, tx gdb.TX, si
 }
 
 // FreezeBalance 冻结余额（从 balance 转到 balance_frozen）
-// [AI] 金额改为 ? 占位参数绑定（不再 fmt.Sprintf 拼接 SQL）；增加 balance >= amount 条件，
-// [AI] 并在影响行数为 0 时返回错误（余额不足/记录不存在），防止余额被扣成负数或静默成功。
+// 金额改为 ? 占位参数绑定（不再 fmt.Sprintf 拼接 SQL）；增加 balance >= amount 条件，
+// 并在影响行数为 0 时返回错误（余额不足/记录不存在），防止余额被扣成负数或静默成功。
 func (d balanceUserDao) FreezeBalance(ctx context.Context, siteId, userId int64, amount float64) error {
 	return d.guardedUpdate(ctx, siteId, userId, amount, "balance", g.Map{
 		"balance":        &gdb.Counter{Field: "balance", Value: -amount},
@@ -86,7 +86,7 @@ func (d balanceUserDao) FreezeBalance(ctx context.Context, siteId, userId int64,
 }
 
 // UnfreezeBalance 解冻余额（从 balance_frozen 转回 balance）
-// [AI] 参数化金额；增加 balance_frozen >= amount 条件，影响行数为 0 时返回错误。
+// 参数化金额；增加 balance_frozen >= amount 条件，影响行数为 0 时返回错误。
 func (d balanceUserDao) UnfreezeBalance(ctx context.Context, siteId, userId int64, amount float64) error {
 	return d.guardedUpdate(ctx, siteId, userId, amount, "balance_frozen", g.Map{
 		"balance":        &gdb.Counter{Field: "balance", Value: amount},
@@ -96,7 +96,7 @@ func (d balanceUserDao) UnfreezeBalance(ctx context.Context, siteId, userId int6
 }
 
 // DeductFrozen 扣除冻结金额（提现成功时）
-// [AI] 参数化金额；增加 balance_frozen >= amount 条件，影响行数为 0 时返回错误。
+// 参数化金额；增加 balance_frozen >= amount 条件，影响行数为 0 时返回错误。
 func (d balanceUserDao) DeductFrozen(ctx context.Context, siteId, userId int64, amount float64) error {
 	return d.guardedUpdate(ctx, siteId, userId, amount, "balance_frozen", g.Map{
 		"balance_frozen": &gdb.Counter{Field: "balance_frozen", Value: -amount},
@@ -104,8 +104,8 @@ func (d balanceUserDao) DeductFrozen(ctx context.Context, siteId, userId int64, 
 	}, "扣除冻结金额失败：冻结余额不足或用户余额记录不存在")
 }
 
-// [AI] guardedUpdate 公共实现：金额必须 > 0；WHERE <guardField> >= ? 防止扣成负数；
-// [AI] gdb.Counter 由 GoFrame 生成 "field = field + ?" 参数化 SQL；RowsAffected==0 视为失败。
+// guardedUpdate 公共实现：金额必须 > 0；WHERE <guardField> >= ? 防止扣成负数；
+// gdb.Counter 由 GoFrame 生成 "field = field + ?" 参数化 SQL；RowsAffected==0 视为失败。
 func (d balanceUserDao) guardedUpdate(ctx context.Context, siteId, userId int64, amount float64, guardField string, data g.Map, failMsg string) error {
 	if amount <= 0 {
 		return gerror.Newf("金额非法: %v", amount)
