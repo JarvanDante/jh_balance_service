@@ -78,7 +78,12 @@ func (d balanceUserDao) GetByUserIdWithTxLock(ctx context.Context, tx gdb.TX, si
 // 金额改为 ? 占位参数绑定（不再 fmt.Sprintf 拼接 SQL）；增加 balance >= amount 条件，
 // 并在影响行数为 0 时返回错误（余额不足/记录不存在），防止余额被扣成负数或静默成功。
 func (d balanceUserDao) FreezeBalance(ctx context.Context, siteId, userId int64, amount float64) error {
-	return d.guardedUpdate(ctx, siteId, userId, amount, "balance", g.Map{
+	return d.FreezeBalanceTx(ctx, nil, siteId, userId, amount)
+}
+
+// FreezeBalanceTx 冻结余额（显式事务版本），tx 为 nil 时等同 FreezeBalance。
+func (d balanceUserDao) FreezeBalanceTx(ctx context.Context, tx gdb.TX, siteId, userId int64, amount float64) error {
+	return d.guardedUpdateTx(ctx, tx, siteId, userId, amount, "balance", g.Map{
 		"balance":        &gdb.Counter{Field: "balance", Value: -amount},
 		"balance_frozen": &gdb.Counter{Field: "balance_frozen", Value: amount},
 		"updated_at":     gtime.Now(),
@@ -107,10 +112,19 @@ func (d balanceUserDao) DeductFrozen(ctx context.Context, siteId, userId int64, 
 // guardedUpdate 公共实现：金额必须 > 0；WHERE <guardField> >= ? 防止扣成负数；
 // gdb.Counter 由 GoFrame 生成 "field = field + ?" 参数化 SQL；RowsAffected==0 视为失败。
 func (d balanceUserDao) guardedUpdate(ctx context.Context, siteId, userId int64, amount float64, guardField string, data g.Map, failMsg string) error {
+	return d.guardedUpdateTx(ctx, nil, siteId, userId, amount, guardField, data, failMsg)
+}
+
+// guardedUpdateTx 同 guardedUpdate，tx 非 nil 时在该事务上执行。
+func (d balanceUserDao) guardedUpdateTx(ctx context.Context, tx gdb.TX, siteId, userId int64, amount float64, guardField string, data g.Map, failMsg string) error {
 	if amount <= 0 {
 		return gerror.Newf("金额非法: %v", amount)
 	}
-	res, err := d.Ctx(ctx).
+	m := d.Ctx(ctx)
+	if tx != nil {
+		m = m.TX(tx)
+	}
+	res, err := m.
 		Where("site_id", siteId).
 		Where("user_id", userId).
 		WhereGTE(guardField, amount).

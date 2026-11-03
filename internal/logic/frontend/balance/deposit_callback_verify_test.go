@@ -151,3 +151,23 @@ func TestVerifyDepositCallback_VerifyDisabledAmountOnly(t *testing.T) {
 		t.Fatal("expected amount check to still reject when verify disabled")
 	}
 }
+
+func TestVerifyDepositCallback_AmountTolerance(t *testing.T) {
+	setupCallbackTest(t, false) // 仅测金额比对，不查库
+	cases := []struct {
+		amount float64
+		want   bool
+	}{
+		{100, true},
+		{100.004, true},
+		{99.996, true},
+		{100.01, false}, // 旧逻辑允许 +0.01，会多入账
+		{99.99, false},
+		{50, false}, // 少付同样拒绝
+	}
+	for _, c := range cases {
+		if got := New().verifyDepositCallback(context.Background(), newReq(c.amount, ""), order); got != c.want {
+			t.Errorf("amount=%v: got %v, want %v", c.amount, got, c.want)
+		}
+	}
+}

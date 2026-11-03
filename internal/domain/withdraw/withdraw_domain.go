@@ -2,6 +2,7 @@ package withdraw
 
 import (
 	"context"
+	"math"
 
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/errors/gerror"
@@ -122,7 +123,12 @@ func (d *WithdrawDomain) executeWithdrawTransaction(
 ) error {
 	return dao.BalanceUser.Ctx(ctx).Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
 		// 1. 查询并锁定用户余额
-		balanceUser, err := dao.BalanceUser.GetByUserIdWithLock(ctx, req.SiteId, req.UserId)
+		var balanceUser *entity.BalanceUser
+		err := dao.BalanceUser.Ctx(ctx).TX(tx).
+			Where("site_id", req.SiteId).
+			Where("user_id", req.UserId).
+			LockUpdate().
+			Scan(&balanceUser)
 		if err != nil {
 			return gerror.Wrap(err, "查询用户余额失败")
 		}
@@ -143,7 +149,7 @@ func (d *WithdrawDomain) executeWithdrawTransaction(
 		newBalanceFrozen := balanceUser.BalanceFrozen + req.Money
 
 		// 4. 冻结余额
-		if err := dao.BalanceUser.FreezeBalance(ctx, req.SiteId, req.UserId, req.Money); err != nil {
+		if err := dao.BalanceUser.FreezeBalanceTx(ctx, tx, req.SiteId, req.UserId, req.Money); err != nil {
 			return gerror.Wrap(err, "冻结余额失败")
 		}
 
@@ -201,9 +207,10 @@ func (d *WithdrawDomain) executeWithdrawTransaction(
 
 // checkBalance 检查余额是否足够
 func (d *WithdrawDomain) checkBalance(balance, needAmount float64) error {
-	// 四舍五入到2位小数后比较，避免浮点数精度问题
-	balanceRounded := float64(int(balance*100+0.5)) / 100
-	moneyRounded := float64(int(needAmount*100+0.5)) / 100
+	// 四舍五入到4位小数后比较（与数据库 decimal 精度及 FreezeBalance 的 balance >= amount 守卫一致），
+	// 避免 2 位舍入后判定通过、但数据库守卫拒绝的边界不一致。
+	balanceRounded := math.Round(balance*10000) / 10000
+	moneyRounded := math.Round(needAmount*10000) / 10000
 
 	g.Log().Infof(context.Background(), "余额检查: 当前余额=%.2f, 需要=%.2f", balance, needAmount)
 

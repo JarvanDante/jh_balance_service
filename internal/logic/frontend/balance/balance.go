@@ -109,7 +109,7 @@ func (s *sBalance) InitBalanceUser(ctx context.Context, req *v1.InitBalanceUserR
 
 	if err != nil {
 		errMsg := fmt.Sprintf("查询用户余额失败: %v", err)
-		g.Log().Errorf(ctx, errMsg)
+		g.Log().Error(ctx, errMsg)
 		return &v1.InitBalanceUserRes{
 			Success: false,
 			Message: errMsg,
@@ -147,7 +147,7 @@ func (s *sBalance) InitBalanceUser(ctx context.Context, req *v1.InitBalanceUserR
 	result, err := dao.BalanceUser.Ctx(ctx).Insert(balanceUser)
 	if err != nil {
 		errMsg := fmt.Sprintf("插入用户余额失败: %v", err)
-		g.Log().Errorf(ctx, errMsg)
+		g.Log().Error(ctx, errMsg)
 		return &v1.InitBalanceUserRes{
 			Success: false,
 			Message: errMsg,
@@ -2053,7 +2053,6 @@ func (s *sBalance) getChangeType(tradeType int) int32 {
 	}
 }
 
-// recordCallbackFailure 记录回调失败日志（同步）
 // verifyDepositCallback 充值回调安全校验：金额比对 + 回调验签。
 //
 // 校验项：
@@ -2068,13 +2067,13 @@ func (s *sBalance) getChangeType(tradeType int) int32 {
 // 因此签名校验也只能基于这四个字段（不含 sign）重算。若 MG 平台实际签名字段集合与此不同，
 // 需在网关侧补齐原始回调参数后再校验（见 mg.VerifyCallbackSign 的 TODO）。
 func (s *sBalance) verifyDepositCallback(ctx context.Context, req *v1.DepositCallbackReq, paymentLog *entity.BalanceLog) bool {
-	// 1. 金额比对（防止伪造金额）：回调金额不得大于订单金额；允许 0.01 的浮点误差。
+	// 1. 金额比对（防止伪造金额）：回调金额必须与订单金额一致（按 2 位小数精度，容差 < 0.005）。
 	if req.ActualAmount <= 0 {
 		g.Log().Errorf(ctx, "充值回调金额非法: order_sn=%s, actual_amount=%.4f", req.OrderSn, req.ActualAmount)
 		return false
 	}
-	if req.ActualAmount > paymentLog.Money+0.01 {
-		g.Log().Errorf(ctx, "充值回调金额大于订单金额，拒绝: order_sn=%s, callback=%.4f, order=%.4f",
+	if math.Abs(req.ActualAmount-paymentLog.Money) >= 0.005 {
+		g.Log().Errorf(ctx, "充值回调金额与订单金额不一致，拒绝: order_sn=%s, callback=%.4f, order=%.4f",
 			req.OrderSn, req.ActualAmount, paymentLog.Money)
 		return false
 	}
@@ -2232,8 +2231,9 @@ func (s *sBalance) DepositCallback(ctx context.Context, req *v1.DepositCallbackR
 
 	time2 := time.Now()
 
-	// 4. 实际支付金额
-	actualAmount := req.ActualAmount
+	// 4. 入账金额：以本地订单金额为准（回调金额已在 verifyDepositCallback 中校验一致），
+	// 避免按回调金额入账导致多入账。
+	actualAmount := paymentLog.Money
 	if actualAmount <= 0 {
 		actualAmount = 0
 	}
@@ -4037,7 +4037,7 @@ func (s *sBalance) getTodayValidBetAmount(ctx context.Context, siteId int, userI
 		if res != nil && res.GetMessage() != "" {
 			msg = res.GetMessage()
 		}
-		return 0, fmt.Errorf(msg)
+		return 0, errors.New(msg)
 	}
 
 	valid := gconv.Float64(res.GetStats().GetValidAmount())
