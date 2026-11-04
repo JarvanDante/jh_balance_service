@@ -131,6 +131,7 @@ func InitConsul() (*api.Client, error) {
 func RegisterService() error {
 	ctx := context.Background()
 	serviceName := g.Cfg().MustGet(ctx, "consul.serviceName", "balance_service").String()
+	serviceName = EnvServiceName(serviceName)
 	servicePort := g.Cfg().MustGet(ctx, "consul.servicePort", 8000).Int()
 
 	// 自动获取服务地址
@@ -182,7 +183,7 @@ func GetServiceAddr(serviceName string) (string, error) {
 		return "", fmt.Errorf("Consul 客户端未初始化")
 	}
 
-	services, _, err := client.Health().Service(serviceName, "", true, nil)
+	services, _, err := client.Health().Service(EnvServiceName(serviceName), "", true, nil)
 	if err != nil {
 		return "", fmt.Errorf("从 Consul 获取服务失败: %v", err)
 	}
