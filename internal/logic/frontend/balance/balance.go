@@ -95,7 +95,16 @@ func (s *sBalance) InitBalanceUser(ctx context.Context, req *v1.InitBalanceUserR
 	}
 
 	if req.Currency == "" {
-		req.Currency = "USD" // 默认货币
+		// 未传币种时按站点配置补齐，不再使用写死的默认币种
+		currency, cerr := registry.ResolveSiteCurrency("", "", int64(req.SiteId))
+		if cerr != nil {
+			g.Log().Errorf(ctx, "确定站点币种失败: site_id=%d err=%v", req.SiteId, cerr)
+			return &v1.InitBalanceUserRes{
+				Success: false,
+				Message: "站点未配置币种",
+			}, nil
+		}
+		req.Currency = currency
 	}
 
 	g.Log().Infof(ctx, "参数验证通过，开始查询用户余额是否存在")
@@ -233,16 +242,18 @@ func (s *sBalance) RefreshBalance(ctx context.Context, req *v1.RefreshBalanceReq
 		// 获取用户信息
 		username := middleware.GetUsernameFromContext(ctx)
 		siteCode, _ := middleware.GetSiteCodeFromContext(ctx)
-		currency := middleware.GetCurrencyFromContext(ctx)
-		if currency == "" {
-			currency = "MMK(K)"
-		}
+		currency, curErr := registry.ResolveSiteCurrency(middleware.GetCurrencyFromContext(ctx), siteCode, int64(siteId))
 
 		g.Log().Infof(ctx, "准备调用 game 服务: user_id=%d, site_id=%d, username=%s, site_code=%s, currency=%s",
 			userId, siteId, username, siteCode, currency)
 
 		// 调用 game 服务查询三方游戏余额
 		gameClient, conn, err := grpc_client.GetGameClient(ctx)
+		if err == nil && curErr != nil {
+			// 无法确定站点币种时不调用三方，只返回本地余额
+			conn.Close()
+			err = curErr
+		}
 		if err != nil {
 			g.Log().Errorf(ctx, "获取 Game 客户端失败: %v", err)
 			// 不影响主流程，继续返回本地余额
